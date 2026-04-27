@@ -1,0 +1,11 @@
+63f7b34db8d8cdea90c76aacccf841ec
+::res://::1777298798
+icon.svg::CompressedTexture2D::6838342076724294928::1777294126::1777294881::1::::<><><>0<>0<>66f00f22d216813b6d9da723f03cd6e0<>res://.godot/imported/icon.svg-218a8f2b3041327d8a5756f3a245f83b.ctex::
+::res://scenes/::1777294712
+main.tscn::PackedScene::4185508416865829714::1777294710::0::1::::<><><>0<>0<><>::res://scripts/main.gd
+::res://scripts/::1777294958
+main.gd::GDScript::8947832681904811762::1777294912::0::1::::<>Control<><>0<>0<><>::
+presets.gd::GDScript::2454001439332485090::1777294957::0::1::::Presets<>RefCounted<><>0<>0<><>::
+sound_data.gd::GDScript::2676601357612128016::1777294198::0::1::::SoundData<>RefCounted<><>0<>0<><>::
+synth.gd::GDScript::6290378039969680893::1777294484::0::1::::Synth<>RefCounted<><>0<>0<><>::
+waveform_display.gd::GDScript::318323865639961799::1777294393::0::1::::WaveformDisplay<>Control<><>0<>0<><>::
