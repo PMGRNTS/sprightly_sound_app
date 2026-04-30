@@ -11,6 +11,18 @@ const SAMPLE_RATE: int = 44100
 
 # ── Primitives ─────────────────────────────────────────────────────
 
+# Returns one cycle of a unit-amplitude waveform sampled at `phase` ∈ [0, 1).
+# All branches output in [-1, 1]. Mode IDs match SoundData.MODES order.
+#
+#   0 SQR — 50% duty square: +1 for phase < 0.5, else -1.
+#   1 SAW — rising sawtooth: -1 at phase 0, +1 at phase 1.
+#   2 TRI — symmetric triangle: -1 → +1 → -1 with peak at phase 0.5.
+#         First half rises:  4·phase − 1     (= -1 at 0, 0 at 0.25, +1 at 0.5)
+#         Second half falls: 3 − 4·phase     (= +1 at 0.5, 0 at 0.75, -1 at 1)
+#         The two halves meet continuously at phase 0.5 (both yield +1).
+#   3 SIN — pure sine over one full period (sin(2π·phase)).
+#   4 NSE — uncorrelated white noise. Phase is ignored here; the source loop
+#           handles per-voice band-limiting (see generate_dry_samples()).
 static func waveform_at(mode: int, phase: float) -> float:
 	match mode:
 		0:
@@ -107,6 +119,8 @@ static func generate_dry_samples(p: Dictionary) -> PackedFloat32Array:
 		var base_freq: float = pitch
 		if pitch_env_enabled:
 			var p_env: float = envelope_value(progress, p_pitch_attack, p_pitch_decay)
+			# pitchEnv is normalised [-1, 1]; the ×2.0 below makes a full ±1
+			# value sweep ±2 octaves at envelope peak (pow(2, ±2)).
 			base_freq = base_freq * pow(2.0, p_pitch_env * p_env * 2.0)
 
 		if arp_enabled:
@@ -131,6 +145,20 @@ static func generate_dry_samples(p: Dictionary) -> PackedFloat32Array:
 		sample /= float(voice)
 
 		out[i] = sample
+
+	# Noise mode: one-pole IIR lowpass to soften the harsh top end of
+	# uncorrelated randf(). Form is y[n] = a·y[n-1] + (1-a)·x[n]; with
+	# a = 0.25 the −3 dB point sits near 12 kHz at 44.1 kHz SR — audibly
+	# transparent on bright noise, but sands off the brittle hash that
+	# stacks up when multiple voices each emit independent white noise.
+	# Tonal modes (square/saw/tri/sine) are unaffected.
+	if p_mode == 4:
+		var lp_a: float = 0.25
+		var lp_prev: float = 0.0
+		for i in total:
+			lp_prev = lp_a * lp_prev + (1.0 - lp_a) * out[i]
+			out[i] = lp_prev
+
 	return out
 
 
@@ -159,6 +187,9 @@ static func apply_drive(samples: PackedFloat32Array, p: Dictionary) -> PackedFlo
 	var n: int = samples.size()
 	var out: PackedFloat32Array = PackedFloat32Array()
 	out.resize(n)
+	# Drive amount [0, 1] → input gain [1, 10]. With tanh saturation the
+	# top end is heavy (~20 dB pre-gain) — `norm = tanh(drive_lin)` rescales
+	# the wet signal so peak amplitude stays near unity regardless of drive.
 	var drive_lin: float = 1.0 + float(p.driveAmount) * 9.0
 	var norm: float = tanh(drive_lin)
 	var wet: float = float(p.driveMix)
@@ -181,7 +212,14 @@ static func apply_filter(samples: PackedFloat32Array, p: Dictionary) -> PackedFl
 	out.resize(n)
 	var lp: float = 0.0
 	var bp: float = 0.0
+	# Resonance [0, 1] → damping coefficient [2.0, 0.1]. Damping ≈ 1/Q in the
+	# Chamberlin form, so filterRes=0 gives Q≈0.5 (no peak), filterRes=1 gives
+	# Q≈10 (sharp resonance, just under self-oscillation). The 1.9 (vs 2.0)
+	# leaves a safety margin so q1 never reaches 0 even with float rounding.
 	var q1: float = 2.0 - float(p.filterRes) * 1.9
+	# Chamberlin SVF is stable up to fc ≈ SR/4 (≈11 kHz @ 44.1k); beyond that
+	# the trapezoidal integrator alias-folds the cutoff and the resonance
+	# blows up. fc_max keeps us well clear of that boundary.
 	var fc_max: float = float(SAMPLE_RATE) * 0.25
 	var type_id: int = int(p.filterType)
 	var base_cutoff: float = float(p.filterCutoff)
@@ -193,8 +231,13 @@ static func apply_filter(samples: PackedFloat32Array, p: Dictionary) -> PackedFl
 	for i in n:
 		var progress: float = float(i) * inv_n
 		var env: float = envelope_value(progress, env_attack, env_decay)
+		# filterEnv is [-1, 1]; the ×4.0 below maps a full envelope to a
+		# ±4-octave cutoff sweep at the peak — wide enough for classic
+		# "wub" and snare-like tightening without runaway.
 		var cutoff: float = base_cutoff * pow(2.0, env_amount * env * 4.0)
 		var fc_clamped: float = clamp(cutoff, 20.0, fc_max)
+		# Chamberlin SVF tuning coefficient. 2·sin(π·fc/SR) is the standard
+		# trapezoidal approximation of the analog tuning frequency.
 		var f: float = 2.0 * sin(PI * fc_clamped / float(SAMPLE_RATE))
 
 		var hp: float = samples[i] - q1 * bp - lp
@@ -261,17 +304,33 @@ static func apply_delay(samples: PackedFloat32Array, p: Dictionary) -> PackedFlo
 	for i in samples.size():
 		out[i] = samples[i] * dry_gain
 
+	# Each echo passes through a one-pole IIR lowpass before being summed in.
+	# Real tape/spring delays lose a few kHz on every round trip; without this
+	# the repeats stay as bright as the source and feel brittle. We apply the
+	# filter cumulatively (in place) so the Nth repeat has been LP'd N times,
+	# producing the natural "echo getting warmer as it dies" curve.
+	# damp = 0.5 places the per-pass −3 dB point near 5 kHz at 44.1 kHz SR —
+	# musical without muddying the first repeat.
+	var damp: float = 0.5
+	var filtered: PackedFloat32Array = samples.duplicate()
+
 	var lvl: float = mix
 	var offset: int = delay_samples
 	for r in tail_repeats + 1:
 		if lvl < min_level:
 			break
+		if r > 0:
+			# Apply one more LP pass before the next repeat (first echo is dry).
+			var prev: float = 0.0
+			for i in filtered.size():
+				prev = damp * prev + (1.0 - damp) * filtered[i]
+				filtered[i] = prev
 		var lim: int = samples.size()
 		for i in lim:
 			var dst: int = i + offset
 			if dst >= total_len:
 				break
-			out[dst] += samples[i] * lvl
+			out[dst] += filtered[i] * lvl
 		lvl *= feedback
 		offset += delay_samples
 	return out
@@ -302,7 +361,11 @@ static func apply_crush(samples: PackedFloat32Array, p: Dictionary) -> PackedFlo
 
 # ── Master bus ─────────────────────────────────────────────────────
 
-# Schroeder reverb: 4 parallel comb filters into 2 series allpasses.
+# Schroeder reverb: 4 parallel comb filters into 2 series allpasses. The
+# comb / allpass delay lengths are Schroeder's classic "Freeverb-ish" prime
+# values (~25–31 ms combs, 5–13 ms allpasses) chosen so their sums and
+# differences don't share strong common factors — that decorrelates the
+# echoes and avoids the metallic ringing a single comb produces.
 const REVERB_COMB_DELAYS: Array[int] = [1116, 1188, 1277, 1356]
 const REVERB_AP_DELAYS: Array[int] = [225, 556]
 
@@ -312,8 +375,14 @@ static func apply_reverb(samples: PackedFloat32Array, master: Dictionary) -> Pac
 		return samples
 
 	var size: float = float(master.reverbSize)
+	# Comb feedback determines RT60. 0.7…0.98 maps "small room" → "long hall";
+	# we cap at 0.98 (size=1) because ≥1.0 makes the comb self-oscillate.
 	var comb_feedback: float = 0.7 + size * 0.28
+	# Allpass feedback fixed at 0.5 — the canonical Schroeder value. It
+	# diffuses without colouring; raising it makes the tail flutter.
 	var ap_feedback: float = 0.5
+	# Tail length: 0.5 s (size=0) up to 3.0 s (size=1). Matches typical
+	# game-friendly reverb ranges.
 	var tail_samples: int = int(float(SAMPLE_RATE) * (0.5 + size * 2.5))
 	var total_len: int = samples.size() + tail_samples
 	var out: PackedFloat32Array = PackedFloat32Array()
@@ -333,6 +402,9 @@ static func apply_reverb(samples: PackedFloat32Array, master: Dictionary) -> Pac
 		ap_bufs.append(buf)
 
 	var wet: float = reverb_mix
+	# Soft dry compensation: as wet rises we duck the dry only 40% to keep
+	# perceived loudness roughly constant (full ducking would feel like a
+	# sidechain pump, no ducking would clip on dense material).
 	var dry: float = 1.0 - wet * 0.4
 
 	var n_in: int = samples.size()

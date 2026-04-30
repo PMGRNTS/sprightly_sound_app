@@ -11,18 +11,9 @@ extends Control
 #   • Channel tabs, mix rows, and bin rows ARE rebuilt on change because
 #     their counts are dynamic.
 
-# ── Palette ────────────────────────────────────────────────────────
-const COLOR_BG          := Color("#14110d")
-const COLOR_PANEL       := Color("#1c1814")
-const COLOR_INSET       := Color("#0e0b08")
-const COLOR_BORDER      := Color("#3a342a")
-const COLOR_BORDER_HI   := Color("#5c5345")
-const COLOR_TEXT        := Color("#e8dcc4")
-const COLOR_TEXT_MUTE   := Color("#8a8275")
-const COLOR_TEXT_DIM    := Color("#5c5345")
-const COLOR_ACCENT      := Color("#ff8c1a")
-
-const BIN_PATH := "user://bin.json"
+# Theme tokens (colour palette, font sizes, status-pill timing) live in
+# scripts/palette.gd — referenced as Palette.BG, Palette.ACCENT, etc.
+# Bin disk persistence lives in scripts/bin_store.gd (BinStore class).
 
 # ── State ──────────────────────────────────────────────────────────
 var sound: Dictionary
@@ -36,6 +27,45 @@ var status_token: int = 0               # increments per flash to ignore stale r
 # ── Persistent nodes ───────────────────────────────────────────────
 var audio_player: AudioStreamPlayer
 var save_dialog: FileDialog
+# Coalesces rapid slider drags into a single render. Started/restarted
+# by _request_re_render(); cancelled by any direct _re_render() call.
+var render_timer: Timer
+
+# Hover-preview infra (2B-2). A second AudioStreamPlayer auditions a
+# preset against a CLEAN default sound on hover so the user hears just
+# the preset's character. Debounced so brushing past doesn't fire.
+var hover_player: AudioStreamPlayer
+var hover_timer: Timer
+var hover_pending_entry: Dictionary = {}
+
+# Save-preset dialog (2B-4). Lazily built on first use.
+var save_preset_dialog: ConfirmationDialog
+var save_preset_name_input: LineEdit
+
+# ── Undo / redo ────────────────────────────────────────────────────
+# Snapshots are taken before discrete state replacements (GEN, preset,
+# paste, bin-load) — NOT before slider drags, which would flood the stack.
+const UNDO_MAX := 50
+var undo_stack: Array = []
+var redo_stack: Array = []
+
+# ── Variation seed (2B-1) ──────────────────────────────────────────
+# Auto-incrementing seed applied before every preset / GEN. Each click
+# yields a fresh take (current behavior preserved) AND every result is
+# reproducible: type any prior value into the SpinBox to get that
+# variant back. Shown next to the GEN button.
+var variation_seed: int = 0
+var variation_seed_input: SpinBox
+
+# ── Preset panel state ─────────────────────────────────────────────
+# Per-group expand state for the accordion (2B-3). Defaults are seeded
+# in _refresh_preset_panel — first 2 groups open; rest collapsed.
+var preset_group_expanded: Dictionary = {}
+
+# ── Bin search (2B-5) ──────────────────────────────────────────────
+# Substring filter applied to bin-entry names. Lowercased on input.
+var bin_search_input: LineEdit
+var bin_search_query: String = ""
 
 var status_label: Label
 var waveform: WaveformDisplay
@@ -72,6 +102,28 @@ func _ready() -> void:
 	audio_player = AudioStreamPlayer.new()
 	add_child(audio_player)
 
+	# ~30 ms debounce: catches the tail of a slider drag without lag.
+	render_timer = Timer.new()
+	render_timer.wait_time = 0.03
+	render_timer.one_shot = true
+	render_timer.timeout.connect(_re_render)
+	add_child(render_timer)
+
+	# Dedicated hover-preview player so audits don't interrupt the main
+	# AudioStreamPlayer (e.g. if user is mid-preview of their own sound).
+	# Slightly attenuated so previews feel obviously "secondary".
+	hover_player = AudioStreamPlayer.new()
+	hover_player.volume_db = -3.0
+	add_child(hover_player)
+
+	# 180 ms debounce: long enough that brushing past a button doesn't
+	# fire, short enough that intentional hovers feel responsive.
+	hover_timer = Timer.new()
+	hover_timer.wait_time = 0.18
+	hover_timer.one_shot = true
+	hover_timer.timeout.connect(_on_hover_timer_timeout)
+	add_child(hover_timer)
+
 	save_dialog = FileDialog.new()
 	save_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
 	save_dialog.access = FileDialog.ACCESS_FILESYSTEM
@@ -95,7 +147,7 @@ func _build_ui() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 
 	var bg := ColorRect.new()
-	bg.color = COLOR_BG
+	bg.color = Palette.BG
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bg)
@@ -109,7 +161,7 @@ func _build_ui() -> void:
 	add_child(margin)
 
 	var root_v := VBoxContainer.new()
-	root_v.add_theme_constant_override("separation", 14)
+	root_v.add_theme_constant_override("separation", 8)
 	margin.add_child(root_v)
 
 	root_v.add_child(_build_header())
@@ -134,11 +186,11 @@ func _build_header() -> Control:
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hdr.add_child(left)
 
-	var sub := _make_label("// BUFFER GENERATOR · v3.0", 10, COLOR_TEXT_MUTE, 0.4)
+	var sub := UIFactory.make_label("// BUFFER GENERATOR · v3.0", 10, Palette.TEXT_MUTE, 0.4)
 	left.add_child(sub)
 
-	var title := _make_label("GODOT_SFX", 24, COLOR_TEXT, 0.08)
-	title.add_theme_font_size_override("font_size", 26)
+	var title := UIFactory.make_label("GODOT_SFX", 24, Palette.TEXT, 0.08)
+	title.add_theme_font_size_override("font_size", Palette.FONT_TITLE)
 	left.add_child(title)
 
 	var right := HBoxContainer.new()
@@ -146,22 +198,23 @@ func _build_header() -> Control:
 	right.size_flags_vertical = Control.SIZE_SHRINK_END
 	hdr.add_child(right)
 
-	right.add_child(_make_label("STATUS", 10, COLOR_TEXT_MUTE, 0.3))
+	right.add_child(UIFactory.make_label("STATUS", 10, Palette.TEXT_MUTE, 0.3))
 
 	status_label = Label.new()
 	status_label.text = "READY"
 	status_label.custom_minimum_size = Vector2(120, 28)
 	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	status_label.add_theme_color_override("font_color", COLOR_ACCENT)
-	status_label.add_theme_font_size_override("font_size", 12)
-	_set_label_letter_spacing(status_label, 0.2)
-	_apply_panel_style(status_label, COLOR_BG, COLOR_ACCENT)
+	status_label.add_theme_color_override("font_color", Palette.ACCENT)
+	status_label.add_theme_font_size_override("font_size", Palette.FONT_LABEL)
+	# Letter-spacing is currently a no-op (custom font not wired up); kept as
+	# a 0-arg call site so re-enabling it is a one-line change.
+	UIFactory.apply_panel_style(status_label, Palette.BG, Palette.ACCENT)
 	right.add_child(status_label)
 
 	# Bottom border
 	var border_below := ColorRect.new()
-	border_below.color = COLOR_BORDER
+	border_below.color = Palette.BORDER
 	border_below.custom_minimum_size = Vector2(0, 1)
 	border_below.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
@@ -174,8 +227,8 @@ func _build_header() -> Control:
 
 func _build_waveform() -> Control:
 	var panel := PanelContainer.new()
-	_apply_panel_style(panel, COLOR_INSET, COLOR_BORDER)
-	panel.custom_minimum_size = Vector2(0, 180)
+	UIFactory.apply_panel_style(panel, Palette.INSET, Palette.BORDER)
+	panel.custom_minimum_size = Vector2(0, 120)
 
 	var holder := Control.new()
 	holder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -186,12 +239,12 @@ func _build_waveform() -> Control:
 	waveform.set_anchors_preset(Control.PRESET_FULL_RECT)
 	holder.add_child(waveform)
 
-	waveform_info_left = _make_label("WAVEFORM", 10, COLOR_TEXT_MUTE, 0.25)
+	waveform_info_left = UIFactory.make_label("WAVEFORM", 10, Palette.TEXT_MUTE, 0.25)
 	waveform_info_left.position = Vector2(10, 6)
 	waveform_info_left.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(waveform_info_left)
 
-	waveform_info_right = _make_label("", 10, COLOR_TEXT_MUTE, 0.25)
+	waveform_info_right = UIFactory.make_label("", 10, Palette.TEXT_MUTE, 0.25)
 	waveform_info_right.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	waveform_info_right.position = Vector2(-260, 6)
 	waveform_info_right.size = Vector2(250, 16)
@@ -217,6 +270,7 @@ func _build_left_column() -> Control:
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
 	v.add_child(scroll)
 
 	modules_container = VBoxContainer.new()
@@ -232,7 +286,7 @@ func _build_left_column() -> Control:
 
 func _make_module_panel(mod: Dictionary) -> Control:
 	var panel := PanelContainer.new()
-	_apply_panel_style(panel, COLOR_PANEL, COLOR_BORDER)
+	UIFactory.apply_panel_style(panel, Palette.PANEL, Palette.BORDER)
 	module_panels[mod.key] = panel
 
 	var v := VBoxContainer.new()
@@ -242,11 +296,11 @@ func _make_module_panel(mod: Dictionary) -> Control:
 	# Header row
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 10)
-	v.add_child(_wrap_padded(header, 10, 10, 6, 6))
+	v.add_child(UIFactory.wrap_padded(header, 10, 10, 6, 6))
 
 	# Border under header
 	var hdr_border := ColorRect.new()
-	hdr_border.color = COLOR_BORDER
+	hdr_border.color = Palette.BORDER
 	hdr_border.custom_minimum_size = Vector2(0, 1)
 	hdr_border.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.add_child(hdr_border)
@@ -255,7 +309,7 @@ func _make_module_panel(mod: Dictionary) -> Control:
 	var is_toggleable: bool = enable_key != ""
 
 	if is_toggleable:
-		var check := _make_check_button("", false)
+		var check := UIFactory.make_check_button("", false)
 		check.custom_minimum_size = Vector2(20, 20)
 		check.toggled.connect(_on_module_toggled.bind(enable_key))
 		header.add_child(check)
@@ -266,19 +320,19 @@ func _make_module_panel(mod: Dictionary) -> Control:
 		indicator.color = Color("#332a1f")
 		indicator.custom_minimum_size = Vector2(20, 20)
 		var inner := ColorRect.new()
-		inner.color = COLOR_ACCENT
+		inner.color = Palette.ACCENT
 		inner.set_anchors_preset(Control.PRESET_CENTER)
 		inner.position = Vector2(7, 7)
 		inner.size = Vector2(6, 6)
 		indicator.add_child(inner)
 		header.add_child(indicator)
 
-	var title := _make_label(mod.title, 12, COLOR_TEXT, 0.3)
+	var title := UIFactory.make_label(mod.title, 12, Palette.TEXT, 0.3)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title)
 
 	if is_toggleable:
-		var lock_btn := _make_lock_button()
+		var lock_btn := UIFactory.make_lock_button()
 		lock_btn.pressed.connect(_on_module_lock_pressed.bind(mod))
 		header.add_child(lock_btn)
 		module_lock_buttons[enable_key] = lock_btn
@@ -286,7 +340,7 @@ func _make_module_panel(mod: Dictionary) -> Control:
 	# Body: param rows
 	var body := VBoxContainer.new()
 	body.add_theme_constant_override("separation", 0)
-	v.add_child(_wrap_padded(body, 4, 4, 4, 6))
+	v.add_child(UIFactory.wrap_padded(body, 4, 4, 4, 6))
 
 	for pk in mod.params:
 		body.add_child(_make_param_row(pk))
@@ -302,7 +356,7 @@ func _make_param_row(param_key: String) -> Control:
 	row.add_theme_constant_override("separation", 10)
 	row.custom_minimum_size = Vector2(0, 22)
 
-	var lock_btn := _make_lock_button()
+	var lock_btn := UIFactory.make_lock_button()
 	lock_btn.pressed.connect(_on_param_lock_pressed.bind(param_key))
 	row.add_child(lock_btn)
 	param_lock_buttons[param_key] = lock_btn
@@ -311,9 +365,9 @@ func _make_param_row(param_key: String) -> Control:
 	label_btn.text = def.label
 	label_btn.flat = true
 	label_btn.custom_minimum_size = Vector2(96, 22)
-	label_btn.add_theme_color_override("font_color", COLOR_TEXT_MUTE)
-	label_btn.add_theme_color_override("font_hover_color", COLOR_ACCENT)
-	label_btn.add_theme_font_size_override("font_size", 11)
+	label_btn.add_theme_color_override("font_color", Palette.TEXT_MUTE)
+	label_btn.add_theme_color_override("font_hover_color", Palette.ACCENT)
+	label_btn.add_theme_font_size_override("font_size", Palette.FONT_VALUE)
 	label_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	label_btn.tooltip_text = "Click to reset to default"
 	label_btn.pressed.connect(_on_param_reset.bind(param_key))
@@ -331,8 +385,8 @@ func _make_param_row(param_key: String) -> Control:
 
 	var value_label := Label.new()
 	value_label.text = "—"
-	value_label.add_theme_color_override("font_color", COLOR_TEXT)
-	value_label.add_theme_font_size_override("font_size", 11)
+	value_label.add_theme_color_override("font_color", Palette.TEXT)
+	value_label.add_theme_font_size_override("font_size", Palette.FONT_VALUE)
 	value_label.custom_minimum_size = Vector2(72, 22)
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -343,12 +397,21 @@ func _make_param_row(param_key: String) -> Control:
 
 
 # ── Right column: master, presets, actions, sound string, bin ──────
+# Wrapped in a ScrollContainer so the bottom panels stay reachable when the
+# viewport is shorter than the column's natural height.
 func _build_right_column() -> Control:
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_stretch_ratio = 2.0
+	scroll.custom_minimum_size = Vector2(420, 0)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
+
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 14)
+	v.add_theme_constant_override("separation", 6)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.size_flags_stretch_ratio = 2.0
-	v.custom_minimum_size = Vector2(420, 0)
+	scroll.add_child(v)
 
 	v.add_child(_build_master_panel())
 	v.add_child(_build_presets_panel())
@@ -356,25 +419,25 @@ func _build_right_column() -> Control:
 	v.add_child(_build_sound_string_panel())
 	v.add_child(_build_bin_panel())
 
-	return v
+	return scroll
 
 
 func _build_master_panel() -> Control:
-	var panel := _make_section_panel("MASTER")
+	var panel := UIFactory.make_section_panel("MASTER")
 	var body: VBoxContainer = panel.get_meta("body")
 
-	body.add_child(_make_label("MIX", 9, COLOR_TEXT_DIM, 0.3))
+	body.add_child(UIFactory.make_label("MIX", 9, Palette.TEXT_DIM, 0.3))
 
 	mix_container = VBoxContainer.new()
 	mix_container.add_theme_constant_override("separation", 4)
 	body.add_child(mix_container)
 
 	var output_border := ColorRect.new()
-	output_border.color = COLOR_BORDER
+	output_border.color = Palette.BORDER
 	output_border.custom_minimum_size = Vector2(0, 1)
 	output_border.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	body.add_child(_wrap_padded(output_border, 0, 0, 8, 0))
-	body.add_child(_make_label("OUTPUT", 9, COLOR_TEXT_DIM, 0.3))
+	body.add_child(UIFactory.wrap_padded(output_border, 0, 0, 8, 0))
+	body.add_child(UIFactory.make_label("OUTPUT", 9, Palette.TEXT_DIM, 0.3))
 
 	# Master sliders
 	var mv := _make_master_row("VOLUME", 0.0, 1.0, 0.01)
@@ -402,7 +465,7 @@ func _make_master_row(label_text: String, lo: float, hi: float, st: float) -> Di
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 
-	var lbl := _make_label(label_text, 10, COLOR_TEXT_MUTE, 0.2)
+	var lbl := UIFactory.make_label(label_text, 10, Palette.TEXT_MUTE, 0.2)
 	lbl.custom_minimum_size = Vector2(80, 22)
 	row.add_child(lbl)
 
@@ -418,80 +481,322 @@ func _make_master_row(label_text: String, lo: float, hi: float, st: float) -> Di
 	value.custom_minimum_size = Vector2(48, 22)
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	value.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	value.add_theme_color_override("font_color", COLOR_TEXT)
-	value.add_theme_font_size_override("font_size", 10)
+	value.add_theme_color_override("font_color", Palette.TEXT)
+	value.add_theme_font_size_override("font_size", Palette.FONT_SMALL)
 	row.add_child(value)
 
 	return {"row": row, "slider": slider, "value": value}
 
 
 func _build_presets_panel() -> Control:
-	var panel := _make_section_panel("PRESETS")
+	var panel := UIFactory.make_section_panel("PRESETS")
 	var body: VBoxContainer = panel.get_meta("body")
 	preset_buttons_root = VBoxContainer.new()
-	preset_buttons_root.add_theme_constant_override("separation", 8)
+	preset_buttons_root.add_theme_constant_override("separation", 6)
 	body.add_child(preset_buttons_root)
-
-	var groups: Array = ["SHOOTER", "ARCADE"]
-	for gi in groups.size():
-		var group_name: String = groups[gi]
-		var col := VBoxContainer.new()
-		col.add_theme_constant_override("separation", 4)
-		preset_buttons_root.add_child(col)
-
-		col.add_child(_make_label(group_name, 9, COLOR_TEXT_DIM, 0.3))
-
-		var grid := GridContainer.new()
-		grid.columns = 4
-		grid.add_theme_constant_override("h_separation", 6)
-		grid.add_theme_constant_override("v_separation", 6)
-		col.add_child(grid)
-
-		for entry in Presets.REGISTRY:
-			if entry.group != group_name:
-				continue
-			var btn := _make_action_button(entry.name)
-			btn.pressed.connect(_on_preset_pressed.bind(entry))
-			grid.add_child(btn)
-
+	_refresh_preset_panel()
 	return panel
 
 
-func _build_actions_panel() -> Control:
-	var panel := _make_section_panel("ACTIONS")
-	var body: VBoxContainer = panel.get_meta("body")
+# Rebuild every accordion section. Called once on init and again after a
+# user preset is saved (so the USER group appears or grows in place).
+func _refresh_preset_panel() -> void:
+	if preset_buttons_root == null:
+		return
+	for c in preset_buttons_root.get_children():
+		c.queue_free()
+
+	# Discover groups dynamically in REGISTRY-declaration order so new
+	# categories appear automatically.
+	var groups: Array = []
+	for entry in Presets.REGISTRY:
+		if not (entry.group in groups):
+			groups.append(entry.group)
+
+	# First-run defaults: the first two groups (SHOOTER, ARCADE in the
+	# stock build) start expanded; everything else collapses so the panel
+	# isn't a 90-button wall on launch. Subsequent visits respect whatever
+	# the user toggled — no persistence to disk yet.
+	for gi in groups.size():
+		var g: String = groups[gi]
+		if not preset_group_expanded.has(g):
+			preset_group_expanded[g] = (gi < 2)
+
+	for group_name in groups:
+		var entries: Array = []
+		for entry in Presets.REGISTRY:
+			if entry.group == group_name:
+				entries.append(entry)
+		preset_buttons_root.add_child(_make_preset_group_section(group_name, entries))
+
+	# User presets appended last as a synthetic "USER" group. Auto-expand
+	# the first time it appears so a freshly-saved preset is visible.
+	var user_entries: Array = _build_user_preset_entries()
+	if not user_entries.is_empty():
+		if not preset_group_expanded.has("USER"):
+			preset_group_expanded["USER"] = true
+		preset_buttons_root.add_child(_make_preset_group_section("USER", user_entries))
+
+
+# Build one collapsible section: a clickable header row over a button
+# grid. The header toggles grid.visible — Godot's Container layout skips
+# invisible children, so the panel grows/shrinks naturally.
+func _make_preset_group_section(group_name: String, entries: Array) -> VBoxContainer:
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 2)
+
+	var header := Button.new()
+	header.flat = true
+	header.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	header.add_theme_font_size_override("font_size", Palette.FONT_SMALL)
+	header.add_theme_color_override("font_color", Palette.TEXT_MUTE)
+	header.add_theme_color_override("font_hover_color", Palette.ACCENT)
+	header.add_theme_color_override("font_pressed_color", Palette.ACCENT)
+	header.custom_minimum_size = Vector2(0, 22)
+	col.add_child(header)
 
 	var grid := GridContainer.new()
-	grid.columns = 3
+	grid.columns = 6
+	grid.add_theme_constant_override("h_separation", 6)
+	grid.add_theme_constant_override("v_separation", 6)
+	col.add_child(grid)
+
+	for entry in entries:
+		var btn := UIFactory.make_action_button(entry.name)
+		btn.pressed.connect(_on_preset_pressed.bind(entry))
+		# Hover preview (2B-2): audit on enter, cancel on exit.
+		btn.mouse_entered.connect(_on_preset_button_hovered.bind(entry))
+		btn.mouse_exited.connect(_on_preset_button_unhovered)
+		grid.add_child(btn)
+
+	var expanded: bool = bool(preset_group_expanded.get(group_name, false))
+	grid.visible = expanded
+	header.text = _preset_group_header_text(group_name, entries.size(), expanded)
+	header.pressed.connect(_on_preset_group_toggled.bind(group_name, header, grid, entries.size()))
+	return col
+
+
+static func _preset_group_header_text(name: String, count: int, expanded: bool) -> String:
+	var arrow: String = "▾" if expanded else "▸"
+	return "%s  %s  (%d)" % [arrow, name, count]
+
+
+func _on_preset_group_toggled(group_name: String, header: Button, grid: GridContainer, count: int) -> void:
+	var now: bool = not bool(preset_group_expanded.get(group_name, false))
+	preset_group_expanded[group_name] = now
+	grid.visible = now
+	header.text = _preset_group_header_text(group_name, count, now)
+
+
+# Build registry-style entries for user-saved presets. They carry an
+# extra "string" field (the v7 sound string) so _on_preset_pressed can
+# tell them apart from built-ins, plus user_index for delete operations.
+func _build_user_preset_entries() -> Array:
+	var entries: Array = []
+	var loaded: Array = UserPresets.load_all()
+	for i in loaded.size():
+		var item: Dictionary = loaded[i]
+		entries.append({
+			"name": "★%s" % String(item.get("name", "untitled")),
+			"kind": "user",
+			"group": "USER",
+			"string": String(item.get("string", "")),
+			"user_index": i,
+		})
+	return entries
+
+
+# ── Hover preview (2B-2) ───────────────────────────────────────────
+
+func _on_preset_button_hovered(entry: Dictionary) -> void:
+	hover_pending_entry = entry
+	hover_timer.start()
+
+
+func _on_preset_button_unhovered() -> void:
+	hover_pending_entry = {}
+	hover_timer.stop()
+
+
+func _on_hover_timer_timeout() -> void:
+	if hover_pending_entry.is_empty():
+		return
+	var s = _render_preset_preview(hover_pending_entry)
+	if s == null:
+		return
+	var buf: PackedFloat32Array = Synth.render_sound(s)
+	if buf.is_empty():
+		return
+	hover_player.stop()
+	hover_player.stream = Playback.build_stream(buf)
+	hover_player.play()
+
+
+# Render a preset against a clean default channel so the user auditions
+# JUST the preset's character — not their current sound mutated by it.
+# Sound presets and user presets replace the entire sound; patches merge
+# onto a fresh default channel.
+func _render_preset_preview(entry: Dictionary):
+	if entry.get("kind", "") == "user":
+		return SoundData.sound_from_string(String(entry.get("string", "")))
+	if entry.kind == "sound":
+		return Presets.run_preset(entry, {}, {})
+	var base: Dictionary = {
+		"channels": [SoundData.clone_params()],
+		"master": SoundData.clone_master(),
+	}
+	var patch = Presets.run_preset(entry, base.channels[0], {})
+	if patch == null:
+		return null
+	base.channels[0].merge(patch, true)
+	return base
+
+
+# ── Variation seed (2B-1) ──────────────────────────────────────────
+
+# Apply seed before any preset/GEN so the result is reproducible, then
+# auto-increment so the next click yields a fresh take by default. To
+# revisit a previous variant, the user types its seed back into the
+# SpinBox before clicking.
+func _consume_variation_seed() -> void:
+	seed(variation_seed)
+	variation_seed = (variation_seed + 1) % 10000
+	if variation_seed_input:
+		variation_seed_input.set_value_no_signal(variation_seed)
+
+
+func _on_variation_seed_changed(value: float) -> void:
+	variation_seed = int(value)
+
+
+func _on_variation_reroll_pressed() -> void:
+	variation_seed = randi() % 10000
+	if variation_seed_input:
+		variation_seed_input.set_value_no_signal(variation_seed)
+	_flash_status("VAR %d" % variation_seed)
+
+
+# ── Save-as-preset dialog (2B-4) ───────────────────────────────────
+
+func _ensure_save_preset_dialog() -> void:
+	if save_preset_dialog != null:
+		return
+	save_preset_dialog = ConfirmationDialog.new()
+	save_preset_dialog.title = "Save as user preset"
+	save_preset_dialog.size = Vector2i(420, 140)
+	save_preset_dialog.confirmed.connect(_on_save_preset_confirmed)
+
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 8)
+	v.custom_minimum_size = Vector2(380, 0)
+	save_preset_dialog.add_child(v)
+
+	v.add_child(UIFactory.make_label("Name:", Palette.FONT_VALUE, Palette.TEXT))
+	save_preset_name_input = LineEdit.new()
+	save_preset_name_input.placeholder_text = "MY_LASER"
+	save_preset_name_input.add_theme_color_override("font_color", Palette.TEXT)
+	save_preset_name_input.add_theme_font_size_override("font_size", Palette.FONT_VALUE)
+	UIFactory.apply_lineedit_style(save_preset_name_input)
+	v.add_child(save_preset_name_input)
+
+	add_child(save_preset_dialog)
+
+
+func _on_save_preset_pressed() -> void:
+	_ensure_save_preset_dialog()
+	save_preset_name_input.text = "preset_%d" % (UserPresets.load_all().size() + 1)
+	save_preset_dialog.popup_centered()
+	save_preset_name_input.grab_focus()
+	save_preset_name_input.select_all()
+
+
+func _on_save_preset_confirmed() -> void:
+	var name: String = save_preset_name_input.text.strip_edges()
+	if name.is_empty():
+		_flash_status("EMPTY NAME")
+		return
+	UserPresets.add(name, sound_string)
+	_refresh_preset_panel()
+	_flash_status("SAVED ★")
+
+
+func _build_actions_panel() -> Control:
+	var panel := UIFactory.make_section_panel("ACTIONS")
+	var body: VBoxContainer = panel.get_meta("body")
+
+	# Variation-seed row sits above the action buttons. Each preset/GEN
+	# click consumes the current value and increments — typing any prior
+	# seed back into the SpinBox revives that variant.
+	body.add_child(_build_variation_row())
+
+	var grid := GridContainer.new()
+	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 6)
 	grid.add_theme_constant_override("v_separation", 6)
 	body.add_child(grid)
 
-	var gen := _make_action_button("⚄ GEN", true)
+	var gen := UIFactory.make_action_button("⚄ GEN", true)
 	gen.pressed.connect(_on_generate_pressed)
 	grid.add_child(gen)
 
-	var play := _make_action_button("▶ PLAY")
+	var play := UIFactory.make_action_button("▶ PLAY")
 	play.pressed.connect(_on_play_pressed)
 	grid.add_child(play)
 
-	var wav := _make_action_button("↓ WAV")
+	var wav := UIFactory.make_action_button("↓ WAV")
 	wav.pressed.connect(_on_export_pressed)
 	grid.add_child(wav)
+
+	# SAVE PRESET writes the current sound string to user_presets.json
+	# and re-renders the preset panel so the new ★ entry shows up
+	# immediately under the USER section.
+	var save_preset := UIFactory.make_action_button("★ SAVE PRESET")
+	save_preset.pressed.connect(_on_save_preset_pressed)
+	grid.add_child(save_preset)
 
 	return panel
 
 
+# Variation-seed row: small "VAR" label + SpinBox showing the next seed
+# to consume + ↻ button to randomise the seed for a fresh batch.
+func _build_variation_row() -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+
+	var label := UIFactory.make_label("VAR", Palette.FONT_SMALL, Palette.TEXT_DIM, 0.3)
+	label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(label)
+
+	variation_seed_input = SpinBox.new()
+	variation_seed_input.min_value = 0
+	variation_seed_input.max_value = 9999
+	variation_seed_input.step = 1
+	variation_seed_input.value = variation_seed
+	variation_seed_input.custom_minimum_size = Vector2(82, 22)
+	variation_seed_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	variation_seed_input.tooltip_text = "Next random seed. Auto-increments after each preset/GEN. Type any value to revisit that variant."
+	variation_seed_input.value_changed.connect(_on_variation_seed_changed)
+	row.add_child(variation_seed_input)
+
+	var reroll := UIFactory.make_action_button("↻")
+	reroll.tooltip_text = "Pick a fresh random seed"
+	reroll.custom_minimum_size = Vector2(28, 22)
+	reroll.pressed.connect(_on_variation_reroll_pressed)
+	row.add_child(reroll)
+
+	return row
+
+
 func _build_sound_string_panel() -> Control:
-	var panel := _make_section_panel("SOUND STRING")
+	var panel := UIFactory.make_section_panel("SOUND STRING")
 	var body: VBoxContainer = panel.get_meta("body")
 
 	sound_string_input = LineEdit.new()
 	sound_string_input.placeholder_text = "sfx7:..."
-	sound_string_input.add_theme_color_override("font_color", COLOR_TEXT)
-	sound_string_input.add_theme_color_override("font_placeholder_color", COLOR_TEXT_DIM)
-	sound_string_input.add_theme_font_size_override("font_size", 11)
-	_apply_lineedit_style(sound_string_input)
+	sound_string_input.add_theme_color_override("font_color", Palette.TEXT)
+	sound_string_input.add_theme_color_override("font_placeholder_color", Palette.TEXT_DIM)
+	sound_string_input.add_theme_font_size_override("font_size", Palette.FONT_VALUE)
+	UIFactory.apply_lineedit_style(sound_string_input)
 	body.add_child(sound_string_input)
 
 	var grid := GridContainer.new()
@@ -500,15 +805,15 @@ func _build_sound_string_panel() -> Control:
 	grid.add_theme_constant_override("v_separation", 6)
 	body.add_child(grid)
 
-	var copy_btn := _make_action_button("⧉ COPY")
+	var copy_btn := UIFactory.make_action_button("⧉ COPY")
 	copy_btn.pressed.connect(_on_copy_pressed)
 	grid.add_child(copy_btn)
 
-	var paste_btn := _make_action_button("⏎ PASTE")
+	var paste_btn := UIFactory.make_action_button("⏎ PASTE")
 	paste_btn.pressed.connect(_on_paste_pressed)
 	grid.add_child(paste_btn)
 
-	var load_btn := _make_action_button("LOAD")
+	var load_btn := UIFactory.make_action_button("LOAD")
 	load_btn.pressed.connect(_on_load_string_pressed)
 	grid.add_child(load_btn)
 
@@ -516,38 +821,54 @@ func _build_sound_string_panel() -> Control:
 
 
 func _build_bin_panel() -> Control:
-	var panel := _make_section_panel("BIN [0]", true)
+	var panel := UIFactory.make_section_panel("BIN [0]", true)
 	var body: VBoxContainer = panel.get_meta("body")
 	bin_count_label = panel.get_meta("title")
 
-	var save_btn := _make_action_button("+ SAVE")
+	var save_btn := UIFactory.make_action_button("+ SAVE")
 	save_btn.pressed.connect(_on_save_to_bin_pressed)
 	panel.get_meta("title_row").add_child(save_btn)
+
+	# Search box (2B-5): substring filter on entry names. Updates the
+	# rendered list live as the user types — no Enter required.
+	bin_search_input = LineEdit.new()
+	bin_search_input.placeholder_text = "search…"
+	bin_search_input.add_theme_color_override("font_color", Palette.TEXT)
+	bin_search_input.add_theme_color_override("font_placeholder_color", Palette.TEXT_DIM)
+	bin_search_input.add_theme_font_size_override("font_size", Palette.FONT_VALUE)
+	bin_search_input.clear_button_enabled = true
+	UIFactory.apply_lineedit_style(bin_search_input)
+	bin_search_input.text_changed.connect(_on_bin_search_changed)
+	body.add_child(bin_search_input)
 
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.custom_minimum_size = Vector2(0, 200)
+	scroll.custom_minimum_size = Vector2(0, 80)
 	body.add_child(scroll)
 
 	bin_container = VBoxContainer.new()
 	bin_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(bin_container)
 
-	panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	return panel
+
+
+func _on_bin_search_changed(text: String) -> void:
+	bin_search_query = text.strip_edges().to_lower()
+	_refresh_bin_list()
 
 
 func _build_footer() -> Control:
 	var border := ColorRect.new()
-	border.color = COLOR_BORDER
+	border.color = Palette.BORDER
 	border.custom_minimum_size = Vector2(0, 1)
 	border.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
-	var foot := _make_label(
+	var foot := UIFactory.make_label(
 		"UP TO 4 CHANNELS · MIX & REVERB IN MASTER · LOCK PARAMS OR MODULES TO HOLD THEM THROUGH GEN · BIN PERSISTS",
-		10, COLOR_TEXT_DIM, 0.3
+		10, Palette.TEXT_DIM, 0.3
 	)
 	foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	foot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -559,180 +880,13 @@ func _build_footer() -> Control:
 	return v
 
 
-# ── UI helpers ─────────────────────────────────────────────────────
-
-func _make_label(text: String, font_size: int, color: Color, letter_spacing: float = 0.0) -> Label:
-	var l := Label.new()
-	l.text = text
-	l.add_theme_color_override("font_color", color)
-	l.add_theme_font_size_override("font_size", font_size)
-	if letter_spacing > 0.0:
-		_set_label_letter_spacing(l, letter_spacing)
-	return l
-
-
-# Approximates the JS letter-spacing by injecting non-breaking spaces between
-# characters. Letter-spacing as a font setting requires a custom font setup.
-func _set_label_letter_spacing(_l: Label, _spacing_em: float) -> void:
-	# No-op — left in place so we have a single place to upgrade later if we
-	# add a custom font with adjustable spacing.
-	pass
-
-
-func _wrap_padded(child: Control, l: int, r: int, t: int, b: int) -> MarginContainer:
-	var m := MarginContainer.new()
-	m.add_theme_constant_override("margin_left", l)
-	m.add_theme_constant_override("margin_right", r)
-	m.add_theme_constant_override("margin_top", t)
-	m.add_theme_constant_override("margin_bottom", b)
-	m.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	m.add_child(child)
-	return m
-
-
-# Returns a PanelContainer whose body is a child VBoxContainer. The panel
-# carries metadata so callers can append into the body and (optionally) the
-# title row.
-func _make_section_panel(title_text: String, _flexible_height: bool = false) -> PanelContainer:
-	var panel := PanelContainer.new()
-	_apply_panel_style(panel, COLOR_PANEL, COLOR_BORDER)
-
-	var v := VBoxContainer.new()
-	panel.add_child(v)
-
-	var title_row := HBoxContainer.new()
-	title_row.add_theme_constant_override("separation", 8)
-	v.add_child(_wrap_padded(title_row, 14, 14, 8, 8))
-
-	var title := _make_label(title_text, 10, COLOR_TEXT_MUTE, 0.3)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title_row.add_child(title)
-
-	var border := ColorRect.new()
-	border.color = COLOR_BORDER
-	border.custom_minimum_size = Vector2(0, 1)
-	border.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.add_child(border)
-
-	var body := VBoxContainer.new()
-	body.add_theme_constant_override("separation", 6)
-	v.add_child(_wrap_padded(body, 12, 12, 8, 10))
-
-	panel.set_meta("body", body)
-	panel.set_meta("title", title)
-	panel.set_meta("title_row", title_row)
-	return panel
-
-
-func _make_action_button(text: String, primary: bool = false) -> Button:
-	var b := Button.new()
-	b.text = text
-	b.add_theme_color_override("font_color", COLOR_TEXT)
-	b.add_theme_color_override("font_hover_color", COLOR_BG)
-	b.add_theme_color_override("font_pressed_color", COLOR_BG)
-	b.add_theme_font_size_override("font_size", 11)
-	b.custom_minimum_size = Vector2(0, 26)
-
-	var normal := _make_stylebox(Color("#261f17") if primary else Color(0, 0, 0, 0), COLOR_BORDER_HI)
-	var hover := _make_stylebox(COLOR_ACCENT, COLOR_ACCENT)
-	var pressed := _make_stylebox(COLOR_ACCENT, COLOR_ACCENT)
-	b.add_theme_stylebox_override("normal", normal)
-	b.add_theme_stylebox_override("hover", hover)
-	b.add_theme_stylebox_override("pressed", pressed)
-	b.add_theme_stylebox_override("focus", normal)
-	return b
-
-
-func _make_lock_button() -> Button:
-	var b := Button.new()
-	b.text = "🔒"
-	b.tooltip_text = "Lock to preserve while randomizing"
-	b.custom_minimum_size = Vector2(22, 22)
-	b.add_theme_font_size_override("font_size", 10)
-	b.toggle_mode = false
-	_apply_button_style(b, false)
-	return b
-
-
-func _apply_button_style(b: Button, locked: bool) -> void:
-	var bg: Color = COLOR_ACCENT if locked else Color(0, 0, 0, 0)
-	var border: Color = COLOR_ACCENT if locked else COLOR_BORDER_HI
-	var fg: Color = COLOR_BG if locked else COLOR_TEXT_DIM
-
-	var normal := _make_stylebox(bg, border)
-	var hover := _make_stylebox(COLOR_ACCENT, COLOR_ACCENT)
-	b.add_theme_stylebox_override("normal", normal)
-	b.add_theme_stylebox_override("hover", hover)
-	b.add_theme_stylebox_override("pressed", hover)
-	b.add_theme_stylebox_override("focus", normal)
-	b.add_theme_color_override("font_color", fg)
-	b.add_theme_color_override("font_hover_color", COLOR_BG)
-	b.text = "🔒" if locked else "🔓"
-
-
-# Custom checkbox-style toggle button — the React app uses a 16px box that
-# fills with accent color when on, so we replicate it instead of the default
-# Godot CheckBox (which doesn't accept the same styling).
-func _make_check_button(text: String, on: bool) -> Button:
-	var b := Button.new()
-	b.text = text
-	b.toggle_mode = true
-	b.button_pressed = on
-	_apply_check_style(b, on)
-	return b
-
-
-func _apply_check_style(b: Button, on: bool) -> void:
-	var bg: Color = COLOR_ACCENT if on else Color(0, 0, 0, 0)
-	var fg: Color = COLOR_BG if on else COLOR_TEXT_MUTE
-	var border: Color = COLOR_ACCENT if on else COLOR_BORDER_HI
-	var normal := _make_stylebox(bg, border)
-	var hover := _make_stylebox(bg.lightened(0.05) if on else COLOR_BORDER, border)
-	b.add_theme_stylebox_override("normal", normal)
-	b.add_theme_stylebox_override("hover", hover)
-	b.add_theme_stylebox_override("pressed", normal)
-	b.add_theme_stylebox_override("focus", normal)
-	b.add_theme_color_override("font_color", fg)
-	b.text = "■" if on else " "
-	b.add_theme_font_size_override("font_size", 10)
-
-
-func _make_stylebox(bg: Color, border: Color) -> StyleBoxFlat:
-	var s := StyleBoxFlat.new()
-	s.bg_color = bg
-	s.border_color = border
-	s.set_border_width_all(1)
-	s.set_corner_radius_all(0)
-	s.content_margin_left = 6
-	s.content_margin_right = 6
-	s.content_margin_top = 3
-	s.content_margin_bottom = 3
-	return s
-
-
-func _apply_panel_style(node: Control, bg: Color, border: Color) -> void:
-	var s := _make_stylebox(bg, border)
-	s.content_margin_left = 0
-	s.content_margin_right = 0
-	s.content_margin_top = 0
-	s.content_margin_bottom = 0
-	# PanelContainer uses "panel"; Label uses "normal".
-	if node is PanelContainer:
-		node.add_theme_stylebox_override("panel", s)
-	else:
-		node.add_theme_stylebox_override("normal", s)
-
-
-func _apply_lineedit_style(le: LineEdit) -> void:
-	var n := _make_stylebox(COLOR_INSET, COLOR_BORDER)
-	var f := _make_stylebox(COLOR_INSET, COLOR_ACCENT)
-	le.add_theme_stylebox_override("normal", n)
-	le.add_theme_stylebox_override("focus", f)
-
-
 # ── Refresh helpers ────────────────────────────────────────────────
 
 func _re_render() -> void:
+	# Any direct render call cancels a pending debounced one — otherwise we'd
+	# render twice in a row when a slider edit is followed by an action button.
+	if render_timer:
+		render_timer.stop()
 	samples = Synth.render_sound(sound)
 	if waveform:
 		waveform.set_samples(samples)
@@ -740,6 +894,15 @@ func _re_render() -> void:
 	if sound_string_input and not sound_string_input.has_focus():
 		sound_string_input.text = sound_string
 	_refresh_waveform_info()
+
+
+# Slider drag → coalesced render. Restart the one-shot timer; whichever
+# edit lands last wins, and we render once after motion settles.
+func _request_re_render() -> void:
+	if render_timer:
+		render_timer.start()
+	else:
+		_re_render()
 
 
 func _refresh_waveform_info() -> void:
@@ -761,14 +924,14 @@ func _refresh_channel_tabs() -> void:
 		var btn := Button.new()
 		btn.text = "CH %d" % (i + 1)
 		btn.custom_minimum_size = Vector2(60, 28)
-		btn.add_theme_font_size_override("font_size", 11)
+		btn.add_theme_font_size_override("font_size", Palette.FONT_VALUE)
 
 		var active: bool = i == active_channel
-		var bg: Color = COLOR_ACCENT if active else Color(0, 0, 0, 0)
-		var fg: Color = COLOR_BG if active else COLOR_TEXT
-		var border: Color = COLOR_ACCENT if (active or bool(ch_dict.get("soloed", false))) else COLOR_BORDER
-		var normal := _make_stylebox(bg, border)
-		var hover := _make_stylebox(COLOR_ACCENT.lightened(0.05) if active else Color(1, 0.55, 0.1, 0.08), border)
+		var bg: Color = Palette.ACCENT if active else Color(0, 0, 0, 0)
+		var fg: Color = Palette.BG if active else Palette.TEXT
+		var border: Color = Palette.ACCENT if (active or bool(ch_dict.get("soloed", false))) else Palette.BORDER
+		var normal := UIFactory.make_stylebox(bg, border)
+		var hover := UIFactory.make_stylebox(Palette.ACCENT.lightened(0.05) if active else Color(1, 0.55, 0.1, 0.08), border)
 		btn.add_theme_stylebox_override("normal", normal)
 		btn.add_theme_stylebox_override("hover", hover)
 		btn.add_theme_stylebox_override("pressed", normal)
@@ -785,14 +948,14 @@ func _refresh_channel_tabs() -> void:
 		add_btn.custom_minimum_size = Vector2(40, 28)
 		add_btn.add_theme_font_size_override("font_size", 14)
 		add_btn.tooltip_text = "Add channel"
-		var n := _make_stylebox(Color(0, 0, 0, 0), COLOR_BORDER)
-		var h := _make_stylebox(Color(0, 0, 0, 0), COLOR_ACCENT)
+		var n := UIFactory.make_stylebox(Color(0, 0, 0, 0), Palette.BORDER)
+		var h := UIFactory.make_stylebox(Color(0, 0, 0, 0), Palette.ACCENT)
 		add_btn.add_theme_stylebox_override("normal", n)
 		add_btn.add_theme_stylebox_override("hover", h)
 		add_btn.add_theme_stylebox_override("pressed", n)
 		add_btn.add_theme_stylebox_override("focus", n)
-		add_btn.add_theme_color_override("font_color", COLOR_TEXT_MUTE)
-		add_btn.add_theme_color_override("font_hover_color", COLOR_ACCENT)
+		add_btn.add_theme_color_override("font_color", Palette.TEXT_MUTE)
+		add_btn.add_theme_color_override("font_hover_color", Palette.ACCENT)
 		add_btn.pressed.connect(_on_add_channel_pressed)
 		channel_tabs_container.add_child(add_btn)
 
@@ -814,9 +977,9 @@ func _make_mix_row(i: int) -> Control:
 	label_btn.text = "CH%d" % (i + 1)
 	label_btn.flat = true
 	label_btn.custom_minimum_size = Vector2(40, 22)
-	label_btn.add_theme_color_override("font_color", COLOR_ACCENT if i == active_channel else COLOR_TEXT_MUTE)
-	label_btn.add_theme_color_override("font_hover_color", COLOR_ACCENT)
-	label_btn.add_theme_font_size_override("font_size", 10)
+	label_btn.add_theme_color_override("font_color", Palette.ACCENT if i == active_channel else Palette.TEXT_MUTE)
+	label_btn.add_theme_color_override("font_hover_color", Palette.ACCENT)
+	label_btn.add_theme_font_size_override("font_size", Palette.FONT_SMALL)
 	label_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	label_btn.pressed.connect(_on_channel_tab_pressed.bind(i))
 	row.add_child(label_btn)
@@ -859,18 +1022,18 @@ func _make_mini_btn(text: String, on: bool) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.custom_minimum_size = Vector2(22, 22)
-	b.add_theme_font_size_override("font_size", 10)
-	var bg: Color = COLOR_ACCENT if on else Color(0, 0, 0, 0)
-	var fg: Color = COLOR_BG if on else COLOR_TEXT_MUTE
-	var border: Color = COLOR_ACCENT if on else COLOR_BORDER_HI
-	var normal := _make_stylebox(bg, border)
-	var hover := _make_stylebox(COLOR_ACCENT, COLOR_ACCENT)
+	b.add_theme_font_size_override("font_size", Palette.FONT_SMALL)
+	var bg: Color = Palette.ACCENT if on else Color(0, 0, 0, 0)
+	var fg: Color = Palette.BG if on else Palette.TEXT_MUTE
+	var border: Color = Palette.ACCENT if on else Palette.BORDER_HI
+	var normal := UIFactory.make_stylebox(bg, border)
+	var hover := UIFactory.make_stylebox(Palette.ACCENT, Palette.ACCENT)
 	b.add_theme_stylebox_override("normal", normal)
 	b.add_theme_stylebox_override("hover", hover)
 	b.add_theme_stylebox_override("pressed", normal)
 	b.add_theme_stylebox_override("focus", normal)
 	b.add_theme_color_override("font_color", fg)
-	b.add_theme_color_override("font_hover_color", COLOR_BG)
+	b.add_theme_color_override("font_hover_color", Palette.BG)
 	return b
 
 
@@ -888,7 +1051,7 @@ func _refresh_module_values() -> void:
 		var label: Label = param_value_labels[key]
 		label.text = SoundData.format_value(key, v)
 		var lock_btn: Button = param_lock_buttons[key]
-		_apply_button_style(lock_btn, bool(ch_locks.get(key, false)))
+		UIFactory.apply_button_style(lock_btn, bool(ch_locks.get(key, false)))
 
 	for mod in SoundData.MODULES:
 		var ek: String = mod.enable_key
@@ -897,9 +1060,9 @@ func _refresh_module_values() -> void:
 		var enabled: bool = bool(ch_dict.get(ek, false))
 		var check_btn: Button = module_check_buttons[ek]
 		check_btn.set_pressed_no_signal(enabled)
-		_apply_check_style(check_btn, enabled)
+		UIFactory.apply_check_style(check_btn, enabled)
 		var lock_btn: Button = module_lock_buttons[ek]
-		_apply_button_style(lock_btn, bool(ch_locks.get(ek, false)))
+		UIFactory.apply_button_style(lock_btn, bool(ch_locks.get(ek, false)))
 
 		# Dim the panel when the module is disabled.
 		var panel: Control = module_panels[mod.key]
@@ -921,21 +1084,36 @@ func _refresh_bin_list() -> void:
 	for c in bin_container.get_children():
 		c.queue_free()
 
+	# Header reflects total stored, not filtered, so the user always
+	# knows how many entries the bin actually holds.
 	bin_count_label.text = "BIN [%d]" % bin.size()
 
 	if bin.is_empty():
-		var empty := _make_label("EMPTY · SAVE A SOUND", 11, COLOR_TEXT_DIM, 0.3)
+		var empty := UIFactory.make_label("EMPTY · SAVE A SOUND", 11, Palette.TEXT_DIM, 0.3)
 		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		empty.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		bin_container.add_child(_wrap_padded(empty, 0, 0, 24, 24))
+		bin_container.add_child(UIFactory.wrap_padded(empty, 0, 0, 24, 24))
 		return
 
-	for entry in bin:
+	# Apply the search filter (2B-5). Substring match on lowercased name;
+	# empty query passes everything through.
+	var visible: Array = bin
+	if not bin_search_query.is_empty():
+		visible = bin.filter(func(e): return String(e.get("name", "")).to_lower().contains(bin_search_query))
+
+	if visible.is_empty():
+		var miss := UIFactory.make_label("NO MATCH · CLEAR SEARCH", 11, Palette.TEXT_DIM, 0.3)
+		miss.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		miss.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		bin_container.add_child(UIFactory.wrap_padded(miss, 0, 0, 24, 24))
+		return
+
+	for entry in visible:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 6)
 		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
-		var name_lbl := _make_label(entry.get("name", "—"), 11, COLOR_TEXT, 0.1)
+		var name_lbl := UIFactory.make_label(entry.get("name", "—"), 11, Palette.TEXT, 0.1)
 		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(name_lbl)
 
@@ -943,7 +1121,7 @@ func _refresh_bin_list() -> void:
 		play_btn.text = "▶"
 		play_btn.flat = true
 		play_btn.tooltip_text = "Load and play"
-		play_btn.add_theme_color_override("font_color", COLOR_ACCENT)
+		play_btn.add_theme_color_override("font_color", Palette.ACCENT)
 		play_btn.custom_minimum_size = Vector2(22, 22)
 		play_btn.pressed.connect(_on_bin_load_pressed.bind(entry.get("id", 0)))
 		row.add_child(play_btn)
@@ -952,8 +1130,8 @@ func _refresh_bin_list() -> void:
 		del_btn.text = "×"
 		del_btn.flat = true
 		del_btn.tooltip_text = "Delete"
-		del_btn.add_theme_color_override("font_color", COLOR_TEXT_MUTE)
-		del_btn.add_theme_color_override("font_hover_color", COLOR_ACCENT)
+		del_btn.add_theme_color_override("font_color", Palette.TEXT_MUTE)
+		del_btn.add_theme_color_override("font_hover_color", Palette.ACCENT)
 		del_btn.custom_minimum_size = Vector2(22, 22)
 		del_btn.pressed.connect(_on_bin_delete_pressed.bind(entry.get("id", 0)))
 		row.add_child(del_btn)
@@ -966,7 +1144,7 @@ func _refresh_bin_list() -> void:
 		var v := VBoxContainer.new()
 		v.add_theme_constant_override("separation", 0)
 		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		v.add_child(_wrap_padded(row, 12, 12, 6, 6))
+		v.add_child(UIFactory.wrap_padded(row, 12, 12, 6, 6))
 		v.add_child(separator)
 		bin_container.add_child(v)
 
@@ -984,7 +1162,7 @@ func _on_param_slider_changed(value: float, key: String) -> void:
 	# default channel dict already has int/float for everything else.
 	sound.channels[active_channel][key] = stored_value
 	param_value_labels[key].text = SoundData.format_value(key, value)
-	_re_render()
+	_request_re_render()
 	# Keep the channel-tab right-side header info in sync.
 	_refresh_waveform_info()
 
@@ -992,7 +1170,7 @@ func _on_param_slider_changed(value: float, key: String) -> void:
 func _on_param_lock_pressed(key: String) -> void:
 	var cur: Dictionary = locks[active_channel]
 	cur[key] = not bool(cur.get(key, false))
-	_apply_button_style(param_lock_buttons[key], bool(cur[key]))
+	UIFactory.apply_button_style(param_lock_buttons[key], bool(cur[key]))
 
 
 func _on_param_reset(key: String) -> void:
@@ -1008,7 +1186,7 @@ func _on_param_reset(key: String) -> void:
 func _on_module_toggled(pressed: bool, enable_key: String) -> void:
 	sound.channels[active_channel][enable_key] = pressed
 	# Re-style and re-dim
-	_apply_check_style(module_check_buttons[enable_key], pressed)
+	UIFactory.apply_check_style(module_check_buttons[enable_key], pressed)
 	for mod in SoundData.MODULES:
 		if mod.enable_key == enable_key:
 			module_panels[mod.key].modulate = Color(1, 1, 1, 0.55) if not pressed else Color.WHITE
@@ -1025,9 +1203,9 @@ func _on_module_lock_pressed(mod: Dictionary) -> void:
 	cur[mod.enable_key] = will_lock
 	for p in mod.params:
 		cur[p] = will_lock
-	_apply_button_style(module_lock_buttons[mod.enable_key], will_lock)
+	UIFactory.apply_button_style(module_lock_buttons[mod.enable_key], will_lock)
 	for p in mod.params:
-		_apply_button_style(param_lock_buttons[p], will_lock)
+		UIFactory.apply_button_style(param_lock_buttons[p], will_lock)
 
 
 # ── Channel handlers ───────────────────────────────────────────────
@@ -1071,7 +1249,7 @@ func _on_channel_delete_pressed(idx: int) -> void:
 
 func _on_channel_level_changed(value: float, idx: int) -> void:
 	sound.channels[idx]["level"] = value
-	_re_render()
+	_request_re_render()
 
 
 func _on_channel_mute_pressed(idx: int) -> void:
@@ -1099,12 +1277,16 @@ func _on_master_changed(value: float, key: String) -> void:
 			verb_mix_label.text = "%.2f" % value
 		"reverbSize":
 			verb_size_label.text = "%.2f" % value
-	_re_render()
+	_request_re_render()
 
 
 # ── Action handlers ────────────────────────────────────────────────
 
 func _on_generate_pressed() -> void:
+	_push_undo()
+	# Seed BEFORE randomize_all reads any randf — same seed on the
+	# SpinBox = same generated sound, every time.
+	_consume_variation_seed()
 	var ch: Dictionary = sound.channels[active_channel]
 	var ch_locks: Dictionary = Presets.effective_locks(locks[active_channel])
 	var new_patch: Dictionary = Presets.randomize_all(ch, ch_locks)
@@ -1126,13 +1308,27 @@ func _on_export_pressed() -> void:
 
 
 func _on_save_file_selected(path: String) -> void:
+	# FileDialog's .wav filter doesn't enforce the extension on the typed
+	# filename — append it ourselves so dragging the export into a DAW or
+	# Godot project works without a manual rename.
+	if not path.to_lower().ends_with(".wav"):
+		path += ".wav"
 	var bytes: PackedByteArray = SoundData.encode_wav(samples)
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f == null:
+		# get_open_error() captures permission/path issues that swallow open().
+		var err: int = FileAccess.get_open_error()
 		_flash_status("WRITE FAIL")
+		push_warning("WAV export failed to open %s: %s" % [path, error_string(err)])
 		return
 	f.store_buffer(bytes)
+	# store_buffer() can fail mid-write (disk full, etc.) — surface that too.
+	var write_err: int = f.get_error()
 	f.close()
+	if write_err != OK:
+		_flash_status("WRITE FAIL")
+		push_warning("WAV export failed mid-write at %s: %s" % [path, error_string(write_err)])
+		return
 	_flash_status("EXPORTED")
 
 
@@ -1147,6 +1343,7 @@ func _on_paste_pressed() -> void:
 	if s == null:
 		_flash_status("INVALID")
 		return
+	_push_undo()
 	_replace_sound(s, "PASTED")
 
 
@@ -1155,15 +1352,31 @@ func _on_load_string_pressed() -> void:
 	if s == null:
 		_flash_status("INVALID")
 		return
+	_push_undo()
 	_replace_sound(s, "LOADED")
 
 
 func _on_preset_pressed(entry: Dictionary) -> void:
+	# User preset: load the saved sound string directly (kind="user",
+	# carries a "string" field instead of a function reference).
+	if entry.get("kind", "") == "user":
+		var us = SoundData.sound_from_string(String(entry.get("string", "")))
+		if us == null:
+			_flash_status("CORRUPT")
+			return
+		_push_undo()
+		_replace_sound(us, entry.name)
+		return
+
 	if entry.kind == "sound":
+		_consume_variation_seed()
 		var s = Presets.run_preset(entry, {}, {})
+		_push_undo()
 		_replace_sound(s, entry.name)
 		return
 
+	_consume_variation_seed()
+	_push_undo()
 	var ch: Dictionary = sound.channels[active_channel]
 	var ch_locks: Dictionary = Presets.effective_locks(locks[active_channel])
 	var new_patch = Presets.run_preset(entry, ch, ch_locks)
@@ -1209,6 +1422,7 @@ func _on_bin_load_pressed(id: int) -> void:
 		if s == null:
 			_flash_status("CORRUPT")
 			return
+		_push_undo()
 		_replace_sound(s, "LOADED")
 		return
 
@@ -1220,24 +1434,67 @@ func _on_bin_delete_pressed(id: int) -> void:
 
 
 func _persist_bin() -> void:
-	var f := FileAccess.open(BIN_PATH, FileAccess.WRITE)
-	if f == null:
-		return
-	f.store_string(JSON.stringify(bin))
-	f.close()
+	BinStore.persist(bin)
 
 
 func _load_bin() -> void:
-	if not FileAccess.file_exists(BIN_PATH):
+	bin = BinStore.load_bin()
+
+
+# ── Undo / redo ────────────────────────────────────────────────────
+
+# Capture (sound, locks, active_channel) as one immutable snapshot.
+# Dictionary.duplicate(true) recurses into nested arrays/dicts, so the
+# returned dict is fully decoupled from live state.
+func _snapshot() -> Dictionary:
+	return {
+		"sound": sound.duplicate(true),
+		"locks": locks.duplicate(true),
+		"active_channel": active_channel,
+	}
+
+
+# Push current state onto the undo stack and clear redo (new branch taken).
+# Called BEFORE any state replacement (GEN, preset, paste, bin-load).
+func _push_undo() -> void:
+	undo_stack.append(_snapshot())
+	if undo_stack.size() > UNDO_MAX:
+		undo_stack.pop_front()
+	redo_stack.clear()
+
+
+func _undo() -> void:
+	if undo_stack.is_empty():
+		_flash_status("NO UNDO")
 		return
-	var f := FileAccess.open(BIN_PATH, FileAccess.READ)
-	if f == null:
+	redo_stack.append(_snapshot())
+	if redo_stack.size() > UNDO_MAX:
+		redo_stack.pop_front()
+	_restore_snapshot(undo_stack.pop_back(), "UNDO")
+
+
+func _redo() -> void:
+	if redo_stack.is_empty():
+		_flash_status("NO REDO")
 		return
-	var raw: String = f.get_as_text()
-	f.close()
-	var parsed = JSON.parse_string(raw)
-	if parsed is Array:
-		bin = parsed
+	undo_stack.append(_snapshot())
+	if undo_stack.size() > UNDO_MAX:
+		undo_stack.pop_front()
+	_restore_snapshot(redo_stack.pop_back(), "REDO")
+
+
+# Restore a snapshot taken by _snapshot(). Mirrors _replace_sound's refresh
+# sequence but keeps locks + active_channel from the snapshot rather than
+# resetting them.
+func _restore_snapshot(snap: Dictionary, label: String) -> void:
+	sound = snap.sound
+	locks = snap.locks
+	active_channel = clampi(int(snap.active_channel), 0, sound.channels.size() - 1)
+	_apply_and_play(label)
+	_refresh_channel_tabs()
+	_refresh_mix_rows()
+	_refresh_module_values()
+	_refresh_master_values()
 
 
 # ── Sound-level helpers ────────────────────────────────────────────
@@ -1266,20 +1523,8 @@ func _apply_and_play(label: String) -> void:
 func _play_samples(buf: PackedFloat32Array) -> void:
 	if buf.is_empty():
 		return
-	var stream := AudioStreamWAV.new()
-	stream.format = AudioStreamWAV.FORMAT_16_BITS
-	stream.mix_rate = SoundData.SAMPLE_RATE
-	stream.stereo = false
-	# Encode the samples as 16-bit little-endian PCM (no header — AudioStreamWAV
-	# wants raw sample bytes, unlike our WAV exporter).
-	var bytes := PackedByteArray()
-	bytes.resize(buf.size() * 2)
-	for i in buf.size():
-		var v: float = clamp(buf[i], -1.0, 1.0)
-		bytes.encode_s16(i * 2, int(v * 32767.0))
-	stream.data = bytes
 	audio_player.stop()
-	audio_player.stream = stream
+	audio_player.stream = Playback.build_stream(buf)
 	audio_player.play()
 
 
@@ -1288,26 +1533,60 @@ func _play_samples(buf: PackedFloat32Array) -> void:
 func _flash_status(msg: String) -> void:
 	status_label.text = msg
 	# Filled-pill state when transient, hollow when "READY".
-	_apply_panel_style(status_label, COLOR_ACCENT, COLOR_ACCENT)
-	status_label.add_theme_color_override("font_color", COLOR_BG)
+	UIFactory.apply_panel_style(status_label, Palette.ACCENT, Palette.ACCENT)
+	status_label.add_theme_color_override("font_color", Palette.BG)
 	status_token += 1
 	var token := status_token
-	get_tree().create_timer(1.4).timeout.connect(func():
+	get_tree().create_timer(Palette.STATUS_HOLD_SEC).timeout.connect(func():
 		if token != status_token:
 			return
 		status_label.text = "READY"
-		_apply_panel_style(status_label, COLOR_BG, COLOR_ACCENT)
-		status_label.add_theme_color_override("font_color", COLOR_ACCENT)
+		UIFactory.apply_panel_style(status_label, Palette.BG, Palette.ACCENT)
+		status_label.add_theme_color_override("font_color", Palette.ACCENT)
 	)
 
 
 # ── Input ──────────────────────────────────────────────────────────
 
 func _input(event: InputEvent) -> void:
-	# Spacebar replays the current sound (matches the React app's `play_sound`
-	# action). Skipped when a text field is focused so users can type spaces.
-	if event.is_action_pressed("play_sound") and not _line_edit_focused():
+	# All hotkeys skip when a text field is focused so users can type freely
+	# (sound-string LineEdit, FileDialog filename field, etc.). Undo/redo are
+	# included in the gate because LineEdit handles its own Ctrl+Z internally.
+	if _line_edit_focused():
+		return
+	if event.is_action_pressed("play_sound"):
 		_on_play_pressed()
+	elif event.is_action_pressed("re_render"):
+		# Forces a fresh render + play. Useful after a paste or to A/B-confirm
+		# the cached samples match the current parameters.
+		_apply_and_play("PLAY")
+	elif event.is_action_pressed("gen_sound"):
+		_on_generate_pressed()
+	elif event.is_action_pressed("export_sound"):
+		_on_export_pressed()
+	elif event.is_action_pressed("undo_action"):
+		_undo()
+	elif event.is_action_pressed("redo_action"):
+		_redo()
+	elif event.is_action_pressed("channel_1"):
+		_switch_channel_hotkey(0)
+	elif event.is_action_pressed("channel_2"):
+		_switch_channel_hotkey(1)
+	elif event.is_action_pressed("channel_3"):
+		_switch_channel_hotkey(2)
+	elif event.is_action_pressed("channel_4"):
+		_switch_channel_hotkey(3)
+
+
+# Hotkey-driven channel switch: silently no-ops when the channel doesn't
+# exist (e.g. pressing "4" with only 2 channels), so missing channels never
+# crash or flash an error.
+func _switch_channel_hotkey(idx: int) -> void:
+	if idx < 0 or idx >= sound.channels.size():
+		return
+	if idx == active_channel:
+		return
+	_on_channel_tab_pressed(idx)
 
 
 func _line_edit_focused() -> bool:
