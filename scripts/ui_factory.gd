@@ -167,6 +167,87 @@ static func make_action_button(text: String, primary: bool = false) -> Button:
 	return b
 
 
+# ── Knob boxes ─────────────────────────────────────────────────────
+
+# Most PARAM_DEFS labels fit a 56 px knob box at 10 pt; a handful don't, so
+# we override the display text here for the knob view only. The PARAM_DEFS
+# label is still used by the value-readout formatter and by anything that
+# wants the long form.
+const KNOB_LABEL_OVERRIDES: Dictionary = {
+	"crushBits": "BITS",
+	"crushRate": "S.RATE",
+	"delayFeedback": "FB",
+	"filterRes": "RES",
+	"filterCutoff": "CUTOFF",
+}
+
+
+# Builds a 56 × 72 knob box (label · knob · value). Returns a dictionary so
+# the controller can cache the inner controls the same way it caches sliders
+# today (param_knobs / param_value_labels / param_lock-equivalents).
+static func make_knob_box(param_key: String) -> Dictionary:
+	var def: Dictionary = SoundData.PARAM_DEFS[param_key]
+	var label_text: String = KNOB_LABEL_OVERRIDES.get(param_key, def.label)
+	return _build_knob_box(label_text, def.label, def.min, def.max, def.step)
+
+
+# Master / generic flavour. The header label is also used as the tooltip
+# title so we don't need a separate PARAM_DEFS entry for master output.
+static func make_master_knob_box(label_text: String, lo: float, hi: float, st: float) -> Dictionary:
+	return _build_knob_box(label_text, label_text, lo, hi, st)
+
+
+static func _build_knob_box(label_text: String, tooltip_title: String, lo: float, hi: float, st: float) -> Dictionary:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 1)
+	box.custom_minimum_size = Vector2(56, 72)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var label_btn := Button.new()
+	label_btn.text = label_text
+	label_btn.flat = true
+	label_btn.add_theme_color_override("font_color", Palette.TEXT_MUTE)
+	label_btn.add_theme_color_override("font_hover_color", Palette.ACCENT)
+	label_btn.add_theme_font_size_override("font_size", Palette.FONT_SMALL)
+	label_btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label_btn.tooltip_text = "Click to reset · alt-click knob to lock"
+	label_btn.custom_minimum_size = Vector2(0, 13)
+	label_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# Strip the default Button stylebox padding so the label row is actually 13 px.
+	var empty_sb := StyleBoxEmpty.new()
+	label_btn.add_theme_stylebox_override("normal", empty_sb)
+	label_btn.add_theme_stylebox_override("hover", empty_sb)
+	label_btn.add_theme_stylebox_override("pressed", empty_sb)
+	label_btn.add_theme_stylebox_override("focus", empty_sb)
+	box.add_child(label_btn)
+
+	var knob := Knob.new()
+	knob.min_value = lo
+	knob.max_value = hi
+	knob.step = st
+	knob.tooltip_text = "%s · drag · right-click reset · alt-click lock" % tooltip_title
+	knob.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	knob.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	knob.custom_minimum_size = Vector2(36, 36)
+	box.add_child(knob)
+
+	var value_label := Label.new()
+	value_label.text = "—"
+	value_label.add_theme_color_override("font_color", Palette.TEXT)
+	value_label.add_theme_font_size_override("font_size", Palette.FONT_SMALL)
+	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	value_label.custom_minimum_size = Vector2(0, 12)
+	value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_child(value_label)
+
+	return {
+		"box": box,
+		"knob": knob,
+		"value_label": value_label,
+		"label_btn": label_btn,
+	}
+
+
 # ── Section panels ─────────────────────────────────────────────────
 
 # Returns a PanelContainer whose body is a child VBoxContainer. The

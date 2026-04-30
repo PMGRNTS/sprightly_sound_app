@@ -58,9 +58,12 @@ var variation_seed: int = 0
 var variation_seed_input: SpinBox
 
 # ── Preset panel state ─────────────────────────────────────────────
-# Per-group expand state for the accordion (2B-3). Defaults are seeded
-# in _refresh_preset_panel — first 2 groups open; rest collapsed.
-var preset_group_expanded: Dictionary = {}
+# Tab-strip state: one group visible at a time. Persists across
+# _refresh_preset_panel calls so saving a user preset doesn't yank the
+# user away from whatever group they were browsing.
+var preset_active_group: String = ""
+var preset_tab_buttons: Dictionary = {}  # group name -> Button (re-styled on switch)
+var preset_grids: Dictionary = {}        # group name -> GridContainer (visibility toggled)
 
 # ── Bin search (2B-5) ──────────────────────────────────────────────
 # Substring filter applied to bin-entry names. Lowercased on input.
@@ -72,23 +75,30 @@ var waveform: WaveformDisplay
 var waveform_info_left: Label
 var waveform_info_right: Label
 
+# ── Onomatopoeia (Phase 2) ─────────────────────────────────────────
+# Header LineEdit + apply button. Type a word, get a sound — single
+# channel, params merged onto the active channel respecting locks.
+var onomatopoeia_input: LineEdit
+
 var channel_tabs_container: HBoxContainer
-var modules_container: VBoxContainer
+var modules_container: GridContainer
 var mix_container: VBoxContainer
-var master_v_slider: HSlider
+var master_v_knob: Knob
 var master_v_label: Label
-var verb_mix_slider: HSlider
+var verb_mix_knob: Knob
 var verb_mix_label: Label
-var verb_size_slider: HSlider
+var verb_size_knob: Knob
 var verb_size_label: Label
 var sound_string_input: LineEdit
 var bin_container: VBoxContainer
 var bin_count_label: Label
 
 # Cached references per param key — keyed by param name string.
-var param_sliders: Dictionary = {}      # key -> HSlider
+# Knob extends Range, so it shares the set_value_no_signal API with the
+# previous HSlider implementation. Lock state lives on the knob itself
+# (knob.locked, toggled via alt-click) — there's no separate lock button.
+var param_knobs: Dictionary = {}        # key -> Knob
 var param_value_labels: Dictionary = {} # key -> Label
-var param_lock_buttons: Dictionary = {} # key -> Button
 var module_panels: Dictionary = {}      # mod_key -> PanelContainer (for dim)
 var module_check_buttons: Dictionary = {} # enable_key -> Button (acts as checkbox)
 var module_lock_buttons: Dictionary = {}  # enable_key -> Button
@@ -181,9 +191,9 @@ func _build_ui() -> void:
 func _build_header() -> Control:
 	var hdr := HBoxContainer.new()
 	hdr.alignment = BoxContainer.ALIGNMENT_BEGIN
+	hdr.add_theme_constant_override("separation", 16)
 
 	var left := VBoxContainer.new()
-	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hdr.add_child(left)
 
 	var sub := UIFactory.make_label("// BUFFER GENERATOR · v3.0", 10, Palette.TEXT_MUTE, 0.4)
@@ -192,6 +202,33 @@ func _build_header() -> Control:
 	var title := UIFactory.make_label("GODOT_SFX", 24, Palette.TEXT, 0.08)
 	title.add_theme_font_size_override("font_size", Palette.FONT_TITLE)
 	left.add_child(title)
+
+	# Onomatopoeia input. Type a word, hit Enter or click → to convert.
+	# Eats the dead horizontal space between the title and STATUS pill.
+	var ono_box := HBoxContainer.new()
+	ono_box.add_theme_constant_override("separation", 6)
+	ono_box.size_flags_vertical = Control.SIZE_SHRINK_END
+	ono_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hdr.add_child(ono_box)
+
+	ono_box.add_child(UIFactory.make_label("SAY", Palette.FONT_SMALL, Palette.TEXT_MUTE, 0.3))
+
+	onomatopoeia_input = LineEdit.new()
+	onomatopoeia_input.placeholder_text = "BOOM · tick · whoosh · zap"
+	onomatopoeia_input.add_theme_color_override("font_color", Palette.TEXT)
+	onomatopoeia_input.add_theme_color_override("font_placeholder_color", Palette.TEXT_DIM)
+	onomatopoeia_input.add_theme_font_size_override("font_size", Palette.FONT_VALUE)
+	onomatopoeia_input.custom_minimum_size = Vector2(240, 28)
+	onomatopoeia_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UIFactory.apply_lineedit_style(onomatopoeia_input)
+	onomatopoeia_input.text_submitted.connect(_on_onomatopoeia_submitted)
+	ono_box.add_child(onomatopoeia_input)
+
+	var apply_btn := UIFactory.make_action_button("→", true)
+	apply_btn.tooltip_text = "Convert text to sound parameters"
+	apply_btn.custom_minimum_size = Vector2(36, 28)
+	apply_btn.pressed.connect(_on_onomatopoeia_apply_pressed)
+	ono_box.add_child(apply_btn)
 
 	var right := HBoxContainer.new()
 	right.add_theme_constant_override("separation", 10)
@@ -256,6 +293,18 @@ func _build_waveform() -> Control:
 
 
 # ── Left column: channel tabs + module list ────────────────────────
+
+# Module pairing for the 2-column grid. Five rows × two cols puts every
+# module on one screen at 1280×900 with no scrolling. Order chosen so
+# closely-related modules sit side-by-side (filter/pitch env, vib/trem).
+const MODULE_ROW_PAIRS := [
+	["source",   "amp"],
+	["filter",   "pitchEnv"],
+	["vibrato",  "tremolo"],
+	["arpeggio", "delay"],
+	["drive",    "crush"],
+]
+
 func _build_left_column() -> Control:
 	var v := VBoxContainer.new()
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -266,20 +315,22 @@ func _build_left_column() -> Control:
 	channel_tabs_container.add_theme_constant_override("separation", 4)
 	v.add_child(channel_tabs_container)
 
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
-	v.add_child(scroll)
-
-	modules_container = VBoxContainer.new()
-	modules_container.add_theme_constant_override("separation", 6)
+	# 2-column grid replaces the prior ScrollContainer + VBox. Five rows of
+	# paired modules fit the viewport at default resolution.
+	modules_container = GridContainer.new()
+	modules_container.columns = 2
+	modules_container.add_theme_constant_override("h_separation", 6)
+	modules_container.add_theme_constant_override("v_separation", 4)
 	modules_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(modules_container)
+	modules_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(modules_container)
 
+	var by_key: Dictionary = {}
 	for mod in SoundData.MODULES:
-		modules_container.add_child(_make_module_panel(mod))
+		by_key[mod.key] = mod
+	for pair in MODULE_ROW_PAIRS:
+		for k in pair:
+			modules_container.add_child(_make_module_panel(by_key[k]))
 
 	return v
 
@@ -287,6 +338,7 @@ func _build_left_column() -> Control:
 func _make_module_panel(mod: Dictionary) -> Control:
 	var panel := PanelContainer.new()
 	UIFactory.apply_panel_style(panel, Palette.PANEL, Palette.BORDER)
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	module_panels[mod.key] = panel
 
 	var v := VBoxContainer.new()
@@ -295,8 +347,8 @@ func _make_module_panel(mod: Dictionary) -> Control:
 
 	# Header row
 	var header := HBoxContainer.new()
-	header.add_theme_constant_override("separation", 10)
-	v.add_child(UIFactory.wrap_padded(header, 10, 10, 6, 6))
+	header.add_theme_constant_override("separation", 6)
+	v.add_child(UIFactory.wrap_padded(header, 6, 6, 3, 3))
 
 	# Border under header
 	var hdr_border := ColorRect.new()
@@ -310,7 +362,7 @@ func _make_module_panel(mod: Dictionary) -> Control:
 
 	if is_toggleable:
 		var check := UIFactory.make_check_button("", false)
-		check.custom_minimum_size = Vector2(20, 20)
+		check.custom_minimum_size = Vector2(18, 18)
 		check.toggled.connect(_on_module_toggled.bind(enable_key))
 		header.add_child(check)
 		module_check_buttons[enable_key] = check
@@ -318,16 +370,16 @@ func _make_module_panel(mod: Dictionary) -> Control:
 		# Always-on indicator
 		var indicator := ColorRect.new()
 		indicator.color = Color("#332a1f")
-		indicator.custom_minimum_size = Vector2(20, 20)
+		indicator.custom_minimum_size = Vector2(18, 18)
 		var inner := ColorRect.new()
 		inner.color = Palette.ACCENT
 		inner.set_anchors_preset(Control.PRESET_CENTER)
-		inner.position = Vector2(7, 7)
+		inner.position = Vector2(6, 6)
 		inner.size = Vector2(6, 6)
 		indicator.add_child(inner)
 		header.add_child(indicator)
 
-	var title := UIFactory.make_label(mod.title, 12, Palette.TEXT, 0.3)
+	var title := UIFactory.make_label(mod.title, Palette.FONT_LABEL, Palette.TEXT, 0.3)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title)
 
@@ -337,89 +389,52 @@ func _make_module_panel(mod: Dictionary) -> Control:
 		header.add_child(lock_btn)
 		module_lock_buttons[enable_key] = lock_btn
 
-	# Body: param rows
-	var body := VBoxContainer.new()
-	body.add_theme_constant_override("separation", 0)
-	v.add_child(UIFactory.wrap_padded(body, 4, 4, 4, 6))
+	# Body: horizontal row of knob boxes — one per param.
+	var body := HBoxContainer.new()
+	body.add_theme_constant_override("separation", 2)
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.add_child(UIFactory.wrap_padded(body, 4, 4, 3, 4))
 
 	for pk in mod.params:
-		body.add_child(_make_param_row(pk))
+		var box_dict: Dictionary = UIFactory.make_knob_box(pk)
+		body.add_child(box_dict.box)
+		var knob: Knob = box_dict.knob
+		knob.value_changed.connect(_on_param_value_changed.bind(pk))
+		knob.reset_requested.connect(_on_param_reset.bind(pk))
+		knob.lock_toggled.connect(_on_param_lock_toggled.bind(pk))
+		# Clicking the label resets to default — preserves the prior UX
+		# even though the inline lock button is gone.
+		box_dict.label_btn.pressed.connect(_on_param_reset.bind(pk))
+		param_knobs[pk] = knob
+		param_value_labels[pk] = box_dict.value_label
 
 	return panel
 
 
-# A single parameter slider with lock + reset.
-func _make_param_row(param_key: String) -> Control:
-	var def: Dictionary = SoundData.PARAM_DEFS[param_key]
-
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
-	row.custom_minimum_size = Vector2(0, 22)
-
-	var lock_btn := UIFactory.make_lock_button()
-	lock_btn.pressed.connect(_on_param_lock_pressed.bind(param_key))
-	row.add_child(lock_btn)
-	param_lock_buttons[param_key] = lock_btn
-
-	var label_btn := Button.new()
-	label_btn.text = def.label
-	label_btn.flat = true
-	label_btn.custom_minimum_size = Vector2(96, 22)
-	label_btn.add_theme_color_override("font_color", Palette.TEXT_MUTE)
-	label_btn.add_theme_color_override("font_hover_color", Palette.ACCENT)
-	label_btn.add_theme_font_size_override("font_size", Palette.FONT_VALUE)
-	label_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	label_btn.tooltip_text = "Click to reset to default"
-	label_btn.pressed.connect(_on_param_reset.bind(param_key))
-	row.add_child(label_btn)
-
-	var slider := HSlider.new()
-	slider.min_value = def.min
-	slider.max_value = def.max
-	slider.step = def.step
-	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	slider.custom_minimum_size = Vector2(120, 22)
-	slider.value_changed.connect(_on_param_slider_changed.bind(param_key))
-	row.add_child(slider)
-	param_sliders[param_key] = slider
-
-	var value_label := Label.new()
-	value_label.text = "—"
-	value_label.add_theme_color_override("font_color", Palette.TEXT)
-	value_label.add_theme_font_size_override("font_size", Palette.FONT_VALUE)
-	value_label.custom_minimum_size = Vector2(72, 22)
-	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	row.add_child(value_label)
-	param_value_labels[param_key] = value_label
-
-	return row
-
-
 # ── Right column: master, presets, actions, sound string, bin ──────
-# Wrapped in a ScrollContainer so the bottom panels stay reachable when the
-# viewport is shorter than the column's natural height.
+# No outer ScrollContainer — the column is sized to fit at 1280×900 with
+# the bin getting whatever vertical space remains.
 func _build_right_column() -> Control:
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_stretch_ratio = 2.0
-	scroll.custom_minimum_size = Vector2(420, 0)
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
-
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 6)
+	v.add_theme_constant_override("separation", 4)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(v)
+	v.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.size_flags_stretch_ratio = 2.0
+	v.custom_minimum_size = Vector2(420, 0)
 
 	v.add_child(_build_master_panel())
 	v.add_child(_build_presets_panel())
 	v.add_child(_build_actions_panel())
 	v.add_child(_build_sound_string_panel())
-	v.add_child(_build_bin_panel())
 
-	return scroll
+	# Bin gets the remaining vertical real estate — its internal ScrollContainer
+	# is the only scrollbar in the entire app, and it only kicks in when the
+	# bin actually overflows.
+	var bin_panel := _build_bin_panel()
+	bin_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(bin_panel)
+
+	return v
 
 
 func _build_master_panel() -> Control:
@@ -436,75 +451,62 @@ func _build_master_panel() -> Control:
 	output_border.color = Palette.BORDER
 	output_border.custom_minimum_size = Vector2(0, 1)
 	output_border.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	body.add_child(UIFactory.wrap_padded(output_border, 0, 0, 8, 0))
+	body.add_child(UIFactory.wrap_padded(output_border, 0, 0, 6, 0))
 	body.add_child(UIFactory.make_label("OUTPUT", 9, Palette.TEXT_DIM, 0.3))
 
-	# Master sliders
-	var mv := _make_master_row("VOLUME", 0.0, 1.0, 0.01)
-	master_v_slider = mv["slider"]
-	master_v_label = mv["value"]
-	master_v_slider.value_changed.connect(_on_master_changed.bind("masterVolume"))
-	body.add_child(mv["row"])
+	# Output knobs in one horizontal row.
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_child(row)
 
-	var rm := _make_master_row("VERB MIX", 0.0, 1.0, 0.01)
-	verb_mix_slider = rm["slider"]
-	verb_mix_label = rm["value"]
-	verb_mix_slider.value_changed.connect(_on_master_changed.bind("reverbMix"))
-	body.add_child(rm["row"])
+	var mv := UIFactory.make_master_knob_box("VOLUME", 0.0, 1.0, 0.01)
+	master_v_knob = mv["knob"]
+	master_v_label = mv["value_label"]
+	master_v_knob.value_changed.connect(_on_master_changed.bind("masterVolume"))
+	mv["label_btn"].pressed.connect(_on_master_reset.bind("masterVolume"))
+	master_v_knob.reset_requested.connect(_on_master_reset.bind("masterVolume"))
+	row.add_child(mv["box"])
 
-	var rs := _make_master_row("VERB SIZE", 0.0, 1.0, 0.01)
-	verb_size_slider = rs["slider"]
-	verb_size_label = rs["value"]
-	verb_size_slider.value_changed.connect(_on_master_changed.bind("reverbSize"))
-	body.add_child(rs["row"])
+	var rm := UIFactory.make_master_knob_box("VERB MIX", 0.0, 1.0, 0.01)
+	verb_mix_knob = rm["knob"]
+	verb_mix_label = rm["value_label"]
+	verb_mix_knob.value_changed.connect(_on_master_changed.bind("reverbMix"))
+	rm["label_btn"].pressed.connect(_on_master_reset.bind("reverbMix"))
+	verb_mix_knob.reset_requested.connect(_on_master_reset.bind("reverbMix"))
+	row.add_child(rm["box"])
+
+	var rs := UIFactory.make_master_knob_box("VERB SIZE", 0.0, 1.0, 0.01)
+	verb_size_knob = rs["knob"]
+	verb_size_label = rs["value_label"]
+	verb_size_knob.value_changed.connect(_on_master_changed.bind("reverbSize"))
+	rs["label_btn"].pressed.connect(_on_master_reset.bind("reverbSize"))
+	verb_size_knob.reset_requested.connect(_on_master_reset.bind("reverbSize"))
+	row.add_child(rs["box"])
 
 	return panel
-
-
-func _make_master_row(label_text: String, lo: float, hi: float, st: float) -> Dictionary:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-
-	var lbl := UIFactory.make_label(label_text, 10, Palette.TEXT_MUTE, 0.2)
-	lbl.custom_minimum_size = Vector2(80, 22)
-	row.add_child(lbl)
-
-	var slider := HSlider.new()
-	slider.min_value = lo
-	slider.max_value = hi
-	slider.step = st
-	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(slider)
-
-	var value := Label.new()
-	value.text = "—"
-	value.custom_minimum_size = Vector2(48, 22)
-	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	value.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	value.add_theme_color_override("font_color", Palette.TEXT)
-	value.add_theme_font_size_override("font_size", Palette.FONT_SMALL)
-	row.add_child(value)
-
-	return {"row": row, "slider": slider, "value": value}
 
 
 func _build_presets_panel() -> Control:
 	var panel := UIFactory.make_section_panel("PRESETS")
 	var body: VBoxContainer = panel.get_meta("body")
 	preset_buttons_root = VBoxContainer.new()
-	preset_buttons_root.add_theme_constant_override("separation", 6)
+	preset_buttons_root.add_theme_constant_override("separation", 4)
 	body.add_child(preset_buttons_root)
 	_refresh_preset_panel()
 	return panel
 
 
-# Rebuild every accordion section. Called once on init and again after a
-# user preset is saved (so the USER group appears or grows in place).
+# Rebuild the tab strip and every group's grid. Called once on init and
+# again after a user preset is saved (so the USER tab appears or grows
+# in place). Active-tab state is preserved across rebuilds.
 func _refresh_preset_panel() -> void:
 	if preset_buttons_root == null:
 		return
 	for c in preset_buttons_root.get_children():
 		c.queue_free()
+	preset_tab_buttons.clear()
+	preset_grids.clear()
 
 	# Discover groups dynamically in REGISTRY-declaration order so new
 	# categories appear automatically.
@@ -513,79 +515,89 @@ func _refresh_preset_panel() -> void:
 		if not (entry.group in groups):
 			groups.append(entry.group)
 
-	# First-run defaults: the first two groups (SHOOTER, ARCADE in the
-	# stock build) start expanded; everything else collapses so the panel
-	# isn't a 90-button wall on launch. Subsequent visits respect whatever
-	# the user toggled — no persistence to disk yet.
-	for gi in groups.size():
-		var g: String = groups[gi]
-		if not preset_group_expanded.has(g):
-			preset_group_expanded[g] = (gi < 2)
-
-	for group_name in groups:
-		var entries: Array = []
-		for entry in Presets.REGISTRY:
-			if entry.group == group_name:
-				entries.append(entry)
-		preset_buttons_root.add_child(_make_preset_group_section(group_name, entries))
-
-	# User presets appended last as a synthetic "USER" group. Auto-expand
-	# the first time it appears so a freshly-saved preset is visible.
 	var user_entries: Array = _build_user_preset_entries()
 	if not user_entries.is_empty():
-		if not preset_group_expanded.has("USER"):
-			preset_group_expanded["USER"] = true
-		preset_buttons_root.add_child(_make_preset_group_section("USER", user_entries))
+		groups.append("USER")
+
+	if groups.is_empty():
+		return
+
+	# Default to first group on first run; preserve user's selection across
+	# rebuilds when possible.
+	if preset_active_group == "" or not (preset_active_group in groups):
+		preset_active_group = groups[0]
+
+	# Tab-button row.
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 4)
+	tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	preset_buttons_root.add_child(tabs)
+
+	for g in groups:
+		var tab_btn := UIFactory.make_action_button(g)
+		tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		tab_btn.pressed.connect(_on_preset_tab_pressed.bind(g))
+		tabs.add_child(tab_btn)
+		preset_tab_buttons[g] = tab_btn
+
+	# One grid per group; only the active group's grid is visible. Container
+	# layout skips invisible children, so the panel sizes to whichever group
+	# is showing.
+	for g in groups:
+		var grid := GridContainer.new()
+		grid.columns = 6
+		grid.add_theme_constant_override("h_separation", 4)
+		grid.add_theme_constant_override("v_separation", 4)
+		grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		preset_buttons_root.add_child(grid)
+		preset_grids[g] = grid
+
+		var entries: Array
+		if g == "USER":
+			entries = user_entries
+		else:
+			entries = []
+			for entry in Presets.REGISTRY:
+				if entry.group == g:
+					entries.append(entry)
+
+		for entry in entries:
+			var btn := UIFactory.make_action_button(entry.name)
+			btn.pressed.connect(_on_preset_pressed.bind(entry))
+			# Hover preview (2B-2): audit on enter, cancel on exit.
+			btn.mouse_entered.connect(_on_preset_button_hovered.bind(entry))
+			btn.mouse_exited.connect(_on_preset_button_unhovered)
+			grid.add_child(btn)
+
+		grid.visible = (g == preset_active_group)
+
+	_restyle_preset_tabs()
 
 
-# Build one collapsible section: a clickable header row over a button
-# grid. The header toggles grid.visible — Godot's Container layout skips
-# invisible children, so the panel grows/shrinks naturally.
-func _make_preset_group_section(group_name: String, entries: Array) -> VBoxContainer:
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 2)
-
-	var header := Button.new()
-	header.flat = true
-	header.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	header.add_theme_font_size_override("font_size", Palette.FONT_SMALL)
-	header.add_theme_color_override("font_color", Palette.TEXT_MUTE)
-	header.add_theme_color_override("font_hover_color", Palette.ACCENT)
-	header.add_theme_color_override("font_pressed_color", Palette.ACCENT)
-	header.custom_minimum_size = Vector2(0, 22)
-	col.add_child(header)
-
-	var grid := GridContainer.new()
-	grid.columns = 6
-	grid.add_theme_constant_override("h_separation", 6)
-	grid.add_theme_constant_override("v_separation", 6)
-	col.add_child(grid)
-
-	for entry in entries:
-		var btn := UIFactory.make_action_button(entry.name)
-		btn.pressed.connect(_on_preset_pressed.bind(entry))
-		# Hover preview (2B-2): audit on enter, cancel on exit.
-		btn.mouse_entered.connect(_on_preset_button_hovered.bind(entry))
-		btn.mouse_exited.connect(_on_preset_button_unhovered)
-		grid.add_child(btn)
-
-	var expanded: bool = bool(preset_group_expanded.get(group_name, false))
-	grid.visible = expanded
-	header.text = _preset_group_header_text(group_name, entries.size(), expanded)
-	header.pressed.connect(_on_preset_group_toggled.bind(group_name, header, grid, entries.size()))
-	return col
+func _on_preset_tab_pressed(group_name: String) -> void:
+	preset_active_group = group_name
+	for g in preset_grids.keys():
+		preset_grids[g].visible = (g == group_name)
+	_restyle_preset_tabs()
 
 
-static func _preset_group_header_text(name: String, count: int, expanded: bool) -> String:
-	var arrow: String = "▾" if expanded else "▸"
-	return "%s  %s  (%d)" % [arrow, name, count]
-
-
-func _on_preset_group_toggled(group_name: String, header: Button, grid: GridContainer, count: int) -> void:
-	var now: bool = not bool(preset_group_expanded.get(group_name, false))
-	preset_group_expanded[group_name] = now
-	grid.visible = now
-	header.text = _preset_group_header_text(group_name, count, now)
+# Active tab gets the filled accent stylebox; inactives stay hollow. Reuses
+# make_stylebox so it matches the rest of the app's button language.
+func _restyle_preset_tabs() -> void:
+	for g in preset_tab_buttons.keys():
+		var btn: Button = preset_tab_buttons[g]
+		var active: bool = (g == preset_active_group)
+		var bg: Color = Palette.ACCENT if active else Color(0, 0, 0, 0)
+		var fg: Color = Palette.BG if active else Palette.TEXT_MUTE
+		var border: Color = Palette.ACCENT if active else Palette.BORDER_HI
+		var normal := UIFactory.make_stylebox(bg, border)
+		var hover := UIFactory.make_stylebox(Palette.ACCENT, Palette.ACCENT)
+		btn.add_theme_stylebox_override("normal", normal)
+		btn.add_theme_stylebox_override("hover", hover)
+		btn.add_theme_stylebox_override("pressed", normal)
+		btn.add_theme_stylebox_override("focus", normal)
+		btn.add_theme_color_override("font_color", fg)
+		btn.add_theme_color_override("font_hover_color", Palette.BG)
 
 
 # Build registry-style entries for user-saved presets. They carry an
@@ -845,7 +857,6 @@ func _build_bin_panel() -> Control:
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.custom_minimum_size = Vector2(0, 80)
 	body.add_child(scroll)
 
 	bin_container = VBoxContainer.new()
@@ -1037,21 +1048,20 @@ func _make_mini_btn(text: String, on: bool) -> Button:
 	return b
 
 
-# Update slider values + lock states for the active channel WITHOUT
+# Update knob values + lock states for the active channel WITHOUT
 # triggering signal emission cascades (which would cause feedback loops).
 func _refresh_module_values() -> void:
 	var ch_dict: Dictionary = sound.channels[active_channel]
 	var ch_locks: Dictionary = locks[active_channel] if active_channel < locks.size() else {}
 
-	for key in param_sliders.keys():
-		var slider: HSlider = param_sliders[key]
+	for key in param_knobs.keys():
+		var knob: Knob = param_knobs[key]
 		var v: float = float(ch_dict.get(key, 0.0))
-		# set_value_no_signal avoids the round-trip back into _on_param_slider_changed.
-		slider.set_value_no_signal(v)
+		# set_value_no_signal avoids the round-trip back into _on_param_value_changed.
+		knob.set_value_no_signal(v)
 		var label: Label = param_value_labels[key]
 		label.text = SoundData.format_value(key, v)
-		var lock_btn: Button = param_lock_buttons[key]
-		UIFactory.apply_button_style(lock_btn, bool(ch_locks.get(key, false)))
+		knob.set_locked(bool(ch_locks.get(key, false)))
 
 	for mod in SoundData.MODULES:
 		var ek: String = mod.enable_key
@@ -1070,13 +1080,13 @@ func _refresh_module_values() -> void:
 
 
 func _refresh_master_values() -> void:
-	if master_v_slider == null:
+	if master_v_knob == null:
 		return
-	master_v_slider.set_value_no_signal(float(sound.master.masterVolume))
+	master_v_knob.set_value_no_signal(float(sound.master.masterVolume))
 	master_v_label.text = "%.2f" % float(sound.master.masterVolume)
-	verb_mix_slider.set_value_no_signal(float(sound.master.reverbMix))
+	verb_mix_knob.set_value_no_signal(float(sound.master.reverbMix))
 	verb_mix_label.text = "%.2f" % float(sound.master.reverbMix)
-	verb_size_slider.set_value_no_signal(float(sound.master.reverbSize))
+	verb_size_knob.set_value_no_signal(float(sound.master.reverbSize))
 	verb_size_label.text = "%.2f" % float(sound.master.reverbSize)
 
 
@@ -1151,8 +1161,8 @@ func _refresh_bin_list() -> void:
 
 # ── Param + module handlers ────────────────────────────────────────
 
-func _on_param_slider_changed(value: float, key: String) -> void:
-	# Step is enforced by HSlider.step; the def may also store ints.
+func _on_param_value_changed(value: float, key: String) -> void:
+	# Step is enforced by Knob.step; the def may also store ints.
 	var def: Dictionary = SoundData.PARAM_DEFS[key]
 	var stored_value: Variant = value
 	if def.has("step") and def.step >= 1.0:
@@ -1167,18 +1177,18 @@ func _on_param_slider_changed(value: float, key: String) -> void:
 	_refresh_waveform_info()
 
 
-func _on_param_lock_pressed(key: String) -> void:
+# Knob alt-click emits the new locked state. Mirror it onto the channel's
+# locks dict; the knob already updated its own visual.
+func _on_param_lock_toggled(is_locked: bool, key: String) -> void:
 	var cur: Dictionary = locks[active_channel]
-	cur[key] = not bool(cur.get(key, false))
-	UIFactory.apply_button_style(param_lock_buttons[key], bool(cur[key]))
+	cur[key] = is_locked
 
 
 func _on_param_reset(key: String) -> void:
 	var def_value: Variant = SoundData.DEFAULT_PARAMS[key]
 	sound.channels[active_channel][key] = def_value
-	# Slider value (always a float for the slider control)
-	var slider: HSlider = param_sliders[key]
-	slider.set_value_no_signal(float(def_value))
+	var knob: Knob = param_knobs[key]
+	knob.set_value_no_signal(float(def_value))
 	param_value_labels[key].text = SoundData.format_value(key, float(def_value))
 	_re_render()
 
@@ -1205,7 +1215,9 @@ func _on_module_lock_pressed(mod: Dictionary) -> void:
 		cur[p] = will_lock
 	UIFactory.apply_button_style(module_lock_buttons[mod.enable_key], will_lock)
 	for p in mod.params:
-		UIFactory.apply_button_style(param_lock_buttons[p], will_lock)
+		var knob: Knob = param_knobs.get(p)
+		if knob:
+			knob.set_locked(will_lock)
 
 
 # ── Channel handlers ───────────────────────────────────────────────
@@ -1278,6 +1290,50 @@ func _on_master_changed(value: float, key: String) -> void:
 		"reverbSize":
 			verb_size_label.text = "%.2f" % value
 	_request_re_render()
+
+
+func _on_master_reset(key: String) -> void:
+	var def_value: float = float(SoundData.DEFAULT_MASTER[key])
+	sound.master[key] = def_value
+	match key:
+		"masterVolume":
+			master_v_knob.set_value_no_signal(def_value)
+			master_v_label.text = "%.2f" % def_value
+		"reverbMix":
+			verb_mix_knob.set_value_no_signal(def_value)
+			verb_mix_label.text = "%.2f" % def_value
+		"reverbSize":
+			verb_size_knob.set_value_no_signal(def_value)
+			verb_size_label.text = "%.2f" % def_value
+	_re_render()
+
+
+# ── Onomatopoeia handlers ──────────────────────────────────────────
+
+func _on_onomatopoeia_submitted(text: String) -> void:
+	_apply_onomatopoeia(text)
+
+
+func _on_onomatopoeia_apply_pressed() -> void:
+	_apply_onomatopoeia(onomatopoeia_input.text)
+
+
+func _apply_onomatopoeia(text: String) -> void:
+	var phonemes: Array = Onomatopoeia.tokenize(text)
+	if phonemes.is_empty():
+		_flash_status("?")
+		return
+	_push_undo()
+	var ch: Dictionary = sound.channels[active_channel]
+	var ch_locks: Dictionary = locks[active_channel] if active_channel < locks.size() else {}
+	var new_params: Dictionary = Onomatopoeia.text_to_patch(text, ch, ch_locks)
+	sound.channels[active_channel] = new_params
+	# Cap the status flash so a long word doesn't blow out the pill.
+	var label: String = text.to_upper()
+	if label.length() > 12:
+		label = label.substr(0, 11) + "…"
+	_apply_and_play(label)
+	_refresh_module_values()
 
 
 # ── Action handlers ────────────────────────────────────────────────
