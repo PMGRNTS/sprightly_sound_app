@@ -15,23 +15,16 @@ extends RefCounted
 
 # ── Labels ─────────────────────────────────────────────────────────
 
-# Solid Label with theme overrides applied. `letter_spacing` is reserved
-# for a future custom-font upgrade — currently a no-op (see note below).
-static func make_label(text: String, font_size: int, color: Color, letter_spacing: float = 0.0) -> Label:
+# Solid Label with theme overrides applied. `letter_spacing` is accepted
+# at the API boundary (call sites still pass tracking values) but is a
+# no-op until a custom font is wired up — Godot Label needs OpenTypeFeatures
+# for tracking, which require a TTF asset we haven't shipped yet.
+static func make_label(text: String, font_size: int, color: Color, _letter_spacing: float = 0.0) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.add_theme_color_override("font_color", color)
 	l.add_theme_font_size_override("font_size", font_size)
-	if letter_spacing > 0.0:
-		_set_label_letter_spacing(l, letter_spacing)
 	return l
-
-
-# Approximates the JS letter-spacing by injecting non-breaking spaces.
-# Letter-spacing as a font setting needs a custom font; left as a single
-# upgrade point for when we wire one up.
-static func _set_label_letter_spacing(_l: Label, _spacing_em: float) -> void:
-	pass
 
 
 # ── Padding ────────────────────────────────────────────────────────
@@ -271,11 +264,7 @@ static func make_section_panel(title_text: String, _flexible_height: bool = fals
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_row.add_child(title)
 
-	var border := ColorRect.new()
-	border.color = Palette.BORDER
-	border.custom_minimum_size = Vector2(0, 1)
-	border.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.add_child(border)
+	v.add_child(make_hairline(Palette.BORDER))
 
 	var body := VBoxContainer.new()
 	body.add_theme_constant_override("separation", 3)
@@ -285,3 +274,200 @@ static func make_section_panel(title_text: String, _flexible_height: bool = fals
 	panel.set_meta("title", title)
 	panel.set_meta("title_row", title_row)
 	return panel
+
+
+# ── Hairline / divider ─────────────────────────────────────────────
+
+# 1 px tall horizontal divider that fills its parent. The most-duplicated
+# helper in the original main.gd — appears under headers, between sections,
+# and between bin rows.
+static func make_hairline(color: Color = Palette.BORDER) -> ColorRect:
+	var line := ColorRect.new()
+	line.color = color
+	line.custom_minimum_size = Palette.HAIRLINE_HEIGHT
+	line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return line
+
+
+# ── Status pill ────────────────────────────────────────────────────
+
+# The header's STATUS readout: panel-bg label with an accent border.
+# Text is set via .text on the returned Label as state changes.
+static func make_status_pill(initial_text: String) -> Label:
+	var l := Label.new()
+	l.text = initial_text
+	l.custom_minimum_size = Palette.STATUS_LABEL_SIZE
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.add_theme_color_override("font_color", Palette.ACCENT)
+	l.add_theme_font_size_override("font_size", Palette.FONT_LABEL)
+	apply_panel_style(l, Palette.BG, Palette.ACCENT)
+	return l
+
+
+# ── Module enable indicator ────────────────────────────────────────
+
+# The "always on" indicator shown on non-toggleable modules (the
+# placeholder where a toggle checkbox would otherwise sit). A small
+# accent dot centred in a darker box, matching the off-state language
+# of the toggleable indicator.
+static func make_module_indicator() -> ColorRect:
+	var indicator := ColorRect.new()
+	indicator.color = Palette.INDICATOR_OFF
+	indicator.custom_minimum_size = Palette.MODULE_CHECK_SIZE
+
+	var inner := ColorRect.new()
+	inner.color = Palette.ACCENT
+	inner.set_anchors_preset(Control.PRESET_CENTER)
+	inner.position = Vector2(6, 6)
+	inner.size = Vector2(6, 6)
+	indicator.add_child(inner)
+	return indicator
+
+
+# ── Channel tab buttons ────────────────────────────────────────────
+
+# Channel selector at the top of the left column. Active channel shows
+# the filled accent stylebox; soloed channels keep the accent border even
+# when not active; muted channels get a half-opacity modulate.
+static func make_channel_tab(label: String, active: bool, soloed: bool, muted: bool) -> Button:
+	var btn := Button.new()
+	btn.text = label
+	btn.custom_minimum_size = Palette.CHANNEL_TAB_SIZE
+	btn.add_theme_font_size_override("font_size", Palette.FONT_VALUE)
+
+	var bg: Color = Palette.ACCENT if active else Palette.TRANSPARENT
+	var fg: Color = Palette.BG if active else Palette.TEXT
+	var border: Color = Palette.ACCENT if (active or soloed) else Palette.BORDER
+	var hover_bg: Color = Palette.ACCENT.lightened(0.05) if active else Palette.ACCENT_GHOST
+
+	var normal := make_stylebox(bg, border)
+	var hover := make_stylebox(hover_bg, border)
+	btn.add_theme_stylebox_override("normal", normal)
+	btn.add_theme_stylebox_override("hover", hover)
+	btn.add_theme_stylebox_override("pressed", normal)
+	btn.add_theme_stylebox_override("focus", normal)
+	btn.add_theme_color_override("font_color", fg)
+	btn.add_theme_color_override("font_hover_color", fg)
+	btn.modulate = Palette.MODULATE_MUTED if muted else Color.WHITE
+	return btn
+
+
+# Trailing "+" tab to add a new channel. Hollow until hover, then accents.
+static func make_channel_add_btn() -> Button:
+	var btn := Button.new()
+	btn.text = "+"
+	btn.custom_minimum_size = Palette.CHANNEL_ADD_SIZE
+	btn.add_theme_font_size_override("font_size", 14)
+	btn.tooltip_text = "Add channel"
+
+	var n := make_stylebox(Palette.TRANSPARENT, Palette.BORDER)
+	var h := make_stylebox(Palette.TRANSPARENT, Palette.ACCENT)
+	btn.add_theme_stylebox_override("normal", n)
+	btn.add_theme_stylebox_override("hover", h)
+	btn.add_theme_stylebox_override("pressed", n)
+	btn.add_theme_stylebox_override("focus", n)
+	btn.add_theme_color_override("font_color", Palette.TEXT_MUTE)
+	btn.add_theme_color_override("font_hover_color", Palette.ACCENT)
+	return btn
+
+
+# ── Mini buttons (M / S / × / ▶) ───────────────────────────────────
+
+# 22 × 22 toggle button used by mix-row mute/solo/delete and bin-row
+# play/delete. `on` paints it with the filled accent treatment; off is
+# hollow with text in TEXT_MUTE.
+static func make_mini_btn(text: String, on: bool) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.custom_minimum_size = Palette.MINI_BTN_SIZE
+	b.add_theme_font_size_override("font_size", Palette.FONT_SMALL)
+
+	var bg: Color = Palette.ACCENT if on else Palette.TRANSPARENT
+	var fg: Color = Palette.BG if on else Palette.TEXT_MUTE
+	var border: Color = Palette.ACCENT if on else Palette.BORDER_HI
+	var normal := make_stylebox(bg, border)
+	var hover := make_stylebox(Palette.ACCENT, Palette.ACCENT)
+	b.add_theme_stylebox_override("normal", normal)
+	b.add_theme_stylebox_override("hover", hover)
+	b.add_theme_stylebox_override("pressed", normal)
+	b.add_theme_stylebox_override("focus", normal)
+	b.add_theme_color_override("font_color", fg)
+	b.add_theme_color_override("font_hover_color", Palette.BG)
+	return b
+
+
+# Mix-row channel label (CH1..CH4) — flat button so clicking it switches
+# the active channel. Active channel shows in ACCENT; others in TEXT_MUTE.
+static func make_mix_label_btn(idx: int, active: bool) -> Button:
+	var b := Button.new()
+	b.text = "CH%d" % (idx + 1)
+	b.flat = true
+	b.custom_minimum_size = Palette.MIX_LABEL_SIZE
+	b.add_theme_color_override("font_color", Palette.ACCENT if active else Palette.TEXT_MUTE)
+	b.add_theme_color_override("font_hover_color", Palette.ACCENT)
+	b.add_theme_font_size_override("font_size", Palette.FONT_SMALL)
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	return b
+
+
+# ── Preset tab styling ─────────────────────────────────────────────
+
+# Active-tab gets a filled accent stylebox; inactive stays hollow. Reuses
+# make_stylebox so it matches the rest of the app's button language.
+static func apply_preset_tab_style(btn: Button, active: bool) -> void:
+	var bg: Color = Palette.ACCENT if active else Palette.TRANSPARENT
+	var fg: Color = Palette.BG if active else Palette.TEXT_MUTE
+	var border: Color = Palette.ACCENT if active else Palette.BORDER_HI
+	var normal := make_stylebox(bg, border)
+	var hover := make_stylebox(Palette.ACCENT, Palette.ACCENT)
+	btn.add_theme_stylebox_override("normal", normal)
+	btn.add_theme_stylebox_override("hover", hover)
+	btn.add_theme_stylebox_override("pressed", normal)
+	btn.add_theme_stylebox_override("focus", normal)
+	btn.add_theme_color_override("font_color", fg)
+	btn.add_theme_color_override("font_hover_color", Palette.BG)
+
+
+# ── Bin row ────────────────────────────────────────────────────────
+
+# A single saved-sound row: name label, ▶ play button, × delete button,
+# trailing hairline. Returns the outer VBoxContainer (so the caller can
+# add it to the bin list) plus the buttons (so handlers can be wired).
+static func make_bin_row(entry_name: String) -> Dictionary:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var name_lbl := make_label(entry_name, 11, Palette.TEXT, 0.1)
+	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(name_lbl)
+
+	var play_btn := Button.new()
+	play_btn.text = "▶"
+	play_btn.flat = true
+	play_btn.tooltip_text = "Load and play"
+	play_btn.add_theme_color_override("font_color", Palette.ACCENT)
+	play_btn.custom_minimum_size = Palette.MINI_BTN_SIZE
+	row.add_child(play_btn)
+
+	var del_btn := Button.new()
+	del_btn.text = "×"
+	del_btn.flat = true
+	del_btn.tooltip_text = "Delete"
+	del_btn.add_theme_color_override("font_color", Palette.TEXT_MUTE)
+	del_btn.add_theme_color_override("font_hover_color", Palette.ACCENT)
+	del_btn.custom_minimum_size = Palette.MINI_BTN_SIZE
+	row.add_child(del_btn)
+
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 0)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.add_child(wrap_padded(row, 12, 12, 6, 6))
+	v.add_child(make_hairline(Palette.SEPARATOR))
+
+	return {
+		"container": v,
+		"play_btn": play_btn,
+		"del_btn": del_btn,
+	}
