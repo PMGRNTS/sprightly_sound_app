@@ -6,8 +6,8 @@ extends PresetsHelpers
 # lives in scripts/presets/registry.json.
 #
 # `extends PresetsHelpers` re-exposes effective_locks, randomize_all,
-# _apply_target, _off_with — used directly by main.gd and onomatopoeia.gd.
-# All preset groups also extend PresetsHelpers for the same reason.
+# _apply_target, _off_with — used directly by main.gd. All preset groups
+# also extend PresetsHelpers for the same reason.
 #
 # Patch presets respect the user's lock map; sound presets replace the
 # entire Sound (used for layered, multi-channel SFX).

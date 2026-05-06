@@ -24,17 +24,23 @@ var save_dialog: FileDialog
 # by _request_re_render(); cancelled by any direct _re_render() call.
 var render_timer: Timer
 
-# Hover-preview infra: a second AudioStreamPlayer auditions a preset
-# against a CLEAN default sound on hover so the user hears just the
-# preset's character. Debounced so brushing past doesn't fire.
-var hover_player: AudioStreamPlayer
-var hover_timer: Timer
-var hover_pending_entry: Dictionary = {}
-
 
 # ── Lifecycle ──────────────────────────────────────────────────────
 
 func _ready() -> void:
+	# Window can scale down to roughly half the design size and still
+	# stay legible. Below the design size (1280×900) the project's
+	# canvas_items stretch mode scales the entire UI proportionally
+	# rather than clipping content; above it, columns flex via stretch
+	# ratios. The min keeps fonts/knobs from shrinking below readable.
+	get_window().min_size = Vector2i(720, 540)
+
+	# Apply saved theme BEFORE build_ui so initial styling matches the
+	# user's last choice. Empty string = no saved choice → keep default.
+	var saved_theme: String = Persistence.load_theme()
+	if not saved_theme.is_empty():
+		Palette.apply_theme(saved_theme)
+
 	state = SoundState.new()
 	ui = UIBuilder.new(self, state)
 
@@ -46,19 +52,6 @@ func _ready() -> void:
 	render_timer.one_shot = true
 	render_timer.timeout.connect(_re_render)
 	add_child(render_timer)
-
-	# Dedicated hover-preview player so audits don't interrupt the main
-	# AudioStreamPlayer (e.g. if user is mid-preview of their own sound).
-	# Slightly attenuated so previews feel obviously "secondary".
-	hover_player = AudioStreamPlayer.new()
-	hover_player.volume_db = -3.0
-	add_child(hover_player)
-
-	hover_timer = Timer.new()
-	hover_timer.wait_time = Palette.HOVER_DEBOUNCE_S
-	hover_timer.one_shot = true
-	hover_timer.timeout.connect(_on_hover_timer_timeout)
-	add_child(hover_timer)
 
 	save_dialog = FileDialog.new()
 	save_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
@@ -244,34 +237,6 @@ func _on_master_reset(key: String) -> void:
 	_re_render()
 
 
-# ── Onomatopoeia handlers ──────────────────────────────────────────
-
-func _on_onomatopoeia_submitted(text: String) -> void:
-	_apply_onomatopoeia(text)
-
-
-func _on_onomatopoeia_apply_pressed() -> void:
-	_apply_onomatopoeia(ui.onomatopoeia_input.text)
-
-
-func _apply_onomatopoeia(text: String) -> void:
-	var phonemes: Array = Onomatopoeia.tokenize(text)
-	if phonemes.is_empty():
-		ui.flash_status("?")
-		return
-	state.push_undo()
-	var ch: Dictionary = state.active_channel_params()
-	var ch_locks: Dictionary = state.active_channel_locks()
-	var new_params: Dictionary = Onomatopoeia.text_to_patch(text, ch, ch_locks)
-	state.sound.channels[state.active_channel] = new_params
-	# Cap the status flash so a long word doesn't blow out the pill.
-	var label: String = text.to_upper()
-	if label.length() > 12:
-		label = label.substr(0, 11) + "…"
-	_apply_and_play(label)
-	ui.refresh_module_values()
-
-
 # ── Action handlers ────────────────────────────────────────────────
 
 func _on_generate_pressed() -> void:
@@ -438,9 +403,9 @@ func _on_save_to_bin_pressed() -> void:
 		"string": state.sound_string,
 	}
 	state.add_to_bin(entry)
-	Persistence.save_bin(state.bin)
+	var ok: bool = Persistence.save_bin(state.bin)
 	ui.refresh_bin_list()
-	ui.flash_status("SAVED")
+	ui.flash_status("SAVED" if ok else "SAVE FAILED")
 
 
 func _on_bin_load_pressed(id: int) -> void:
@@ -457,54 +422,32 @@ func _on_bin_load_pressed(id: int) -> void:
 
 func _on_bin_delete_pressed(id: int) -> void:
 	state.remove_from_bin(id)
-	Persistence.save_bin(state.bin)
+	var ok: bool = Persistence.save_bin(state.bin)
 	ui.refresh_bin_list()
+	if not ok:
+		ui.flash_status("DELETE FAILED")
 
 
-# ── Hover preview ──────────────────────────────────────────────────
-
-func _on_preset_button_hovered(entry: Dictionary) -> void:
-	hover_pending_entry = entry
-	hover_timer.start()
-
-
-func _on_preset_button_unhovered() -> void:
-	hover_pending_entry = {}
-	hover_timer.stop()
-
-
-func _on_hover_timer_timeout() -> void:
-	if hover_pending_entry.is_empty():
+# ── Theme handler ──────────────────────────────────────────────────
+# Theme changes can't be applied incrementally because StyleBox colours
+# bake at construction. We tear down the current UI subtree, apply the
+# new palette, and rebuild. State (sound, bin, channels) is preserved.
+func _on_theme_changed(theme_name: String) -> void:
+	if theme_name == Palette.current_theme:
 		return
-	var s: Variant = _render_preset_preview(hover_pending_entry)
-	if s == null:
-		return
-	var buf: PackedFloat32Array = Synth.render_sound(s)
-	if buf.is_empty():
-		return
-	hover_player.stop()
-	hover_player.stream = Playback.build_stream(buf)
-	hover_player.play()
-
-
-# Render a preset against a clean default channel so the user auditions
-# JUST the preset's character — not their current sound mutated by it.
-# Sound presets and user presets replace the entire sound; patches merge
-# onto a fresh default channel.
-func _render_preset_preview(entry: Dictionary) -> Variant:
-	if entry.get("kind", "") == "user":
-		return SoundData.sound_from_string(String(entry.get("string", "")))
-	if entry.kind == "sound":
-		return Presets.run_preset(entry, {}, {})
-	var base: Dictionary = {
-		"channels": [SoundData.clone_params()],
-		"master": SoundData.clone_master(),
-	}
-	var patch: Variant = Presets.run_preset(entry, base.channels[0], {})
-	if patch == null:
-		return null
-	base.channels[0].merge(patch, true)
-	return base
+	Palette.apply_theme(theme_name)
+	Persistence.save_theme(theme_name)
+	if ui != null:
+		ui.teardown()
+	ui = UIBuilder.new(self, state)
+	ui.build_ui()
+	_re_render()
+	ui.refresh_channel_tabs()
+	ui.refresh_mix_rows()
+	ui.refresh_module_values()
+	ui.refresh_master_values()
+	ui.refresh_bin_list()
+	ui.flash_status(theme_name.to_upper())
 
 
 # ── Audio playback ─────────────────────────────────────────────────

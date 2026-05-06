@@ -28,12 +28,15 @@ static func load_bin() -> Array:
 	return parsed if parsed is Array else []
 
 
-# Write the bin to disk. Logs a warning on failure but does not raise —
-# losing the bin file is recoverable; crashing the app is not.
-static func persist(bin: Array) -> void:
+# Write the bin to disk. Returns true on success, false on failure.
+# Failure is non-fatal — losing the bin file is recoverable, crashing
+# the app is not — but the boolean lets callers surface the failure to
+# the user instead of silently flashing "SAVED".
+static func persist(bin: Array) -> bool:
 	var f := FileAccess.open(PATH, FileAccess.WRITE)
 	if f == null:
 		push_warning("Bin persist failed to open %s: %s" % [PATH, error_string(FileAccess.get_open_error())])
-		return
+		return false
 	f.store_string(JSON.stringify(bin))
 	f.close()
+	return true

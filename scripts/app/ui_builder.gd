@@ -24,16 +24,39 @@ const MODULE_ROW_PAIRS := [
 	["drive",    "crush"],
 ]
 
+# Preset-tab consolidation: ten registry groups bin into five display
+# groups so the panel shows fewer tabs. Done at the UI layer because
+# Presets.GROUP_CLASSES dispatches preset functions by the registry's
+# source group — keeping registry.json and the dispatcher untouched
+# means consolidation is purely a presentation concern.
+const PRESET_DISPLAY_GROUPS := {
+	"SHOOTER":  "COMBAT",
+	"DESTRUCT": "COMBAT",
+	"MODERN":   "COMBAT",
+	"ARCADE":   "ARCADE",
+	"MUSIC-UI": "ARCADE",
+	"UI":       "UI",
+	"MAGIC":    "FANTASY",
+	"CREATURE": "FANTASY",
+	"MOVEMENT": "WORLD",
+	"AMBIENT":  "WORLD",
+}
+
 
 var _state: SoundState
 var _host: Control                       # main.gd — also the controller for signal binds
 
+# Single Control wrapping bg + margin so a theme switch can free the
+# entire UI subtree in one queue_free without disturbing audio infra
+# (audio_player, render_timer, save_dialog) that lives under _host.
+var _ui_root: Control
+
 # Persistent UI references (built once)
 var status_label: Label
+var theme_button: Button
 var waveform: WaveformDisplay
 var waveform_info_left: Label
 var waveform_info_right: Label
-var onomatopoeia_input: LineEdit
 var sound_string_input: LineEdit
 var bin_search_input: LineEdit
 var bin_search_query: String = ""
@@ -81,11 +104,16 @@ func _init(host: Control, state: SoundState) -> void:
 func build_ui() -> void:
 	_host.set_anchors_preset(Control.PRESET_FULL_RECT)
 
+	_ui_root = Control.new()
+	_ui_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_ui_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_host.add_child(_ui_root)
+
 	var bg := ColorRect.new()
 	bg.color = Palette.BG
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_host.add_child(bg)
+	_ui_root.add_child(bg)
 
 	var margin := MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -93,7 +121,7 @@ func build_ui() -> void:
 	margin.add_theme_constant_override("margin_right", Palette.WINDOW_MARGIN_H)
 	margin.add_theme_constant_override("margin_top", Palette.WINDOW_MARGIN_V)
 	margin.add_theme_constant_override("margin_bottom", Palette.WINDOW_MARGIN_V)
-	_host.add_child(margin)
+	_ui_root.add_child(margin)
 
 	var root_v := VBoxContainer.new()
 	root_v.add_theme_constant_override("separation", 8)
@@ -107,8 +135,9 @@ func build_ui() -> void:
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root_v.add_child(body)
 
-	body.add_child(_build_left_column())
-	body.add_child(_build_right_column())
+	body.add_child(_build_modules_column())
+	body.add_child(_build_controls_column())
+	body.add_child(_build_bin_column())
 
 	root_v.add_child(_build_footer())
 
@@ -119,6 +148,7 @@ func _build_header() -> Control:
 	hdr.add_theme_constant_override("separation", 16)
 
 	var left := VBoxContainer.new()
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hdr.add_child(left)
 
 	var sub := UIFactory.make_label("// BUFFER GENERATOR · v3.0", 10, Palette.TEXT_MUTE, 0.4)
@@ -127,33 +157,6 @@ func _build_header() -> Control:
 	var title := UIFactory.make_label("GODOT_SFX", 24, Palette.TEXT, 0.08)
 	title.add_theme_font_size_override("font_size", Palette.FONT_TITLE)
 	left.add_child(title)
-
-	# Onomatopoeia input. Type a word, hit Enter or click → to convert.
-	# Eats the dead horizontal space between the title and STATUS pill.
-	var ono_box := HBoxContainer.new()
-	ono_box.add_theme_constant_override("separation", 6)
-	ono_box.size_flags_vertical = Control.SIZE_SHRINK_END
-	ono_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hdr.add_child(ono_box)
-
-	ono_box.add_child(UIFactory.make_label("SAY", Palette.FONT_SMALL, Palette.TEXT_MUTE, 0.3))
-
-	onomatopoeia_input = LineEdit.new()
-	onomatopoeia_input.placeholder_text = "BOOM · tick · whoosh · zap"
-	onomatopoeia_input.add_theme_color_override("font_color", Palette.TEXT)
-	onomatopoeia_input.add_theme_color_override("font_placeholder_color", Palette.TEXT_DIM)
-	onomatopoeia_input.add_theme_font_size_override("font_size", Palette.FONT_VALUE)
-	onomatopoeia_input.custom_minimum_size = Palette.HEADER_INPUT_SIZE
-	onomatopoeia_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	UIFactory.apply_lineedit_style(onomatopoeia_input)
-	onomatopoeia_input.text_submitted.connect(_host._on_onomatopoeia_submitted)
-	ono_box.add_child(onomatopoeia_input)
-
-	var apply_btn := UIFactory.make_action_button("→", true)
-	apply_btn.tooltip_text = "Convert text to sound parameters"
-	apply_btn.custom_minimum_size = Palette.HEADER_BTN_SIZE
-	apply_btn.pressed.connect(_host._on_onomatopoeia_apply_pressed)
-	ono_box.add_child(apply_btn)
 
 	var right := HBoxContainer.new()
 	right.add_theme_constant_override("separation", 10)
@@ -165,11 +168,55 @@ func _build_header() -> Control:
 	status_label = UIFactory.make_status_pill("READY")
 	right.add_child(status_label)
 
+	# Theme picker — half-moon glyph keeps the picker visually quiet while
+	# still being recognisable as a "switch appearance" affordance.
+	theme_button = UIFactory.make_action_button("◐")
+	theme_button.tooltip_text = "Theme"
+	theme_button.custom_minimum_size = Palette.THEME_BTN_SIZE
+	theme_button.pressed.connect(_on_theme_button_pressed)
+	right.add_child(theme_button)
+
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 14)
 	v.add_child(hdr)
 	v.add_child(UIFactory.make_hairline())
 	return v
+
+
+# Build a fresh PopupMenu per click. Lifetime is bounded by popup_hide
+# (queue_free runs the next frame) so we don't have to worry about the
+# popup outliving a theme rebuild or accumulating signal connections.
+func _on_theme_button_pressed() -> void:
+	var keys: Array = Palette.THEMES.keys()
+	var popup := PopupMenu.new()
+	for i in keys.size():
+		var name: String = String(keys[i])
+		popup.add_radio_check_item(name, i)
+		popup.set_item_checked(i, name == Palette.current_theme)
+	popup.id_pressed.connect(func(id: int) -> void:
+		if id >= 0 and id < keys.size():
+			_host._on_theme_changed(String(keys[id]))
+	)
+	popup.popup_hide.connect(popup.queue_free)
+	_host.add_child(popup)
+	var btn_pos: Vector2 = theme_button.get_screen_position()
+	popup.position = Vector2i(int(btn_pos.x), int(btn_pos.y + theme_button.size.y + 4))
+	popup.reset_size()
+	popup.popup()
+
+
+# Detach and free the active UI subtree so a fresh build_ui() can run
+# under the new theme without doubling controls or leaking nodes.
+func teardown() -> void:
+	# Invalidate any in-flight flash_status timer. The lambda captures
+	# this UIBuilder via _status_token; bumping it makes the captured
+	# token stale so the lambda no-ops instead of touching status_label
+	# (which we're about to free below).
+	_status_token += 1
+	if _ui_root != null and is_instance_valid(_ui_root):
+		_host.remove_child(_ui_root)
+		_ui_root.queue_free()
+		_ui_root = null
 
 
 func _build_waveform() -> Control:
@@ -204,10 +251,11 @@ func _build_waveform() -> Control:
 
 # ── Left column ────────────────────────────────────────────────────
 
-func _build_left_column() -> Control:
+func _build_modules_column() -> Control:
 	var v := VBoxContainer.new()
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.size_flags_stretch_ratio = 3.0
+	v.custom_minimum_size = Palette.COLUMN_MODULES_MIN
 	v.add_theme_constant_override("separation", 8)
 
 	channel_tabs_container = HBoxContainer.new()
@@ -295,25 +343,38 @@ func _make_module_panel(mod: Dictionary) -> Control:
 	return panel
 
 
-# ── Right column ───────────────────────────────────────────────────
-# No outer ScrollContainer — the column is sized to fit at 1280×900 with
-# the bin getting whatever vertical space remains.
-func _build_right_column() -> Control:
+# ── Controls column ────────────────────────────────────────────────
+# Master + presets + actions + sound-string stack. Sized to fit the
+# tallest realistic content (4 channels in MIX, 5-row preset tab) at the
+# default 1280×900 viewport. No internal scroll — the project's window
+# min-size guards against squish.
+func _build_controls_column() -> Control:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 4)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.size_flags_stretch_ratio = 2.0
-	v.custom_minimum_size = Palette.COLUMN_LEFT_MIN
+	v.custom_minimum_size = Palette.COLUMN_CONTROLS_MIN
 
 	v.add_child(_build_master_panel())
 	v.add_child(_build_presets_panel())
 	v.add_child(_build_actions_panel())
 	v.add_child(_build_sound_string_panel())
 
-	# Bin gets the remaining vertical real estate — its internal ScrollContainer
-	# is the only scrollbar in the entire app, and it only kicks in when the
-	# bin actually overflows.
+	return v
+
+
+# ── Bin column ─────────────────────────────────────────────────────
+# Bin lives in its own full-height column so its top edge stays aligned
+# with the modules grid regardless of how many channels or preset rows
+# the controls column is currently displaying.
+func _build_bin_column() -> Control:
+	var v := VBoxContainer.new()
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.size_flags_stretch_ratio = 1.5
+	v.custom_minimum_size = Palette.COLUMN_BIN_MIN
+
 	var bin_panel := _build_bin_panel()
 	bin_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(bin_panel)
@@ -389,11 +450,13 @@ func refresh_preset_panel() -> void:
 	preset_grids.clear()
 
 	# Discover groups dynamically in REGISTRY-declaration order so new
-	# categories appear automatically.
+	# categories appear automatically. Source groups are funnelled through
+	# PRESET_DISPLAY_GROUPS so the user sees consolidated tabs.
 	var groups: Array = []
 	for entry in Presets.REGISTRY:
-		if not (entry.group in groups):
-			groups.append(entry.group)
+		var dg: String = String(PRESET_DISPLAY_GROUPS.get(entry.group, entry.group))
+		if not (dg in groups):
+			groups.append(dg)
 
 	var user_entries: Array = _build_user_preset_entries()
 	if not user_entries.is_empty():
@@ -436,15 +499,12 @@ func refresh_preset_panel() -> void:
 		else:
 			entries = []
 			for entry in Presets.REGISTRY:
-				if entry.group == g:
+				if String(PRESET_DISPLAY_GROUPS.get(entry.group, entry.group)) == g:
 					entries.append(entry)
 
 		for entry in entries:
 			var btn := UIFactory.make_action_button(entry.name)
 			btn.pressed.connect(_host._on_preset_pressed.bind(entry))
-			# Hover preview: audit on enter, cancel on exit.
-			btn.mouse_entered.connect(_host._on_preset_button_hovered.bind(entry))
-			btn.mouse_exited.connect(_host._on_preset_button_unhovered)
 			grid.add_child(btn)
 
 		grid.visible = (g == preset_active_group)
@@ -603,15 +663,10 @@ func _build_bin_panel() -> Control:
 	bin_search_input.text_changed.connect(_on_bin_search_changed)
 	body.add_child(bin_search_input)
 
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	body.add_child(scroll)
-
 	bin_container = VBoxContainer.new()
 	bin_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(bin_container)
+	bin_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_child(bin_container)
 
 	return panel
 

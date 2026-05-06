@@ -1,30 +1,183 @@
 class_name Palette
 extends RefCounted
 
-# Centralised UI tokens for the SFX generator. Keeping the colour palette,
-# font sizes, and key spacing values out of main.gd lets you re-skin the
-# whole app from one file. Sizes that are deeply specific to one layout
-# (e.g. fixed control widths) intentionally stay near their use sites.
+# Centralised UI tokens for the SFX generator. Colour values are runtime-
+# swappable static vars driven by THEMES below; sizes/timings stay const.
+# Re-skinning a token propagates everywhere the var is referenced AFTER
+# rebuild_ui() runs (StyleBox instances bake their colours at construction
+# time, so a theme switch needs the UI to be torn down and rebuilt).
 
-# ── Colours ────────────────────────────────────────────────────────
-const BG          := Color("#14110d")  # canvas background
-const PANEL       := Color("#1c1814")  # raised panel surface
-const INSET       := Color("#0e0b08")  # sunken / input field background
-const BORDER      := Color("#3a342a")  # default 1 px border on panels & inputs
-const BORDER_HI   := Color("#5c5345")  # active / hovered border highlight
-const TEXT        := Color("#e8dcc4")  # primary text
-const TEXT_MUTE   := Color("#8a8275")  # secondary / metadata text
-const TEXT_DIM    := Color("#5c5345")  # tertiary / placeholder text
-const ACCENT      := Color("#ff8c1a")  # active state, status flash, channel-tab fill
+# ── Colours (theme-driven) ─────────────────────────────────────────
+# These 12 colour vars are overwritten by Palette.apply_theme(name).
+# Defaults below match THEMES["Charcoal"] so the app renders correctly
+# on first run before any theme has been loaded from disk.
+static var BG          : Color = Color("#1a1814")
+static var PANEL       : Color = Color("#23201a")
+static var INSET       : Color = Color("#14120d")
+static var BORDER      : Color = Color("#3a342a")
+static var BORDER_HI   : Color = Color("#5c5345")
+static var TEXT        : Color = Color("#d8ccb4")
+static var TEXT_MUTE   : Color = Color("#847d70")
+static var TEXT_DIM    : Color = Color("#4d473d")
+static var ACCENT      : Color = Color("#c9882d")
+static var INDICATOR_OFF: Color = Color("#2a241a")
+static var SEPARATOR   : Color = Color("#1f1c16")
+static var ACCENT_GHOST: Color = Color(0.79, 0.53, 0.18, 0.08)
 
-# Auxiliary tokens used by specific UI patterns. Kept here (not inline) so
-# re-skinning a single token propagates everywhere it's referenced.
-const TRANSPARENT     := Color(0, 0, 0, 0)            # hollow button backgrounds
-const INDICATOR_OFF   := Color("#332a1f")             # always-on module indicator backdrop
-const SEPARATOR       := Color("#221d17")             # bin-row hairline (lower contrast than BORDER)
-const ACCENT_GHOST    := Color(1, 0.55, 0.1, 0.08)    # ACCENT at 8% — soft channel-tab hover
-const MODULATE_MUTED  := Color(1, 1, 1, 0.5)          # half-opacity for muted channel button
-const MODULATE_DIM    := Color(1, 1, 1, 0.55)         # 55% for disabled module panel
+# ── Colours (theme-agnostic) ───────────────────────────────────────
+# Pure opacity / hollow tokens — no hue, so they don't change per theme.
+const TRANSPARENT     := Color(0, 0, 0, 0)
+const MODULATE_MUTED  := Color(1, 1, 1, 0.5)
+const MODULATE_DIM    := Color(1, 1, 1, 0.55)
+
+# ── Theme registry ─────────────────────────────────────────────────
+# Seven curated themes. All desaturated for an editorial / studio feel —
+# no neon, no full-saturation accents. ORDER below is the order they
+# appear in the picker menu (Charcoal first = default).
+const THEMES := {
+	"Charcoal": {
+		"BG":          Color("#1a1814"),
+		"PANEL":       Color("#23201a"),
+		"INSET":       Color("#14120d"),
+		"BORDER":      Color("#3a342a"),
+		"BORDER_HI":   Color("#5c5345"),
+		"TEXT":        Color("#d8ccb4"),
+		"TEXT_MUTE":   Color("#847d70"),
+		"TEXT_DIM":    Color("#4d473d"),
+		"ACCENT":      Color("#c9882d"),
+		"INDICATOR_OFF": Color("#2a241a"),
+		"SEPARATOR":   Color("#1f1c16"),
+		"ACCENT_GHOST": Color(0.79, 0.53, 0.18, 0.08),
+	},
+	"Onyx": {
+		"BG":          Color("#14171a"),
+		"PANEL":       Color("#1c2024"),
+		"INSET":       Color("#0d1014"),
+		"BORDER":      Color("#2c3239"),
+		"BORDER_HI":   Color("#4a525c"),
+		"TEXT":        Color("#c8cdd3"),
+		"TEXT_MUTE":   Color("#76808a"),
+		"TEXT_DIM":    Color("#424952"),
+		"ACCENT":      Color("#6b9bb5"),
+		"INDICATOR_OFF": Color("#1a1f24"),
+		"SEPARATOR":   Color("#181c20"),
+		"ACCENT_GHOST": Color(0.42, 0.61, 0.71, 0.08),
+	},
+	"Slate": {
+		"BG":          Color("#181818"),
+		"PANEL":       Color("#222222"),
+		"INSET":       Color("#101010"),
+		"BORDER":      Color("#303030"),
+		"BORDER_HI":   Color("#4f4f4f"),
+		"TEXT":        Color("#d0d0d0"),
+		"TEXT_MUTE":   Color("#808080"),
+		"TEXT_DIM":    Color("#4a4a4a"),
+		"ACCENT":      Color("#b09a7a"),
+		"INDICATOR_OFF": Color("#252525"),
+		"SEPARATOR":   Color("#1c1c1c"),
+		"ACCENT_GHOST": Color(0.69, 0.60, 0.48, 0.08),
+	},
+	"Moss": {
+		"BG":          Color("#161a14"),
+		"PANEL":       Color("#1d221a"),
+		"INSET":       Color("#0e110c"),
+		"BORDER":      Color("#2e3329"),
+		"BORDER_HI":   Color("#4d5544"),
+		"TEXT":        Color("#c8d0bc"),
+		"TEXT_MUTE":   Color("#7a8472"),
+		"TEXT_DIM":    Color("#444a3d"),
+		"ACCENT":      Color("#8aa674"),
+		"INDICATOR_OFF": Color("#1f241b"),
+		"SEPARATOR":   Color("#191d16"),
+		"ACCENT_GHOST": Color(0.54, 0.65, 0.45, 0.08),
+	},
+	"Plum": {
+		"BG":          Color("#1a1418"),
+		"PANEL":       Color("#221b20"),
+		"INSET":       Color("#120d10"),
+		"BORDER":      Color("#38303a"),
+		"BORDER_HI":   Color("#5a4d5c"),
+		"TEXT":        Color("#d4c4cc"),
+		"TEXT_MUTE":   Color("#847680"),
+		"TEXT_DIM":    Color("#4a3f48"),
+		"ACCENT":      Color("#b58aaa"),
+		"INDICATOR_OFF": Color("#251c25"),
+		"SEPARATOR":   Color("#1c161a"),
+		"ACCENT_GHOST": Color(0.71, 0.54, 0.67, 0.08),
+	},
+	"Sepia": {
+		"BG":          Color("#e8dec9"),
+		"PANEL":       Color("#f0e7d3"),
+		"INSET":       Color("#d6cbb3"),
+		"BORDER":      Color("#b8a988"),
+		"BORDER_HI":   Color("#8e7e5a"),
+		"TEXT":        Color("#2a2418"),
+		"TEXT_MUTE":   Color("#685c44"),
+		"TEXT_DIM":    Color("#9a8d72"),
+		"ACCENT":      Color("#a85a2a"),
+		"INDICATOR_OFF": Color("#cabf9f"),
+		"SEPARATOR":   Color("#d4c8a8"),
+		"ACCENT_GHOST": Color(0.66, 0.35, 0.16, 0.08),
+	},
+	"Paper": {
+		"BG":          Color("#efeee8"),
+		"PANEL":       Color("#f6f5f0"),
+		"INSET":       Color("#ddddd6"),
+		"BORDER":      Color("#c4c3bc"),
+		"BORDER_HI":   Color("#8a8a82"),
+		"TEXT":        Color("#1a1a18"),
+		"TEXT_MUTE":   Color("#66665e"),
+		"TEXT_DIM":    Color("#aaaaa3"),
+		"ACCENT":      Color("#2c5a55"),
+		"INDICATOR_OFF": Color("#d0d0c8"),
+		"SEPARATOR":   Color("#e0dfd9"),
+		"ACCENT_GHOST": Color(0.17, 0.35, 0.33, 0.08),
+	},
+}
+
+# Tracks which theme is currently applied. Read by the picker UI to mark
+# the active row with a checkmark.
+static var current_theme: String = "Charcoal"
+
+
+# Waveform line colour: complement of ACCENT (180° hue rotation) with
+# saturation knocked back so it stays in the same desaturated register
+# as the rest of the theme. Computed on demand so it always tracks the
+# active theme without a separate per-theme entry.
+static func waveform_line() -> Color:
+	var hue: float = fposmod(ACCENT.h + 0.5, 1.0)
+	return Color.from_hsv(hue, ACCENT.s * 0.85, ACCENT.v, 1.0)
+
+
+# Soft underlay glow: same hue as waveform_line, low alpha for a halo.
+static func waveform_glow() -> Color:
+	var c: Color = waveform_line()
+	c.a = 0.25
+	return c
+
+
+# Switch the live colour vars to the named theme. Caller is responsible
+# for rebuilding the UI afterwards — StyleBoxes don't pick up var changes
+# retroactively. Unknown names are a no-op (keeps the current theme).
+static func apply_theme(name: String) -> void:
+	if not THEMES.has(name):
+		push_warning("Unknown theme: %s" % name)
+		return
+	var t: Dictionary = THEMES[name]
+	BG            = t.BG
+	PANEL         = t.PANEL
+	INSET         = t.INSET
+	BORDER        = t.BORDER
+	BORDER_HI     = t.BORDER_HI
+	TEXT          = t.TEXT
+	TEXT_MUTE     = t.TEXT_MUTE
+	TEXT_DIM      = t.TEXT_DIM
+	ACCENT        = t.ACCENT
+	INDICATOR_OFF = t.INDICATOR_OFF
+	SEPARATOR     = t.SEPARATOR
+	ACCENT_GHOST  = t.ACCENT_GHOST
+	current_theme = name
+
 
 # ── Font sizes ─────────────────────────────────────────────────────
 const FONT_TITLE    := 26  # app title
@@ -36,10 +189,12 @@ const FONT_SMALL    := 10  # mix-row level value, lock icons
 # Sizes that recur across the layout. Single-use sizes still live near
 # their call site (Vector2(82, 22) for VAR spinbox, etc.) when changing
 # them is unlikely to need to ripple anywhere else.
-const COLUMN_LEFT_MIN     := Vector2(420, 0)
-const COLUMN_RIGHT_MIN    := Vector2(380, 0)
-const HEADER_INPUT_SIZE   := Vector2(240, 28)         # onomatopoeia input
-const HEADER_BTN_SIZE     := Vector2(36, 28)          # → apply button
+# Three-column body layout: modules grid (widest), controls stack
+# (master/presets/actions/string), bin (narrowest). Mins keep each
+# column usable even when the user shrinks the window aggressively.
+const COLUMN_MODULES_MIN  := Vector2(420, 0)
+const COLUMN_CONTROLS_MIN := Vector2(340, 0)
+const COLUMN_BIN_MIN      := Vector2(220, 0)
 const STATUS_LABEL_SIZE   := Vector2(120, 28)
 const HAIRLINE_HEIGHT     := Vector2(0, 1)            # 1 px horizontal divider
 const WAVEFORM_PANEL_MIN  := Vector2(0, 120)
@@ -56,17 +211,15 @@ const MINI_BTN_SIZE       := Vector2(22, 22)          # mute / solo / delete / b
 const SAVE_DIALOG_SIZE    := Vector2i(720, 520)
 const PRESET_NAME_DIALOG_SIZE := Vector2i(420, 140)
 const PRESET_NAME_BODY_MIN := Vector2(380, 0)
+const THEME_BTN_SIZE      := Vector2(28, 28)          # ◐ picker button in header
 
 # ── Window margins ─────────────────────────────────────────────────
 const WINDOW_MARGIN_H := 24
 const WINDOW_MARGIN_V := 18
 
 # ── Timing ─────────────────────────────────────────────────────────
-# Debounce intervals tuned against typical interaction. Keep 0.03 short
-# enough that drag tails render without lag, and 0.18 long enough that
-# brushing past a button doesn't fire a hover preview.
+# Render debounce kept short enough that drag tails render without lag.
 const RENDER_DEBOUNCE_S := 0.03
-const HOVER_DEBOUNCE_S  := 0.18
 
 # ── Status pill ────────────────────────────────────────────────────
 const STATUS_HOLD_SEC := 1.4  # how long a transient flash ("GEN", "EXPORTED") sticks

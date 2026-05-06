@@ -2,12 +2,9 @@ class_name WaveformDisplay
 extends Control
 
 # Renders a sample buffer into a horizontal waveform with a glow underlay
-# and gridlines. Set `samples` and call queue_redraw().
-
-const COLOR_INSET := Color("#0e0b08")
-const COLOR_GRID := Color("#221d17")
-const COLOR_ACCENT := Color("#ff8c1a")
-const COLOR_GLOW := Color(1.0, 0.55, 0.10, 0.25)
+# and gridlines. Colours are pulled from Palette so the display tracks
+# the active theme on rebuild — line + glow use the accent's complement
+# so the waveform reads as "the signal" rather than "more accent".
 
 var samples: PackedFloat32Array = PackedFloat32Array()
 
@@ -22,14 +19,15 @@ func _draw() -> void:
 	if sz.x <= 0 or sz.y <= 0:
 		return
 
-	draw_rect(Rect2(Vector2.ZERO, sz), COLOR_INSET, true)
+	draw_rect(Rect2(Vector2.ZERO, sz), Palette.INSET, true)
 
+	var grid: Color = Palette.SEPARATOR
 	# Center line
-	draw_line(Vector2(0, sz.y * 0.5), Vector2(sz.x, sz.y * 0.5), COLOR_GRID, 1.0)
+	draw_line(Vector2(0, sz.y * 0.5), Vector2(sz.x, sz.y * 0.5), grid, 1.0)
 	# Vertical gridlines (8 segments)
 	for i in range(1, 8):
 		var x: float = sz.x * float(i) / 8.0
-		draw_line(Vector2(x, 0), Vector2(x, sz.y), COLOR_GRID, 1.0)
+		draw_line(Vector2(x, 0), Vector2(x, sz.y), grid, 1.0)
 
 	if samples.is_empty():
 		return
@@ -50,5 +48,5 @@ func _draw() -> void:
 		var y: float = sz.y * 0.5 - samples[idx] * half
 		pts[i] = Vector2(x, y)
 
-	draw_polyline(pts, COLOR_GLOW, 4.0, true)
-	draw_polyline(pts, COLOR_ACCENT, 1.4, true)
+	draw_polyline(pts, Palette.waveform_glow(), 4.0, true)
+	draw_polyline(pts, Palette.waveform_line(), 1.4, true)
