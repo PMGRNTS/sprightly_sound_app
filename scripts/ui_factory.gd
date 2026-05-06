@@ -249,7 +249,11 @@ static func _build_knob_box(label_text: String, tooltip_title: String, lo: float
 #   panel.get_meta("body")       VBoxContainer for the section's content
 #   panel.get_meta("title_row")  HBoxContainer beside the title (for status pills, etc.)
 #   panel.get_meta("title")      The title Label itself
-static func make_section_panel(title_text: String, _flexible_height: bool = false) -> PanelContainer:
+#
+# Pass `flexible_height=true` for sections whose body should grab
+# whatever vertical space the parent column has left over (e.g. the bin
+# list). Default false so most sections size tight to their content.
+static func make_section_panel(title_text: String, flexible_height: bool = false) -> PanelContainer:
 	var panel := PanelContainer.new()
 	apply_panel_style(panel, Palette.PANEL, Palette.BORDER)
 
@@ -268,7 +272,11 @@ static func make_section_panel(title_text: String, _flexible_height: bool = fals
 
 	var body := VBoxContainer.new()
 	body.add_theme_constant_override("separation", 3)
-	v.add_child(wrap_padded(body, 10, 10, 4, 6))
+	var body_wrap := wrap_padded(body, 10, 10, 4, 6)
+	if flexible_height:
+		body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		body_wrap.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(body_wrap)
 
 	panel.set_meta("body", body)
 	panel.set_meta("title", title)
