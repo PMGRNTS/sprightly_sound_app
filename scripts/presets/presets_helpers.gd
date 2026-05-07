@@ -141,6 +141,53 @@ static func _ch(overrides: Dictionary) -> Dictionary:
 	return c
 
 
+# Tonal body: pitched waveform with optional drive and LP filter.
+static func _tonal_body(mode: int, pitch: float, length: float, voices: int,
+		detune: float, drive: float, cutoff: float, volume: float,
+		level: float = 1.0) -> Dictionary:
+	var overrides: Dictionary = {
+		"mode": mode, "pitch": pitch, "length": length,
+		"voice": voices, "detune": detune,
+		"volume": volume, "level": level,
+	}
+	if drive > 0.0:
+		overrides.merge({"driveEnabled": true, "driveAmount": drive, "driveMix": 1.0}, true)
+	if cutoff > 0.0:
+		overrides.merge({
+			"filterEnabled": true, "filterType": 0,
+			"filterCutoff": cutoff, "filterRes": 0.2,
+		}, true)
+	var ch: Dictionary = _ch(overrides)
+	ch.merge(ENV_DECAY_ONLY, true)
+	return ch
+
+
+# Resonant sweep: bandpass or LP filter sweep for shimmer/texture layers.
+static func _resonant_sweep(length: float, cutoff: float, res: float,
+		filter_env: float, filter_decay: float, volume: float,
+		level: float = 1.0, filter_type: int = 2) -> Dictionary:
+	var ch: Dictionary = _ch({
+		"mode": 4, "pitch": 1000.0, "length": length, "voice": 1,
+		"filterEnabled": true, "filterType": filter_type,
+		"filterCutoff": cutoff, "filterRes": res,
+		"filterEnv": filter_env, "filterAttack": 0.0, "filterDecay": filter_decay,
+		"volume": volume, "level": level,
+	})
+	ch.merge(ENV_DECAY_ONLY, true)
+	return ch
+
+
+# Pitched transient: very short tonal hit for clicky/thuddy attack layers.
+static func _pitched_transient(mode: int, pitch: float, length: float,
+		volume: float, level: float = 1.0) -> Dictionary:
+	var ch: Dictionary = _ch({
+		"mode": mode, "pitch": pitch, "length": length, "voice": 1,
+		"volume": volume, "level": level,
+	})
+	ch.merge(ENV_DECAY_ONLY, true)
+	return ch
+
+
 # ── Randomize-all (the GEN button) ──────────────────────────────────
 
 static func randomize_all(params: Dictionary, locked: Dictionary) -> Dictionary:

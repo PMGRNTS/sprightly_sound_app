@@ -6,19 +6,24 @@ extends PresetsHelpers
 # recognisable "shape".
 
 
-# Cast: rising arpeggio swell — generic "magic word" energy.
-static func preset_cast(params: Dictionary, locked: Dictionary) -> Dictionary:
-	return _apply_target(params, locked, _off_with({
-		"mode": _pick([0, 3]),
-		"pitch": _rand(400.0, 600.0),
-		"length": _rand(0.4, 0.6),
-		"voice": 1, "detune": 0.0,
+# Cast: 3ch — noise shimmer + arpeggiated sine body + HP sparkle tail.
+static func preset_cast() -> Dictionary:
+	var body: Dictionary = _ch({
+		"mode": 3, "pitch": _rand(400.0, 600.0), "length": 0.5, "voice": 1,
 		"arpEnabled": true,
 		"arpRate": _rand(14.0, 20.0),
 		"arpStep1": 4, "arpStep2": 7, "arpStep3": 12,
-		"ampAttack": _rand(0.05, 0.1), "ampDecay": 0.2, "ampSustain": 0.6, "ampRelease": 0.4,
-		"volume": 0.45,
-	}))
+		"ampAttack": 0.08, "ampDecay": 0.2, "ampSustain": 0.6, "ampRelease": 0.4,
+		"volume": 0.45, "level": 0.85,
+	})
+	return {
+		"channels": [
+			_resonant_sweep(0.15, _rand(2000.0, 3500.0), 0.4, -0.5, 0.4, 0.35, 0.6),
+			body,
+			_hp_noise_transient(0.3, _rand(3000.0, 5000.0), 0.3, 0.3, 0.45),
+		],
+		"master": {"masterVolume": 1.0, "reverbMix": 0.2, "reverbSize": 0.4},
+	}
 
 
 # Sparkle: short high vibrato'd tone — fairy dust / pickup glint / item-found.
@@ -81,21 +86,34 @@ static func preset_debuff(params: Dictionary, locked: Dictionary) -> Dictionary:
 	}))
 
 
-# Teleport: bright filter sweep + delay — the "phasing in / out" feel.
-static func preset_teleport(params: Dictionary, locked: Dictionary) -> Dictionary:
-	return _apply_target(params, locked, _off_with({
-		"mode": _pick([1, 4]),
-		"pitch": _rand(800.0, 1200.0),
-		"length": _rand(0.3, 0.5),
-		"voice": 1, "detune": 0.0,
-		"ampAttack": _rand(0.05, 0.1), "ampDecay": 0.4, "ampSustain": 0.3, "ampRelease": 0.5,
-		"filterEnabled": true,
-		"filterType": 0, "filterCutoff": _rand(400.0, 700.0), "filterRes": _rand(0.4, 0.6),
-		"filterEnv": _rand(0.6, 0.85), "filterAttack": _rand(0.1, 0.3), "filterDecay": _rand(0.4, 0.7),
+# Teleport: 3ch — HP noise phase-in + filtered sweep body + delay tail.
+static func preset_teleport() -> Dictionary:
+	var body: Dictionary = _ch({
+		"mode": 1, "pitch": _rand(800.0, 1200.0), "length": 0.4, "voice": 1,
+		"ampAttack": 0.08, "ampDecay": 0.4, "ampSustain": 0.3, "ampRelease": 0.5,
+		"filterEnabled": true, "filterType": 0,
+		"filterCutoff": _rand(400.0, 700.0), "filterRes": _rand(0.4, 0.6),
+		"filterEnv": _rand(0.6, 0.85), "filterAttack": 0.15, "filterDecay": 0.5,
+		"volume": 0.45, "level": 0.8,
+	})
+	var tail: Dictionary = _ch({
+		"mode": 4, "pitch": 1000.0, "length": 0.5, "voice": 1,
+		"filterEnabled": true, "filterType": 0,
+		"filterCutoff": 500.0, "filterRes": 0.3,
+		"filterEnv": -0.3, "filterAttack": 0.0, "filterDecay": 0.6,
 		"delayEnabled": true,
-		"delayTime": _rand(80.0, 150.0), "delayFeedback": _rand(0.3, 0.5), "delayMix": 0.4,
-		"volume": 0.45,
-	}))
+		"delayTime": _rand(80.0, 150.0), "delayFeedback": _rand(0.3, 0.5), "delayMix": 0.5,
+		"volume": 0.35, "level": 0.55,
+	})
+	tail.merge(ENV_DECAY_ONLY, true)
+	return {
+		"channels": [
+			_hp_noise_transient(0.08, _rand(2000.0, 3000.0), 0.35, 0.45, 0.7),
+			body,
+			tail,
+		],
+		"master": {"masterVolume": 1.0, "reverbMix": 0.25, "reverbSize": 0.5},
+	}
 
 
 # Freeze: high crystalline tone with rapid vibrato + short delay.
@@ -118,20 +136,25 @@ static func preset_freeze(params: Dictionary, locked: Dictionary) -> Dictionary:
 	}))
 
 
-# Fire whoosh: filtered noise sweep — flame, dragon breath, fireball cast.
-static func preset_fire_whoosh(params: Dictionary, locked: Dictionary) -> Dictionary:
-	return _apply_target(params, locked, _off_with({
-		"mode": 4,
-		"pitch": 1000.0,
-		"length": _rand(0.4, 0.6),
-		"voice": 1, "detune": 0.0,
-		"ampAttack": _rand(0.08, 0.15), "ampDecay": 0.5, "ampSustain": 0.3, "ampRelease": 0.5,
+# Fire whoosh: 3ch — HP noise ignition + driven noise roar + LP crackle tail.
+static func preset_fire_whoosh() -> Dictionary:
+	var roar: Dictionary = _ch({
+		"mode": 4, "pitch": 1000.0, "length": 0.5, "voice": 1,
+		"ampAttack": 0.1, "ampDecay": 0.5, "ampSustain": 0.3, "ampRelease": 0.5,
 		"driveEnabled": true, "driveAmount": _rand(0.3, 0.5), "driveMix": 1.0,
-		"filterEnabled": true,
-		"filterType": 0, "filterCutoff": _rand(180.0, 300.0), "filterRes": _rand(0.3, 0.5),
-		"filterEnv": _rand(0.6, 0.85), "filterAttack": _rand(0.15, 0.3), "filterDecay": _rand(0.4, 0.6),
-		"volume": 0.45,
-	}))
+		"filterEnabled": true, "filterType": 0,
+		"filterCutoff": _rand(180.0, 300.0), "filterRes": _rand(0.3, 0.5),
+		"filterEnv": _rand(0.6, 0.85), "filterAttack": 0.2, "filterDecay": 0.5,
+		"volume": 0.45, "level": 0.85,
+	})
+	return {
+		"channels": [
+			_hp_noise_transient(0.06, _rand(2500.0, 4000.0), 0.3, 0.5, 0.7),
+			roar,
+			_lp_noise_tail(0.6, 350.0, 0.4, -0.3, 0.7, 0.35, 0.5),
+		],
+		"master": {"masterVolume": 1.0, "reverbMix": 0.15, "reverbSize": 0.3},
+	}
 
 
 # Shield-break: bright HP-filtered noise burst with delay tails.
@@ -152,19 +175,31 @@ static func preset_shield_break(params: Dictionary, locked: Dictionary) -> Dicti
 	return _apply_target(params, locked, t)
 
 
-# Summon: low rumble that swells — boss spawn / ritual culmination.
-static func preset_summon(params: Dictionary, locked: Dictionary) -> Dictionary:
-	return _apply_target(params, locked, _off_with({
-		"mode": 1,
-		"pitch": _rand(60.0, 100.0),
-		"length": _rand(0.7, 1.0),
+# Summon: 3ch — sub rumble body + driven saw swell + noise shimmer.
+static func preset_summon() -> Dictionary:
+	var sub: Dictionary = _ch({
+		"mode": 3, "pitch": _rand(40.0, 65.0), "length": 0.8, "voice": 1,
+		"ampAttack": 0.2, "ampDecay": 0.3, "ampSustain": 0.6, "ampRelease": 0.4,
+		"filterEnabled": true, "filterType": 0,
+		"filterCutoff": 200.0, "filterRes": 0.3,
+		"volume": 0.5, "level": 0.7,
+	})
+	var swell: Dictionary = _ch({
+		"mode": 1, "pitch": _rand(60.0, 100.0), "length": 0.9,
 		"voice": _rand_int(2, 3), "detune": _rand(0.05, 0.08),
-		"pitchEnvEnabled": true,
-		"pitchEnv": _rand(0.25, 0.4), "pitchAttack": _rand(0.5, 0.7), "pitchDecay": 0.0,
+		"ampAttack": 0.2, "ampDecay": 0.3, "ampSustain": 0.6, "ampRelease": 0.4,
 		"driveEnabled": true, "driveAmount": _rand(0.4, 0.6), "driveMix": 1.0,
-		"filterEnabled": true,
-		"filterType": 0, "filterCutoff": _rand(600.0, 1000.0), "filterRes": _rand(0.2, 0.4),
-		"filterEnv": _rand(0.3, 0.5), "filterAttack": _rand(0.3, 0.6), "filterDecay": _rand(0.4, 0.6),
-		"ampAttack": _rand(0.15, 0.25), "ampDecay": 0.3, "ampSustain": 0.6, "ampRelease": 0.4,
-		"volume": 0.5,
-	}))
+		"filterEnabled": true, "filterType": 0,
+		"filterCutoff": _rand(600.0, 1000.0), "filterRes": _rand(0.2, 0.4),
+		"filterEnv": _rand(0.3, 0.5), "filterAttack": 0.4, "filterDecay": 0.5,
+		"volume": 0.45, "level": 0.85,
+	})
+	swell.merge(_pitch_env_rise(0.3, 0.6), true)
+	return {
+		"channels": [
+			sub,
+			swell,
+			_resonant_sweep(0.7, _rand(2000.0, 3500.0), 0.35, 0.4, 0.6, 0.3, 0.5),
+		],
+		"master": {"masterVolume": 1.0, "reverbMix": 0.25, "reverbSize": 0.55},
+	}

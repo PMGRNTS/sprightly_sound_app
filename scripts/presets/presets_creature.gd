@@ -40,19 +40,34 @@ static func preset_hurt(params: Dictionary, locked: Dictionary) -> Dictionary:
 	}))
 
 
-# Death: descending, longer — "I am dying" voice trail.
-static func preset_death(params: Dictionary, locked: Dictionary) -> Dictionary:
-	return _apply_target(params, locked, _off_with({
-		"mode": _pick([1, 2]),
-		"pitch": _rand(200.0, 350.0),
-		"length": _rand(0.5, 0.8),
+# Death: 3ch — pitched vocal + descending saw trail + noise breath tail.
+static func preset_death() -> Dictionary:
+	var vocal: Dictionary = _ch({
+		"mode": _pick([1, 2]), "pitch": _rand(200.0, 350.0), "length": 0.6,
 		"voice": _rand_int(1, 2), "detune": _rand(0.02, 0.05),
-		"pitchEnvEnabled": true,
-		"pitchEnv": _rand(-0.7, -0.4), "pitchAttack": 0.0, "pitchDecay": _rand(0.7, 1.0),
+		"ampAttack": 0.03, "ampDecay": 0.3, "ampSustain": 0.3, "ampRelease": 0.6,
 		"driveEnabled": true, "driveAmount": _rand(0.3, 0.5), "driveMix": 0.8,
-		"ampAttack": _rand(0.02, 0.06), "ampDecay": 0.3, "ampSustain": 0.3, "ampRelease": 0.6,
-		"volume": 0.5,
-	}))
+		"volume": 0.5, "level": 0.85,
+	})
+	vocal.merge(_pitch_env_decay(-0.5, 0.8), true)
+	var trail: Dictionary = _ch({
+		"mode": 1, "pitch": _rand(120.0, 200.0), "length": 0.8,
+		"voice": 1, "detune": 0.0,
+		"ampAttack": 0.1, "ampDecay": 0.4, "ampSustain": 0.2, "ampRelease": 0.6,
+		"filterEnabled": true, "filterType": 0,
+		"filterCutoff": 500.0, "filterRes": 0.3,
+		"filterEnv": -0.3, "filterAttack": 0.0, "filterDecay": 0.7,
+		"volume": 0.4, "level": 0.65,
+	})
+	trail.merge(_pitch_env_decay(-0.7, 1.0), true)
+	return {
+		"channels": [
+			vocal,
+			trail,
+			_lp_noise_tail(0.5, 400.0, 0.3, -0.2, 0.6, 0.3, 0.45),
+		],
+		"master": {"masterVolume": 1.0, "reverbMix": 0.2, "reverbSize": 0.4},
+	}
 
 
 # Idle: short ambient grunt — creature sitting around between actions.
@@ -72,22 +87,34 @@ static func preset_idle(params: Dictionary, locked: Dictionary) -> Dictionary:
 	}))
 
 
-# Roar: long sustained low growl with heavy drive — boss / dragon / bear.
-static func preset_roar(params: Dictionary, locked: Dictionary) -> Dictionary:
-	return _apply_target(params, locked, _off_with({
-		"mode": 1,
-		"pitch": _rand(70.0, 120.0),
-		"length": _rand(0.7, 1.2),
+# Roar: 3ch — noise breath transient + driven saw vocal body + sub rumble.
+static func preset_roar() -> Dictionary:
+	var vocal: Dictionary = _ch({
+		"mode": 1, "pitch": _rand(70.0, 120.0), "length": 0.9,
 		"voice": _rand_int(2, 3), "detune": _rand(0.05, 0.1),
-		"pitchEnvEnabled": true,
-		"pitchEnv": _rand(0.1, 0.25), "pitchAttack": _rand(0.3, 0.5), "pitchDecay": 0.0,
+		"ampAttack": 0.12, "ampDecay": 0.3, "ampSustain": 0.7, "ampRelease": 0.5,
 		"driveEnabled": true, "driveAmount": _rand(0.6, 0.85), "driveMix": 1.0,
-		"filterEnabled": true,
-		"filterType": 0, "filterCutoff": _rand(700.0, 1200.0), "filterRes": _rand(0.2, 0.4),
-		"filterEnv": _rand(0.1, 0.3), "filterAttack": _rand(0.2, 0.4), "filterDecay": _rand(0.5, 0.8),
-		"ampAttack": _rand(0.1, 0.2), "ampDecay": 0.3, "ampSustain": 0.7, "ampRelease": 0.5,
-		"volume": 0.5,
-	}))
+		"filterEnabled": true, "filterType": 0,
+		"filterCutoff": _rand(700.0, 1200.0), "filterRes": _rand(0.2, 0.4),
+		"filterEnv": 0.2, "filterAttack": 0.3, "filterDecay": 0.6,
+		"volume": 0.5, "level": 0.9,
+	})
+	vocal.merge(_pitch_env_rise(0.15, 0.4), true)
+	var rumble: Dictionary = _ch({
+		"mode": 3, "pitch": _rand(35.0, 55.0), "length": 1.0, "voice": 1,
+		"ampAttack": 0.15, "ampDecay": 0.3, "ampSustain": 0.5, "ampRelease": 0.5,
+		"filterEnabled": true, "filterType": 0,
+		"filterCutoff": 180.0, "filterRes": 0.3,
+		"volume": 0.45, "level": 0.65,
+	})
+	return {
+		"channels": [
+			_lp_noise_tail(0.15, 600.0, 0.4, 0.3, 0.3, 0.45, 0.6),
+			vocal,
+			rumble,
+		],
+		"master": {"masterVolume": 1.0, "reverbMix": 0.15, "reverbSize": 0.35},
+	}
 
 
 # Chitter: rapid arpeggio on a high tone — small rodent / insect chatter.

@@ -41,6 +41,11 @@ func _ready() -> void:
 	if not saved_theme.is_empty():
 		Palette.apply_theme(saved_theme)
 
+	var saved_res: Vector2i = Persistence.load_resolution()
+	if saved_res != Vector2i.ZERO:
+		get_window().size = saved_res
+		get_window().position = (DisplayServer.screen_get_size() - saved_res) / 2
+
 	state = SoundState.new()
 	ui = UIBuilder.new(self, state)
 
@@ -162,6 +167,8 @@ func _on_module_lock_pressed(mod: Dictionary) -> void:
 # ── Channel handlers ───────────────────────────────────────────────
 
 func _on_channel_tab_pressed(idx: int) -> void:
+	if idx >= state.sound.channels.size():
+		return
 	state.active_channel = idx
 	ui.refresh_channel_tabs()
 	ui.refresh_mix_rows()
@@ -180,6 +187,8 @@ func _on_add_channel_pressed() -> void:
 
 
 func _on_channel_delete_pressed(idx: int) -> void:
+	if idx >= state.sound.channels.size():
+		return
 	if not state.remove_channel(idx):
 		return
 	ui.refresh_channel_tabs()
@@ -189,11 +198,15 @@ func _on_channel_delete_pressed(idx: int) -> void:
 
 
 func _on_channel_level_changed(value: float, idx: int) -> void:
+	if idx >= state.sound.channels.size():
+		return
 	state.sound.channels[idx]["level"] = value
 	_request_re_render()
 
 
 func _on_channel_mute_pressed(idx: int) -> void:
+	if idx >= state.sound.channels.size():
+		return
 	state.sound.channels[idx]["muted"] = not bool(state.sound.channels[idx].get("muted", false))
 	ui.refresh_mix_rows()
 	ui.refresh_channel_tabs()
@@ -201,6 +214,8 @@ func _on_channel_mute_pressed(idx: int) -> void:
 
 
 func _on_channel_solo_pressed(idx: int) -> void:
+	if idx >= state.sound.channels.size():
+		return
 	state.sound.channels[idx]["soloed"] = not bool(state.sound.channels[idx].get("soloed", false))
 	ui.refresh_mix_rows()
 	ui.refresh_channel_tabs()
@@ -448,6 +463,15 @@ func _on_theme_changed(theme_name: String) -> void:
 	ui.refresh_master_values()
 	ui.refresh_bin_list()
 	ui.flash_status(theme_name.to_upper())
+
+
+# ── Resolution handler ─────────────────────────────────────────────
+
+func _on_resolution_changed(sz: Vector2i) -> void:
+	get_window().size = sz
+	get_window().position = (DisplayServer.screen_get_size() - sz) / 2
+	Persistence.save_resolution(sz)
+	ui.update_resolution_label()
 
 
 # ── Audio playback ─────────────────────────────────────────────────

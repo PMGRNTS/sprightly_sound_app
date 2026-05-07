@@ -114,21 +114,19 @@ static func preset_climb(params: Dictionary, locked: Dictionary) -> Dictionary:
 	}))
 
 
-# Jump-land: harder than LAND — impact-heavy variant for big drops.
-static func preset_jump_land(params: Dictionary, locked: Dictionary) -> Dictionary:
-	return _apply_target(params, locked, _off_with({
-		"mode": _pick([0, 4]),
-		"pitch": _rand(60.0, 110.0),
-		"length": _rand(0.15, 0.25),
-		"voice": _rand_int(1, 2), "detune": _rand(0.0, 0.05),
-		"pitchEnvEnabled": true,
-		"pitchEnv": _rand(-0.5, -0.3), "pitchAttack": 0.0, "pitchDecay": _rand(0.5, 0.7),
-		"driveEnabled": true, "driveAmount": _rand(0.3, 0.5), "driveMix": 0.8,
-		"filterEnabled": true,
-		"filterType": 0, "filterCutoff": _rand(350.0, 600.0), "filterRes": _rand(0.2, 0.4),
-		"filterEnv": 0.0, "filterAttack": 0.0, "filterDecay": 0.5,
-		"volume": _rand(0.5, 0.65),
-	}))
+# Jump-land: 3ch — noise impact + sub thump body + filtered debris.
+static func preset_jump_land() -> Dictionary:
+	var thump: Dictionary = _tonal_body(0, _rand(60.0, 110.0), 0.2, _rand_int(1, 2),
+		_rand(0.0, 0.05), _rand(0.3, 0.5), _rand(350.0, 600.0), 0.55, 0.85)
+	thump.merge(_pitch_env_decay(-0.4, 0.6), true)
+	return {
+		"channels": [
+			_hp_noise_transient(0.04, 1800.0, 0.25, 0.5, 0.75),
+			thump,
+			_lp_noise_tail(0.2, 500.0, 0.3, -0.2, 0.5, 0.35, 0.5),
+		],
+		"master": {"masterVolume": 1.0, "reverbMix": 0.1, "reverbSize": 0.2},
+	}
 
 
 # Roll: tumbling noise — rapid tremolo on filtered noise.

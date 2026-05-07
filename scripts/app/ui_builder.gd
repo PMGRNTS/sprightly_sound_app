@@ -54,6 +54,7 @@ var _ui_root: Control
 # Persistent UI references (built once)
 var status_label: Label
 var theme_button: Button
+var resolution_button: Button
 var waveform: WaveformDisplay
 var waveform_info_left: Label
 var waveform_info_right: Label
@@ -64,8 +65,11 @@ var bin_count_label: Label
 var bin_container: VBoxContainer
 var variation_seed_input: SpinBox
 var channel_tabs_container: HBoxContainer
+var channel_tab_buttons: Array[Button] = []
+var channel_add_button: Button
 var modules_container: GridContainer
 var mix_container: VBoxContainer
+var mix_rows: Array[Dictionary] = []
 var master_v_knob: Knob
 var master_v_label: Label
 var verb_mix_knob: Knob
@@ -151,7 +155,7 @@ func _build_header() -> Control:
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hdr.add_child(left)
 
-	var sub := UIFactory.make_label("// PMGRNTS · v1.4", 10, Palette.TEXT_MUTE, 0.4)
+	var sub := UIFactory.make_label("// PMGRNTS · v1.5", 10, Palette.TEXT_MUTE, 0.4)
 	left.add_child(sub)
 
 	var title := UIFactory.make_label("SPRIGHTLY_SFXR", 24, Palette.TEXT, 0.08)
@@ -168,8 +172,18 @@ func _build_header() -> Control:
 	status_label = UIFactory.make_status_pill("READY")
 	right.add_child(status_label)
 
-	# Theme picker — half-moon glyph keeps the picker visually quiet while
-	# still being recognisable as a "switch appearance" affordance.
+	var help_button := UIFactory.make_action_button("?")
+	help_button.tooltip_text = "Keyboard shortcuts"
+	help_button.custom_minimum_size = Palette.THEME_BTN_SIZE
+	help_button.pressed.connect(_on_help_button_pressed)
+	right.add_child(help_button)
+
+	resolution_button = UIFactory.make_action_button(_current_resolution_label())
+	resolution_button.tooltip_text = "Window size"
+	resolution_button.custom_minimum_size = Palette.RESOLUTION_BTN_SIZE
+	resolution_button.pressed.connect(_on_resolution_button_pressed)
+	right.add_child(resolution_button)
+
 	theme_button = UIFactory.make_action_button("◐")
 	theme_button.tooltip_text = "Theme"
 	theme_button.custom_minimum_size = Palette.THEME_BTN_SIZE
@@ -203,6 +217,77 @@ func _on_theme_button_pressed() -> void:
 	popup.position = Vector2i(int(btn_pos.x), int(btn_pos.y + theme_button.size.y + 4))
 	popup.reset_size()
 	popup.popup()
+
+
+func _on_help_button_pressed() -> void:
+	var popup := PopupPanel.new()
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 4)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_right", 16)
+	margin.add_theme_constant_override("margin_top", 12)
+	margin.add_theme_constant_override("margin_bottom", 12)
+	margin.add_child(v)
+	popup.add_child(margin)
+	v.add_child(UIFactory.make_label("KEYBOARD SHORTCUTS", Palette.FONT_LABEL, Palette.TEXT, 0.3))
+	v.add_child(UIFactory.make_hairline())
+	var shortcuts: Array[Array] = [
+		["Space", "Play sound"],
+		["R", "Re-render + play"],
+		["G", "Generate random"],
+		["E", "Export WAV"],
+		["1 - 4", "Switch channel"],
+		["Cmd/Ctrl+Z", "Undo"],
+		["Cmd/Ctrl+Shift+Z", "Redo"],
+		["Alt-click knob", "Toggle lock"],
+		["Right-click knob", "Reset to default"],
+	]
+	for pair in shortcuts:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		var key_lbl := UIFactory.make_label(pair[0], Palette.FONT_SMALL, Palette.ACCENT, 0.0)
+		key_lbl.custom_minimum_size = Vector2(120, 0)
+		row.add_child(key_lbl)
+		row.add_child(UIFactory.make_label(pair[1], Palette.FONT_SMALL, Palette.TEXT_MUTE, 0.0))
+		v.add_child(row)
+	popup.popup_hide.connect(popup.queue_free)
+	_host.add_child(popup)
+	popup.popup_centered()
+
+
+func _on_resolution_button_pressed() -> void:
+	var popup := PopupMenu.new()
+	var win_size: Vector2i = _host.get_window().size
+	for i in Palette.RESOLUTION_PRESETS.size():
+		var entry: Dictionary = Palette.RESOLUTION_PRESETS[i]
+		popup.add_radio_check_item(String(entry.label), i)
+		popup.set_item_checked(i, entry.size == win_size)
+	popup.id_pressed.connect(func(id: int) -> void:
+		if id >= 0 and id < Palette.RESOLUTION_PRESETS.size():
+			_host._on_resolution_changed(Palette.RESOLUTION_PRESETS[id].size)
+	)
+	popup.popup_hide.connect(popup.queue_free)
+	_host.add_child(popup)
+	var btn_pos: Vector2 = resolution_button.get_screen_position()
+	popup.position = Vector2i(int(btn_pos.x), int(btn_pos.y + resolution_button.size.y + 4))
+	popup.reset_size()
+	popup.popup()
+
+
+func _current_resolution_label() -> String:
+	var win_size: Vector2i = Vector2i.ZERO
+	if _host != null and _host.is_inside_tree():
+		win_size = _host.get_window().size
+	for entry in Palette.RESOLUTION_PRESETS:
+		if entry.size == win_size:
+			return String(entry.label)
+	return "%d" % win_size.y
+
+
+func update_resolution_label() -> void:
+	if resolution_button != null:
+		resolution_button.text = _current_resolution_label()
 
 
 # Detach and free the active UI subtree so a fresh build_ui() can run
@@ -261,6 +346,17 @@ func _build_modules_column() -> Control:
 	channel_tabs_container = HBoxContainer.new()
 	channel_tabs_container.add_theme_constant_override("separation", 4)
 	v.add_child(channel_tabs_container)
+
+	channel_tab_buttons.clear()
+	for i in SoundData.MAX_CHANNELS:
+		var btn := UIFactory.make_channel_tab("CH %d" % (i + 1), false, false, false)
+		btn.pressed.connect(_host._on_channel_tab_pressed.bind(i))
+		channel_tabs_container.add_child(btn)
+		channel_tab_buttons.append(btn)
+
+	channel_add_button = UIFactory.make_channel_add_btn()
+	channel_add_button.pressed.connect(_host._on_add_channel_pressed)
+	channel_tabs_container.add_child(channel_add_button)
 
 	# 2-column grid replaces the prior ScrollContainer + VBox. Five rows of
 	# paired modules fit the viewport at default resolution.
@@ -391,6 +487,12 @@ func _build_master_panel() -> Control:
 	mix_container = VBoxContainer.new()
 	mix_container.add_theme_constant_override("separation", 4)
 	body.add_child(mix_container)
+
+	mix_rows.clear()
+	for i in SoundData.MAX_CHANNELS:
+		var row_data: Dictionary = _make_mix_row_static(i)
+		mix_container.add_child(row_data.container)
+		mix_rows.append(row_data)
 
 	body.add_child(UIFactory.wrap_padded(UIFactory.make_hairline(), 0, 0, 6, 0))
 	body.add_child(UIFactory.make_label("OUTPUT", 9, Palette.TEXT_DIM, 0.3))
@@ -678,7 +780,7 @@ func _on_bin_search_changed(text: String) -> void:
 
 func _build_footer() -> Control:
 	var foot := UIFactory.make_label(
-		"UP TO 4 CHANNELS · MIX & REVERB IN MASTER · LOCK PARAMS OR MODULES TO HOLD THEM THROUGH GEN · BIN PERSISTS",
+		"SPRIGHTLY SFXR v1.5 · PMGRNTS · UP TO 4 CHANNELS · LOCK PARAMS TO HOLD THROUGH GEN · ? FOR SHORTCUTS",
 		10, Palette.TEXT_DIM, 0.3
 	)
 	foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -704,40 +806,66 @@ func refresh_waveform_info() -> void:
 
 
 func refresh_channel_tabs() -> void:
-	for c in channel_tabs_container.get_children():
-		c.queue_free()
-
-	for i in _state.sound.channels.size():
-		var ch_dict: Dictionary = _state.sound.channels[i]
-		var btn := UIFactory.make_channel_tab(
-			"CH %d" % (i + 1),
-			i == _state.active_channel,
-			bool(ch_dict.get("soloed", false)),
-			bool(ch_dict.get("muted", false)),
-		)
-		btn.pressed.connect(_host._on_channel_tab_pressed.bind(i))
-		channel_tabs_container.add_child(btn)
-
-	if _state.sound.channels.size() < SoundData.MAX_CHANNELS:
-		var add_btn := UIFactory.make_channel_add_btn()
-		add_btn.pressed.connect(_host._on_add_channel_pressed)
-		channel_tabs_container.add_child(add_btn)
+	var num_ch: int = _state.sound.channels.size()
+	for i in SoundData.MAX_CHANNELS:
+		var btn: Button = channel_tab_buttons[i]
+		if i < num_ch:
+			var ch_dict: Dictionary = _state.sound.channels[i]
+			UIFactory.restyle_channel_tab(btn, "CH %d" % (i + 1),
+				i == _state.active_channel,
+				bool(ch_dict.get("soloed", false)),
+				bool(ch_dict.get("muted", false)))
+			btn.disabled = false
+			btn.visible = true
+		else:
+			UIFactory.restyle_channel_tab(btn, "---", false, false, false)
+			btn.disabled = true
+			btn.modulate = Palette.MODULATE_DIM
+	channel_add_button.visible = num_ch < SoundData.MAX_CHANNELS
 
 
 func refresh_mix_rows() -> void:
-	for c in mix_container.get_children():
-		c.queue_free()
+	var num_ch: int = _state.sound.channels.size()
+	for i in SoundData.MAX_CHANNELS:
+		var rd: Dictionary = mix_rows[i]
+		if i < num_ch:
+			var ch_dict: Dictionary = _state.sound.channels[i]
+			rd.container.modulate = Color.WHITE
+			rd.label_btn.disabled = false
+			rd.label_btn.add_theme_color_override("font_color",
+				Palette.ACCENT if i == _state.active_channel else Palette.TEXT_MUTE)
+			rd.slider.editable = true
+			rd.slider.value = float(ch_dict.get("level", 1.0))
+			var muted: bool = bool(ch_dict.get("muted", false))
+			UIFactory.restyle_mini_btn(rd.mute_btn, muted)
+			rd.mute_btn.tooltip_text = "Unmute" if muted else "Mute"
+			rd.mute_btn.disabled = false
+			var soloed: bool = bool(ch_dict.get("soloed", false))
+			UIFactory.restyle_mini_btn(rd.solo_btn, soloed)
+			rd.solo_btn.tooltip_text = "Unsolo" if soloed else "Solo"
+			rd.solo_btn.disabled = false
+			rd.del_btn.visible = num_ch > 1
+			rd.del_btn.disabled = false
+			rd.del_spacer.visible = num_ch <= 1
+		else:
+			rd.container.modulate = Palette.MODULATE_DIM
+			rd.label_btn.disabled = true
+			rd.label_btn.add_theme_color_override("font_color", Palette.TEXT_DIM)
+			rd.slider.editable = false
+			rd.slider.value = 0.0
+			UIFactory.restyle_mini_btn(rd.mute_btn, false)
+			rd.mute_btn.disabled = true
+			UIFactory.restyle_mini_btn(rd.solo_btn, false)
+			rd.solo_btn.disabled = true
+			rd.del_btn.visible = false
+			rd.del_spacer.visible = true
 
-	for i in _state.sound.channels.size():
-		mix_container.add_child(_make_mix_row(i))
 
-
-func _make_mix_row(i: int) -> Control:
-	var ch_dict: Dictionary = _state.sound.channels[i]
+func _make_mix_row_static(i: int) -> Dictionary:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
 
-	var label_btn := UIFactory.make_mix_label_btn(i, i == _state.active_channel)
+	var label_btn := UIFactory.make_mix_label_btn(i, false)
 	label_btn.pressed.connect(_host._on_channel_tab_pressed.bind(i))
 	row.add_child(label_btn)
 
@@ -745,34 +873,38 @@ func _make_mix_row(i: int) -> Control:
 	slider.min_value = 0.0
 	slider.max_value = 1.0
 	slider.step = 0.01
-	slider.value = float(ch_dict.get("level", 1.0))
+	slider.value = 0.0
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slider.value_changed.connect(_host._on_channel_level_changed.bind(i))
 	row.add_child(slider)
 
-	var muted: bool = bool(ch_dict.get("muted", false))
-	var mute_btn := UIFactory.make_mini_btn("M", muted)
-	mute_btn.tooltip_text = "Unmute" if muted else "Mute"
+	var mute_btn := UIFactory.make_mini_btn("M", false)
 	mute_btn.pressed.connect(_host._on_channel_mute_pressed.bind(i))
 	row.add_child(mute_btn)
 
-	var soloed: bool = bool(ch_dict.get("soloed", false))
-	var solo_btn := UIFactory.make_mini_btn("S", soloed)
-	solo_btn.tooltip_text = "Unsolo" if soloed else "Solo"
+	var solo_btn := UIFactory.make_mini_btn("S", false)
 	solo_btn.pressed.connect(_host._on_channel_solo_pressed.bind(i))
 	row.add_child(solo_btn)
 
-	if _state.sound.channels.size() > 1:
-		var del_btn := UIFactory.make_mini_btn("×", false)
-		del_btn.tooltip_text = "Remove channel"
-		del_btn.pressed.connect(_host._on_channel_delete_pressed.bind(i))
-		row.add_child(del_btn)
-	else:
-		var spacer := Control.new()
-		spacer.custom_minimum_size = Palette.MINI_BTN_SIZE
-		row.add_child(spacer)
+	var del_btn := UIFactory.make_mini_btn("×", false)
+	del_btn.tooltip_text = "Remove channel"
+	del_btn.pressed.connect(_host._on_channel_delete_pressed.bind(i))
+	row.add_child(del_btn)
 
-	return row
+	var del_spacer := Control.new()
+	del_spacer.custom_minimum_size = Palette.MINI_BTN_SIZE
+	del_spacer.visible = false
+	row.add_child(del_spacer)
+
+	return {
+		"container": row,
+		"label_btn": label_btn,
+		"slider": slider,
+		"mute_btn": mute_btn,
+		"solo_btn": solo_btn,
+		"del_btn": del_btn,
+		"del_spacer": del_spacer,
+	}
 
 
 # Update knob values + lock states for the active channel WITHOUT

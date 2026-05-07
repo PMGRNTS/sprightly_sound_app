@@ -15,11 +15,15 @@ signal lock_toggled(is_locked: bool)
 const DRAG_SENSITIVITY: float = 0.005
 const ARC_START_DEG: float = 135.0
 const ARC_SWEEP_DEG: float = 270.0
+const SCROLL_STEP_THRESHOLD: float = 1.0
+const SCROLL_RESET_MS: int = 200
 
 var locked: bool = false:
 	set = set_locked
 
 var _dragging: bool = false
+var _scroll_accum: float = 0.0
+var _scroll_last_ms: int = 0
 
 
 func _init() -> void:
@@ -94,10 +98,10 @@ func _gui_input(event: InputEvent) -> void:
 			reset_requested.emit()
 			accept_event()
 		elif mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed:
-			_step_value(1)
+			_accumulate_scroll(1.0, mb.factor)
 			accept_event()
 		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.pressed:
-			_step_value(-1)
+			_accumulate_scroll(-1.0, mb.factor)
 			accept_event()
 	elif event is InputEventMouseMotion:
 		if not _dragging:
@@ -131,6 +135,20 @@ func _gui_input(event: InputEvent) -> void:
 			KEY_END:
 				_set_snapped(max_value)
 				accept_event()
+
+
+func _accumulate_scroll(direction: float, factor: float) -> void:
+	var now: int = Time.get_ticks_msec()
+	if now - _scroll_last_ms > SCROLL_RESET_MS:
+		_scroll_accum = 0.0
+	_scroll_last_ms = now
+	_scroll_accum += direction * maxf(factor, 0.1)
+	while _scroll_accum >= SCROLL_STEP_THRESHOLD:
+		_scroll_accum -= SCROLL_STEP_THRESHOLD
+		_step_value(1)
+	while _scroll_accum <= -SCROLL_STEP_THRESHOLD:
+		_scroll_accum += SCROLL_STEP_THRESHOLD
+		_step_value(-1)
 
 
 func _step_value(steps: int) -> void:

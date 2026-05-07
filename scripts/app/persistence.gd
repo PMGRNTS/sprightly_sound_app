@@ -35,3 +35,11 @@ static func load_theme() -> String:
 
 static func save_theme(name: String) -> bool:
 	return ThemeStore.persist(name)
+
+
+static func load_resolution() -> Vector2i:
+	return ResolutionStore.load_size()
+
+
+static func save_resolution(sz: Vector2i) -> bool:
+	return ResolutionStore.persist(sz)

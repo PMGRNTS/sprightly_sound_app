@@ -141,16 +141,16 @@ const THEMES := {
 	# an opaque BG, hiding the transparency until you come back.
 	"Glass": {
 		"BG":          Color(0, 0, 0, 0),
-		"PANEL":       Color(0.10, 0.11, 0.13, 0.78),
-		"INSET":       Color(0.05, 0.06, 0.08, 0.66),
-		"BORDER":      Color(0.45, 0.47, 0.52, 0.85),
-		"BORDER_HI":   Color(0.70, 0.72, 0.78, 0.95),
+		"PANEL":       Color(0.10, 0.11, 0.13, 0.88),
+		"INSET":       Color(0.05, 0.06, 0.08, 0.80),
+		"BORDER":      Color(0.45, 0.47, 0.52, 0.90),
+		"BORDER_HI":   Color(0.70, 0.72, 0.78, 1.0),
 		"TEXT":        Color(0.96, 0.96, 0.98, 1.0),
 		"TEXT_MUTE":   Color(0.72, 0.74, 0.78, 0.95),
 		"TEXT_DIM":    Color(0.48, 0.50, 0.55, 0.85),
 		"ACCENT":      Color(0.66, 0.78, 0.92, 1.0),
-		"INDICATOR_OFF": Color(0.20, 0.22, 0.25, 0.70),
-		"SEPARATOR":   Color(0.25, 0.27, 0.30, 0.55),
+		"INDICATOR_OFF": Color(0.20, 0.22, 0.25, 0.80),
+		"SEPARATOR":   Color(0.25, 0.27, 0.30, 0.65),
 		"ACCENT_GHOST": Color(0.66, 0.78, 0.92, 0.10),
 	},
 }
@@ -232,6 +232,14 @@ const SAVE_DIALOG_SIZE    := Vector2i(720, 520)
 const PRESET_NAME_DIALOG_SIZE := Vector2i(420, 140)
 const PRESET_NAME_BODY_MIN := Vector2(380, 0)
 const THEME_BTN_SIZE      := Vector2(28, 28)          # ◐ picker button in header
+const RESOLUTION_BTN_SIZE := Vector2(56, 28)
+
+const RESOLUTION_PRESETS: Array[Dictionary] = [
+	{"label": "720p",  "size": Vector2i(1280, 720)},
+	{"label": "900p",  "size": Vector2i(1600, 900)},
+	{"label": "1080p", "size": Vector2i(1920, 1080)},
+	{"label": "1440p", "size": Vector2i(2560, 1440)},
+]
 
 # ── Window margins ─────────────────────────────────────────────────
 const WINDOW_MARGIN_H := 24

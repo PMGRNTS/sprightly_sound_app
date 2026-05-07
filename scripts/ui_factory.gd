@@ -361,6 +361,21 @@ static func make_channel_tab(label: String, active: bool, soloed: bool, muted: b
 	return btn
 
 
+static func restyle_channel_tab(btn: Button, label: String, active: bool, soloed: bool, muted: bool) -> void:
+	btn.text = label
+	var bg: Color = Palette.ACCENT if active else Palette.TRANSPARENT
+	var fg: Color = Palette.BG if active else Palette.TEXT
+	var border: Color = Palette.ACCENT if (active or soloed) else Palette.BORDER
+	var hover_bg: Color = Palette.ACCENT.lightened(0.05) if active else Palette.ACCENT_GHOST
+	btn.add_theme_stylebox_override("normal", make_stylebox(bg, border))
+	btn.add_theme_stylebox_override("hover", make_stylebox(hover_bg, border))
+	btn.add_theme_stylebox_override("pressed", make_stylebox(bg, border))
+	btn.add_theme_stylebox_override("focus", make_stylebox(bg, border))
+	btn.add_theme_color_override("font_color", fg)
+	btn.add_theme_color_override("font_hover_color", fg)
+	btn.modulate = Palette.MODULATE_MUTED if muted else Color.WHITE
+
+
 # Trailing "+" tab to add a new channel. Hollow until hover, then accents.
 static func make_channel_add_btn() -> Button:
 	var btn := Button.new()
@@ -403,6 +418,18 @@ static func make_mini_btn(text: String, on: bool) -> Button:
 	b.add_theme_color_override("font_color", fg)
 	b.add_theme_color_override("font_hover_color", Palette.BG)
 	return b
+
+
+static func restyle_mini_btn(b: Button, on: bool) -> void:
+	var bg: Color = Palette.ACCENT if on else Palette.TRANSPARENT
+	var fg: Color = Palette.BG if on else Palette.TEXT_MUTE
+	var border: Color = Palette.ACCENT if on else Palette.BORDER_HI
+	b.add_theme_stylebox_override("normal", make_stylebox(bg, border))
+	b.add_theme_stylebox_override("hover", make_stylebox(Palette.ACCENT, Palette.ACCENT))
+	b.add_theme_stylebox_override("pressed", make_stylebox(bg, border))
+	b.add_theme_stylebox_override("focus", make_stylebox(bg, border))
+	b.add_theme_color_override("font_color", fg)
+	b.add_theme_color_override("font_hover_color", Palette.BG)
 
 
 # Mix-row channel label (CH1..CH4) — flat button so clicking it switches
