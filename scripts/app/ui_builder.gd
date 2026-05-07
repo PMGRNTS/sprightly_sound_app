@@ -151,10 +151,10 @@ func _build_header() -> Control:
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hdr.add_child(left)
 
-	var sub := UIFactory.make_label("// BUFFER GENERATOR · v3.0", 10, Palette.TEXT_MUTE, 0.4)
+	var sub := UIFactory.make_label("// PMGRNTS · v1.4", 10, Palette.TEXT_MUTE, 0.4)
 	left.add_child(sub)
 
-	var title := UIFactory.make_label("GODOT_SFX", 24, Palette.TEXT, 0.08)
+	var title := UIFactory.make_label("SPRIGHTLY_SFXR", 24, Palette.TEXT, 0.08)
 	title.add_theme_font_size_override("font_size", Palette.FONT_TITLE)
 	left.add_child(title)
 

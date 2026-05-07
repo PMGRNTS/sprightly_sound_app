@@ -14,20 +14,20 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 [application]
 
-config/name="Godot SFX"
+config/name="Sprightly SFXR"
 config/description="SFX generator port of sfx_generator.jsx — multi-channel chiptune synth with ADSR, filter, drive, delay, crush, reverb, and presets."
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
-config/icon="res://icon.svg"
+config/icon="uid://bqw81ib63p7mp"
 
 [display]
 
-window/size/viewport_width=1280
-window/size/viewport_height=900
-window/size/borderless=true
+window/size/viewport_width=1920
+window/size/viewport_height=1080
 window/size/transparent=true
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+window/per_pixel_transparency/allowed=true
 
 [input]
 
@@ -87,3 +87,4 @@ redo_action={
 [rendering]
 
 renderer/rendering_method="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true

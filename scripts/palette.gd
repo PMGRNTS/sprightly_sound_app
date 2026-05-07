@@ -133,6 +133,26 @@ const THEMES := {
 		"SEPARATOR":   Color("#e0dfd9"),
 		"ACCENT_GHOST": Color(0.17, 0.35, 0.33, 0.08),
 	},
+	# Glass relies on the project's per-pixel transparency + the
+	# borderless/transparent window flags. BG is fully transparent so
+	# the OS desktop shows through; panels are smoked-glass at ~78%
+	# alpha; borders and text stay near-opaque so the UI reads cleanly
+	# against any wallpaper. Switching to any other theme repaints with
+	# an opaque BG, hiding the transparency until you come back.
+	"Glass": {
+		"BG":          Color(0, 0, 0, 0),
+		"PANEL":       Color(0.10, 0.11, 0.13, 0.78),
+		"INSET":       Color(0.05, 0.06, 0.08, 0.66),
+		"BORDER":      Color(0.45, 0.47, 0.52, 0.85),
+		"BORDER_HI":   Color(0.70, 0.72, 0.78, 0.95),
+		"TEXT":        Color(0.96, 0.96, 0.98, 1.0),
+		"TEXT_MUTE":   Color(0.72, 0.74, 0.78, 0.95),
+		"TEXT_DIM":    Color(0.48, 0.50, 0.55, 0.85),
+		"ACCENT":      Color(0.66, 0.78, 0.92, 1.0),
+		"INDICATOR_OFF": Color(0.20, 0.22, 0.25, 0.70),
+		"SEPARATOR":   Color(0.25, 0.27, 0.30, 0.55),
+		"ACCENT_GHOST": Color(0.66, 0.78, 0.92, 0.10),
+	},
 }
 
 # Tracks which theme is currently applied. Read by the picker UI to mark
