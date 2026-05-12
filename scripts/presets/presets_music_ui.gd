@@ -5,24 +5,30 @@ extends PresetsHelpers
 # major / minor triads to convey mood.
 
 
-# Stinger win: ascending major triad — victory / level complete.
-static func preset_stinger_win(params: Dictionary, locked: Dictionary) -> Dictionary:
-	return _apply_target(params, locked, _off_with({
-		"mode": _pick([0, 3]),
-		"pitch": _rand(400.0, 550.0),
-		"length": _rand(0.3, 0.5),
-		"voice": 1, "detune": 0.0,
-		"arpEnabled": true,
-		"arpRate": _rand(15.0, 22.0),
-		"arpStep1": 4, "arpStep2": 7, "arpStep3": 12,
+static func preset_stinger_win() -> Dictionary:
+	var melody: Dictionary = _ch({
+		"mode": _pick([0, 3]), "pitch": _rand(440.0, 523.0), "length": 0.45,
+		"voice": 1,
 		"ampAttack": 0.0, "ampDecay": 0.2, "ampSustain": 0.6, "ampRelease": 0.5,
-		"volume": _rand(0.45, 0.6),
-	}))
+		"arpEnabled": true,
+		"arpRate": 18.0, "arpStep1": 4, "arpStep2": 7, "arpStep3": 12,
+		"volume": 0.5, "level": 0.85,
+	})
+	var pad: Dictionary = _ch({
+		"mode": 3, "pitch": _rand(220.0, 261.0), "length": 0.5,
+		"voice": 3, "detune": 0.06,
+		"ampAttack": 0.05, "ampDecay": 0.2, "ampSustain": 0.5, "ampRelease": 0.6,
+		"filterEnabled": true, "filterType": 0, "filterCutoff": 3000.0, "filterRes": 0.1,
+		"volume": 0.3, "level": 0.65,
+	})
+	return {
+		"channels": [melody, pad],
+		"master": {"masterVolume": 1.0, "reverbMix": 0.35, "reverbSize": 0.5},
+	}
 
 
-# Stinger lose: descending minor — defeat / failure.
-static func preset_stinger_lose(params: Dictionary, locked: Dictionary) -> Dictionary:
-	return _apply_target(params, locked, _off_with({
+static func preset_stinger_lose() -> Dictionary:
+	var melody: Dictionary = _ch({
 		"mode": _pick([0, 1]),
 		"pitch": _rand(300.0, 450.0),
 		"length": _rand(0.4, 0.6),
@@ -31,8 +37,19 @@ static func preset_stinger_lose(params: Dictionary, locked: Dictionary) -> Dicti
 		"arpRate": _rand(8.0, 14.0),
 		"arpStep1": -3, "arpStep2": -5, "arpStep3": -10,
 		"ampAttack": 0.0, "ampDecay": 0.3, "ampSustain": 0.5, "ampRelease": 0.5,
-		"volume": _rand(0.4, 0.55),
-	}))
+		"volume": _rand(0.4, 0.55), "level": 0.85,
+	})
+	var sub: Dictionary = _ch({
+		"mode": 3, "pitch": _rand(100.0, 150.0),
+		"length": 0.5, "voice": 2, "detune": 0.05,
+		"ampAttack": 0.1, "ampDecay": 0.2, "ampSustain": 0.4, "ampRelease": 0.6,
+		"filterEnabled": true, "filterType": 0, "filterCutoff": 500.0, "filterRes": 0.15,
+		"volume": 0.3, "level": 0.55,
+	})
+	return {
+		"channels": [melody, sub],
+		"master": {"masterVolume": 1.0, "reverbMix": 0.3, "reverbSize": 0.5},
+	}
 
 
 # Fade-in: slow attack of a sustained tone — scene start / music swell.
@@ -87,9 +104,8 @@ static func preset_resume(params: Dictionary, locked: Dictionary) -> Dictionary:
 	}))
 
 
-# Fanfare: extended ascending arp — level-up / new milestone.
-static func preset_fanfare(params: Dictionary, locked: Dictionary) -> Dictionary:
-	return _apply_target(params, locked, _off_with({
+static func preset_fanfare() -> Dictionary:
+	var melody: Dictionary = _ch({
 		"mode": _pick([0, 3]),
 		"pitch": _rand(350.0, 500.0),
 		"length": _rand(0.6, 0.9),
@@ -98,5 +114,16 @@ static func preset_fanfare(params: Dictionary, locked: Dictionary) -> Dictionary
 		"arpRate": _rand(16.0, 24.0),
 		"arpStep1": 4, "arpStep2": 7, "arpStep3": 12,
 		"ampAttack": _rand(0.02, 0.06), "ampDecay": 0.2, "ampSustain": 0.7, "ampRelease": 0.5,
-		"volume": _rand(0.45, 0.6),
-	}))
+		"volume": _rand(0.45, 0.6), "level": 0.85,
+	})
+	var pad: Dictionary = _ch({
+		"mode": 3, "pitch": _rand(175.0, 250.0),
+		"length": 0.7, "voice": 3, "detune": 0.06,
+		"ampAttack": 0.08, "ampDecay": 0.15, "ampSustain": 0.6, "ampRelease": 0.6,
+		"filterEnabled": true, "filterType": 0, "filterCutoff": 2500.0, "filterRes": 0.1,
+		"volume": 0.3, "level": 0.6,
+	})
+	return {
+		"channels": [melody, pad],
+		"master": {"masterVolume": 1.0, "reverbMix": 0.35, "reverbSize": 0.5},
+	}

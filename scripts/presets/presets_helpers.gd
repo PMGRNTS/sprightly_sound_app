@@ -60,6 +60,8 @@ const ALL_OFF: Dictionary = {
 	"crushEnabled": false,
 	"driveEnabled": false,
 	"filterEnabled": false,
+	"flangerEnabled": false,
+	"chordEnabled": false,
 }
 
 
@@ -211,7 +213,7 @@ static func randomize_all(params: Dictionary, locked: Dictionary) -> Dictionary:
 
 	var target: Dictionary = {
 		"volume": _rand(0.3, 0.8),
-		"mode": _rand_int(0, 4),
+		"mode": _rand_int(0, 6),
 		"pitch": _rand(80.0, 2000.0),
 		"length": _rand(0.1, 1.0),
 		"voice": _rand_int(1, 4),
@@ -254,6 +256,16 @@ static func randomize_all(params: Dictionary, locked: Dictionary) -> Dictionary:
 		"filterEnv": _rand(-0.7, 0.7),
 		"filterAttack": _rand(0.0, 0.4),
 		"filterDecay": _rand(0.3, 1.0),
+		"flangerEnabled": randf() < 0.2,
+		"flangerDepth": _rand(0.2, 0.8),
+		"flangerRate": _rand(0.2, 5.0),
+		"flangerFeedback": _rand(-0.5, 0.5),
+		"flangerMix": _rand(0.3, 0.7),
+		"chordEnabled": randf() < 0.15,
+		"chordNote1": _pick([3, 4, 5, 7, 12]),
+		"chordNote2": _pick([7, 12, -12, 0]),
+		"chordNote3": _pick([12, 0, -5, -12]),
+		"chordMix": _rand(0.3, 0.7),
 	}
 	target.merge(amp_shape, true)
 	return _apply_target(params, locked, target)

@@ -22,6 +22,7 @@ const MODULE_ROW_PAIRS := [
 	["vibrato",  "tremolo"],
 	["arpeggio", "delay"],
 	["drive",    "crush"],
+	["flanger", "chord"],
 ]
 
 # Preset-tab consolidation: ten registry groups bin into five display
@@ -91,6 +92,8 @@ var preset_tab_buttons: Dictionary[String, Button] = {}
 var preset_grids: Dictionary[String, GridContainer] = {}
 
 # Save-preset dialog (lazily built on first use).
+var export_rate_btn: Button
+var export_bits_btn: Button
 var _save_preset_dialog: ConfirmationDialog
 var _save_preset_name_input: LineEdit
 
@@ -236,6 +239,7 @@ func _on_help_button_pressed() -> void:
 		["Space", "Play sound"],
 		["R", "Re-render + play"],
 		["G", "Generate random"],
+		["M", "Mutate (nudge params)"],
 		["E", "Export WAV"],
 		["1 - 4", "Switch channel"],
 		["Cmd/Ctrl+Z", "Undo"],
@@ -663,6 +667,11 @@ func _build_actions_panel() -> Control:
 	gen.pressed.connect(_host._on_generate_pressed)
 	grid.add_child(gen)
 
+	var mutate := UIFactory.make_action_button("↝ MUTATE")
+	mutate.tooltip_text = "Nudge unlocked params by small random amounts"
+	mutate.pressed.connect(_host._on_mutate_pressed)
+	grid.add_child(mutate)
+
 	var play := UIFactory.make_action_button("▶ PLAY")
 	play.pressed.connect(_host._on_play_pressed)
 	grid.add_child(play)
@@ -670,6 +679,21 @@ func _build_actions_panel() -> Control:
 	var wav := UIFactory.make_action_button("↓ WAV")
 	wav.pressed.connect(_host._on_export_pressed)
 	grid.add_child(wav)
+
+	export_rate_btn = UIFactory.make_action_button("44.1kHz")
+	export_rate_btn.tooltip_text = "Toggle export sample rate"
+	export_rate_btn.pressed.connect(_host._on_sample_rate_toggled)
+	grid.add_child(export_rate_btn)
+
+	export_bits_btn = UIFactory.make_action_button("16BIT")
+	export_bits_btn.tooltip_text = "Toggle export bit depth"
+	export_bits_btn.pressed.connect(_host._on_bit_depth_toggled)
+	grid.add_child(export_bits_btn)
+
+	var batch := UIFactory.make_action_button("⚄ BATCH")
+	batch.tooltip_text = "Generate and export multiple variations"
+	batch.pressed.connect(_host._on_batch_pressed)
+	grid.add_child(batch)
 
 	# SAVE PRESET writes the current sound string to user_presets.json
 	# and re-renders the preset panel so the new ★ entry shows up
@@ -821,7 +845,8 @@ func refresh_channel_tabs() -> void:
 			UIFactory.restyle_channel_tab(btn, "---", false, false, false)
 			btn.disabled = true
 			btn.modulate = Palette.MODULATE_DIM
-	channel_add_button.visible = num_ch < SoundData.MAX_CHANNELS
+	channel_add_button.disabled = num_ch >= SoundData.MAX_CHANNELS
+	channel_add_button.modulate = Palette.MODULATE_DIM if num_ch >= SoundData.MAX_CHANNELS else Color.WHITE
 
 
 func refresh_mix_rows() -> void:
@@ -947,6 +972,13 @@ func refresh_master_values() -> void:
 	verb_mix_label.text = "%.2f" % float(_state.sound.master.reverbMix)
 	verb_size_knob.set_value_no_signal(float(_state.sound.master.reverbSize))
 	verb_size_label.text = "%.2f" % float(_state.sound.master.reverbSize)
+
+
+func refresh_export_labels(sample_rate: int, bit_depth: int) -> void:
+	if export_rate_btn != null:
+		export_rate_btn.text = "22.05kHz" if sample_rate == 22050 else "44.1kHz"
+	if export_bits_btn != null:
+		export_bits_btn.text = "%dBIT" % bit_depth
 
 
 func refresh_bin_list() -> void:

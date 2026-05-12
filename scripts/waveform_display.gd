@@ -37,6 +37,7 @@ func _draw() -> void:
 	var n: int = samples.size()
 	var step: int = max(1, n / num_points)
 
+	var max_peak: float = 0.0
 	var pts: PackedVector2Array = PackedVector2Array()
 	pts.resize(num_points)
 	for i in num_points:
@@ -49,9 +50,17 @@ func _draw() -> void:
 		for j in range(start_idx + 1, end_idx):
 			if absf(samples[j]) > absf(peak):
 				peak = samples[j]
+		if absf(peak) > max_peak:
+			max_peak = absf(peak)
+		var clamped_peak: float = clampf(peak, -1.0, 1.0)
 		var x: float = float(i) / float(num_points) * sz.x
-		var y: float = clampf(sz.y * 0.5 - peak * half, 2.0, sz.y - 2.0)
+		var y: float = clampf(sz.y * 0.5 - clamped_peak * half, 2.0, sz.y - 2.0)
 		pts[i] = Vector2(x, y)
 
 	draw_polyline(pts, Palette.waveform_glow(), 4.0, true)
 	draw_polyline(pts, Palette.waveform_line(), 1.4, true)
+
+	if max_peak > 0.9:
+		var peak_col: Color = Color(1.0, 0.3, 0.3) if max_peak >= 1.0 else Palette.TEXT_MUTE
+		var peak_text: String = "CLIP" if max_peak >= 1.0 else ("PEAK %.2f" % max_peak)
+		draw_string(ThemeDB.fallback_font, Vector2(sz.x - 80, sz.y - 6), peak_text, HORIZONTAL_ALIGNMENT_RIGHT, -1, 10, peak_col)

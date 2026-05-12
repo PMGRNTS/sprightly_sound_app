@@ -20,6 +20,15 @@ var ui: UIBuilder
 # ── Audio playback infra ───────────────────────────────────────────
 var audio_player: AudioStreamPlayer
 var save_dialog: FileDialog
+var export_sample_rate: int = 44100
+var export_bit_depth: int = 16
+
+# Batch export
+var batch_dialog: ConfirmationDialog
+var batch_count_spin: SpinBox
+var batch_mode_btn: Button
+var batch_mode_mutate: bool = false
+var batch_dir_dialog: FileDialog
 # Coalesces rapid slider drags into a single render. Started/restarted
 # by _request_re_render(); cancelled by any direct _re_render() call.
 var render_timer: Timer
@@ -65,6 +74,45 @@ func _ready() -> void:
 	save_dialog.size = Palette.SAVE_DIALOG_SIZE
 	save_dialog.file_selected.connect(_on_save_file_selected)
 	add_child(save_dialog)
+
+	batch_dialog = ConfirmationDialog.new()
+	batch_dialog.title = "Batch Export"
+	batch_dialog.size = Vector2i(360, 160)
+	batch_dialog.confirmed.connect(_on_batch_confirmed)
+	var bv := VBoxContainer.new()
+	bv.add_theme_constant_override("separation", 8)
+	bv.custom_minimum_size = Vector2(320, 0)
+	batch_dialog.add_child(bv)
+	var count_row := HBoxContainer.new()
+	count_row.add_theme_constant_override("separation", 8)
+	count_row.add_child(UIFactory.make_label("Count:", Palette.FONT_VALUE, Palette.TEXT))
+	batch_count_spin = SpinBox.new()
+	batch_count_spin.min_value = 1
+	batch_count_spin.max_value = 100
+	batch_count_spin.value = 10
+	batch_count_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	count_row.add_child(batch_count_spin)
+	bv.add_child(count_row)
+	var mode_row := HBoxContainer.new()
+	mode_row.add_theme_constant_override("separation", 8)
+	mode_row.add_child(UIFactory.make_label("Mode:", Palette.FONT_VALUE, Palette.TEXT))
+	batch_mode_btn = Button.new()
+	batch_mode_btn.text = "GENERATE"
+	batch_mode_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	batch_mode_btn.pressed.connect(func():
+		batch_mode_mutate = not batch_mode_mutate
+		batch_mode_btn.text = "MUTATE" if batch_mode_mutate else "GENERATE"
+	)
+	mode_row.add_child(batch_mode_btn)
+	bv.add_child(mode_row)
+	add_child(batch_dialog)
+
+	batch_dir_dialog = FileDialog.new()
+	batch_dir_dialog.file_mode = FileDialog.FILE_MODE_OPEN_DIR
+	batch_dir_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	batch_dir_dialog.size = Palette.SAVE_DIALOG_SIZE
+	batch_dir_dialog.dir_selected.connect(_on_batch_dir_selected)
+	add_child(batch_dir_dialog)
 
 	ui.build_ui()
 	state.bin.assign(Persistence.load_bin())
@@ -269,6 +317,26 @@ func _on_generate_pressed() -> void:
 	ui.refresh_module_values()
 
 
+func _on_mutate_pressed() -> void:
+	state.push_undo()
+	var ch: Dictionary = state.sound.channels[state.active_channel]
+	var ch_locks: Dictionary = state.active_channel_locks()
+	for key in SoundData.PARAM_DEFS:
+		if ch_locks.get(key, false):
+			continue
+		var def: Dictionary = SoundData.PARAM_DEFS[key]
+		var range_span: float = def.max - def.min
+		var nudge: float = (randf() * 2.0 - 1.0) * range_span * 0.1
+		var old_val: float = float(ch.get(key, def.get("min", 0.0)))
+		var new_val: float = clampf(old_val + nudge, def.min, def.max)
+		if def.step >= 1.0:
+			ch[key] = int(round(new_val))
+		else:
+			ch[key] = snappedf(new_val, def.step)
+	_apply_and_play("MUTATE")
+	ui.refresh_module_values()
+
+
 func _on_play_pressed() -> void:
 	_play_samples(state.samples)
 
@@ -281,13 +349,78 @@ func _on_export_pressed() -> void:
 	save_dialog.popup_centered()
 
 
+func _on_sample_rate_toggled() -> void:
+	export_sample_rate = 22050 if export_sample_rate == 44100 else 44100
+	ui.refresh_export_labels(export_sample_rate, export_bit_depth)
+
+
+func _on_bit_depth_toggled() -> void:
+	export_bit_depth = 8 if export_bit_depth == 16 else 16
+	ui.refresh_export_labels(export_sample_rate, export_bit_depth)
+
+
+func _on_batch_pressed() -> void:
+	batch_dialog.popup_centered()
+
+
+func _on_batch_confirmed() -> void:
+	batch_dir_dialog.popup_centered()
+
+
+func _on_batch_dir_selected(dir_path: String) -> void:
+	var count: int = int(batch_count_spin.value)
+	var saved_sound: Dictionary = state.sound.duplicate(true)
+	var saved_seed: int = state.variation_seed
+	var base_seed: int = state.variation_seed
+	var exported: int = 0
+
+	for i in count:
+		if batch_mode_mutate:
+			var ch: Dictionary = state.sound.channels[state.active_channel]
+			for key in SoundData.PARAM_DEFS:
+				var def: Dictionary = SoundData.PARAM_DEFS[key]
+				var range_span: float = def.max - def.min
+				var nudge: float = (randf() * 2.0 - 1.0) * range_span * 0.1
+				var old_val: float = float(ch.get(key, def.get("min", 0.0)))
+				var new_val: float = clampf(old_val + nudge, def.min, def.max)
+				if def.step >= 1.0:
+					ch[key] = int(round(new_val))
+				else:
+					ch[key] = snappedf(new_val, def.step)
+		else:
+			state.variation_seed = base_seed + i
+			state.consume_variation_seed()
+			var ch: Dictionary = state.active_channel_params()
+			var ch_locks: Dictionary = Presets.effective_locks(state.active_channel_locks())
+			var new_patch: Dictionary = Presets.randomize_all(ch, ch_locks)
+			state.sound.channels[state.active_channel] = new_patch
+
+		var rendered: PackedFloat32Array = Synth.render_sound(state.sound)
+		var bytes: PackedByteArray = SoundData.encode_wav(rendered, export_sample_rate, export_bit_depth)
+		var filename: String = "%s/batch_%03d.wav" % [dir_path, i + 1]
+		var f := FileAccess.open(filename, FileAccess.WRITE)
+		if f != null:
+			f.store_buffer(bytes)
+			f.close()
+			exported += 1
+
+		if batch_mode_mutate:
+			state.sound = saved_sound.duplicate(true)
+
+	state.sound = saved_sound
+	state.variation_seed = saved_seed
+	_re_render()
+	ui.refresh_module_values()
+	ui.flash_status("BATCH %d" % exported)
+
+
 func _on_save_file_selected(path: String) -> void:
 	# FileDialog's .wav filter doesn't enforce the extension on the typed
 	# filename — append it ourselves so dragging the export into a DAW or
 	# Godot project works without a manual rename.
 	if not path.to_lower().ends_with(".wav"):
 		path += ".wav"
-	var bytes: PackedByteArray = SoundData.encode_wav(state.samples)
+	var bytes: PackedByteArray = SoundData.encode_wav(state.samples, export_sample_rate, export_bit_depth)
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f == null:
 		# get_open_error() captures permission/path issues that swallow open().
@@ -524,6 +657,8 @@ func _input(event: InputEvent) -> void:
 		_apply_and_play("PLAY")
 	elif event.is_action_pressed("gen_sound"):
 		_on_generate_pressed()
+	elif event.is_action_pressed("mutate_sound"):
+		_on_mutate_pressed()
 	elif event.is_action_pressed("export_sound"):
 		_on_export_pressed()
 	elif event.is_action_pressed("undo_action"):

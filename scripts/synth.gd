@@ -33,7 +33,7 @@ static func waveform_at(mode: int, phase: float) -> float:
 			return (4.0 * phase - 1.0) if phase < 0.5 else (3.0 - 4.0 * phase)
 		3:
 			return sin(phase * TAU)
-		4:
+		4, 5, 6:
 			return randf() * 2.0 - 1.0
 	return 0.0
 
@@ -146,18 +146,35 @@ static func generate_dry_samples(p: Dictionary) -> PackedFloat32Array:
 
 		out[i] = sample
 
-	# Noise mode: one-pole IIR lowpass to soften the harsh top end of
-	# uncorrelated randf(). Form is y[n] = a·y[n-1] + (1-a)·x[n]; with
-	# a = 0.25 the −3 dB point sits near 12 kHz at 44.1 kHz SR — audibly
-	# transparent on bright noise, but sands off the brittle hash that
-	# stacks up when multiple voices each emit independent white noise.
-	# Tonal modes (square/saw/tri/sine) are unaffected.
 	if p_mode == 4:
 		var lp_a: float = 0.25
 		var lp_prev: float = 0.0
 		for i in total:
 			lp_prev = lp_a * lp_prev + (1.0 - lp_a) * out[i]
 			out[i] = lp_prev
+	elif p_mode == 5:
+		# Pink noise: Paul Kellet approximation (−3 dB/octave).
+		var b0: float = 0.0
+		var b1: float = 0.0
+		var b2: float = 0.0
+		var b3: float = 0.0
+		var b4: float = 0.0
+		var b5: float = 0.0
+		for i in total:
+			var white: float = out[i]
+			b0 = 0.99886 * b0 + white * 0.0555179
+			b1 = 0.99332 * b1 + white * 0.0750759
+			b2 = 0.96900 * b2 + white * 0.1538520
+			b3 = 0.86650 * b3 + white * 0.3104856
+			b4 = 0.55000 * b4 + white * 0.5329522
+			b5 = -0.7616 * b5 - white * 0.0168980
+			out[i] = (b0 + b1 + b2 + b3 + b4 + b5 + white * 0.5362) * 0.11
+	elif p_mode == 6:
+		# Brown noise: integrated white noise (−6 dB/octave) with leak.
+		var prev: float = 0.0
+		for i in total:
+			prev = prev * 0.998 + out[i] * 0.02
+			out[i] = prev * 8.0
 
 	return out
 
@@ -345,10 +362,12 @@ static func apply_crush(samples: PackedFloat32Array, p: Dictionary) -> PackedFlo
 	var bits: int = int(p.crushBits)
 	var levels: float = pow(2.0, bits - 1)
 	var crush_rate: int = max(1, int(p.crushRate))
+	var dither_amp: float = (1.0 / levels) if bits < 16 else 0.0
 	var last_sample: float = 0.0
 	for i in n:
 		var v: float = samples[i]
 		if bits < 16:
+			v += (randf() - randf()) * dither_amp
 			v = round(v * levels) / levels
 		if crush_rate > 1:
 			if i % crush_rate == 0:
@@ -356,6 +375,74 @@ static func apply_crush(samples: PackedFloat32Array, p: Dictionary) -> PackedFlo
 			else:
 				v = last_sample
 		out[i] = v
+	return out
+
+
+static func apply_chord(samples: PackedFloat32Array, p: Dictionary) -> PackedFloat32Array:
+	if not bool(p.get("chordEnabled", false)) or float(p.get("chordMix", 0.0)) <= 0.0:
+		return samples
+	var mix: float = float(p.chordMix)
+	var notes: Array[int] = [int(p.chordNote1), int(p.chordNote2), int(p.chordNote3)]
+	var n: int = samples.size()
+	var out: PackedFloat32Array = PackedFloat32Array()
+	out.resize(n)
+	var dry_gain: float = 1.0 - mix * 0.5
+	for i in n:
+		out[i] = samples[i] * dry_gain
+
+	for note in notes:
+		if note == 0:
+			continue
+		var ratio: float = pow(2.0, float(note) / 12.0)
+		var wet_gain: float = mix / 3.0
+		for i in n:
+			var src_pos: float = float(i) * ratio
+			var idx: int = int(src_pos)
+			if idx >= n - 1:
+				break
+			var frac: float = src_pos - float(idx)
+			out[i] += (samples[idx] * (1.0 - frac) + samples[idx + 1] * frac) * wet_gain
+	return out
+
+
+static func apply_flanger(samples: PackedFloat32Array, p: Dictionary) -> PackedFloat32Array:
+	if not bool(p.get("flangerEnabled", false)) or float(p.get("flangerMix", 0.0)) <= 0.0:
+		return samples
+	var n: int = samples.size()
+	var depth: float = float(p.flangerDepth)
+	var rate: float = float(p.flangerRate)
+	var feedback: float = float(p.flangerFeedback)
+	var mix: float = float(p.flangerMix)
+
+	var base_delay_s: float = 0.003
+	var mod_range_s: float = depth * 0.007
+	var max_delay: int = int(ceil((base_delay_s + mod_range_s) * SAMPLE_RATE)) + 2
+	var buf: PackedFloat32Array = PackedFloat32Array()
+	buf.resize(max_delay)
+	var write_idx: int = 0
+
+	var out: PackedFloat32Array = PackedFloat32Array()
+	out.resize(n)
+	var dry_gain: float = 1.0 - mix * 0.5
+
+	for i in n:
+		var lfo_phase: float = float(i) / float(SAMPLE_RATE) * rate
+		var lfo: float = (sin(lfo_phase * TAU) + 1.0) * 0.5
+		var delay_s: float = base_delay_s + lfo * mod_range_s
+		var delay_samples: float = delay_s * float(SAMPLE_RATE)
+
+		var read_pos: float = float(write_idx) - delay_samples
+		if read_pos < 0.0:
+			read_pos += float(max_delay)
+		var idx0: int = int(read_pos) % max_delay
+		var idx1: int = (idx0 + 1) % max_delay
+		var frac: float = read_pos - floor(read_pos)
+		var delayed: float = buf[idx0] * (1.0 - frac) + buf[idx1] * frac
+
+		var input_val: float = samples[i] + delayed * feedback
+		buf[write_idx] = input_val
+		write_idx = (write_idx + 1) % max_delay
+		out[i] = samples[i] * dry_gain + delayed * mix
 	return out
 
 
@@ -472,6 +559,8 @@ static func render_channel(p: Dictionary) -> PackedFloat32Array:
 	buf = apply_tremolo(buf, p)
 	buf = apply_delay(buf, p)
 	buf = apply_crush(buf, p)
+	buf = apply_chord(buf, p)
+	buf = apply_flanger(buf, p)
 	return buf
 
 

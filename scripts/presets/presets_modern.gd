@@ -28,13 +28,11 @@ static func preset_heartbeat() -> Dictionary:
 	}
 
 
-# Low-health: pulsing bandpass tone — danger warning.
-static func preset_low_health(params: Dictionary, locked: Dictionary) -> Dictionary:
-	return _apply_target(params, locked, _off_with({
+static func preset_low_health() -> Dictionary:
+	var pulse: Dictionary = _ch({
 		"mode": 0,
 		"pitch": _rand(180.0, 280.0),
-		"length": _rand(0.3, 0.5),
-		"voice": 1, "detune": 0.0,
+		"length": _rand(0.3, 0.5), "voice": 1,
 		"ampAttack": 0.0, "ampDecay": 0.4, "ampSustain": 0.3, "ampRelease": 0.4,
 		"filterEnabled": true,
 		"filterType": 2, "filterCutoff": _rand(700.0, 1200.0), "filterRes": _rand(0.55, 0.75),
@@ -42,8 +40,20 @@ static func preset_low_health(params: Dictionary, locked: Dictionary) -> Diction
 		"tremEnabled": true,
 		"tremDepth": _rand(0.4, 0.6), "tremShape": 3, "tremRate": _rand(2.5, 4.5),
 		"tremAttack": 0.0, "tremDecay": 1.0,
-		"volume": _rand(0.4, 0.55),
-	}))
+		"volume": _rand(0.4, 0.55), "level": 0.85,
+	})
+	var sub: Dictionary = _ch({
+		"mode": 3, "pitch": _rand(50.0, 70.0),
+		"length": 0.25, "voice": 1,
+		"filterEnabled": true, "filterType": 0,
+		"filterCutoff": 200.0, "filterRes": 0.3,
+		"volume": 0.4, "level": 0.6,
+	})
+	sub.merge(ENV_DECAY_ONLY, true)
+	return {
+		"channels": [pulse, sub],
+		"master": {"masterVolume": 1.0, "reverbMix": 0.1, "reverbSize": 0.2},
+	}
 
 
 # Reload: 3ch — HP noise click + sine ping ring + LP noise slide.
@@ -95,16 +105,19 @@ static func preset_switch_weapon(params: Dictionary, locked: Dictionary) -> Dict
 	}))
 
 
-# Cover-enter: short whoosh — sliding into cover / hugging wall.
-static func preset_cover_enter(params: Dictionary, locked: Dictionary) -> Dictionary:
-	return _apply_target(params, locked, _off_with({
-		"mode": 4,
-		"pitch": 1000.0,
-		"length": _rand(0.15, 0.25),
-		"voice": 1, "detune": 0.0,
+static func preset_cover_enter() -> Dictionary:
+	var whoosh: Dictionary = _ch({
+		"mode": 4, "pitch": 1000.0,
+		"length": _rand(0.15, 0.25), "voice": 1,
 		"ampAttack": _rand(0.03, 0.08), "ampDecay": 0.3, "ampSustain": 0.4, "ampRelease": 0.4,
 		"filterEnabled": true,
 		"filterType": 0, "filterCutoff": _rand(400.0, 700.0), "filterRes": _rand(0.3, 0.5),
 		"filterEnv": _rand(-0.4, -0.2), "filterAttack": 0.0, "filterDecay": _rand(0.5, 0.7),
-		"volume": _rand(0.35, 0.5),
-	}))
+		"volume": _rand(0.35, 0.5), "level": 0.85,
+	})
+	var thud: Dictionary = _tonal_body(
+		0, _rand(60.0, 100.0), 0.06, 1, 0.0, 0.0, 300.0, 0.35, 0.5)
+	return {
+		"channels": [whoosh, thud],
+		"master": {"masterVolume": 1.0, "reverbMix": 0.06, "reverbSize": 0.15},
+	}

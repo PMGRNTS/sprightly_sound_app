@@ -25,35 +25,36 @@ static func preset_glass_break() -> Dictionary:
 	}
 
 
-# Wood crack: square stub + drive — splintering.
-static func preset_wood_crack(params: Dictionary, locked: Dictionary) -> Dictionary:
-	return _apply_target(params, locked, _off_with({
-		"mode": _pick([0, 1]),
-		"pitch": _rand(200.0, 400.0),
-		"length": _rand(0.08, 0.15),
-		"voice": 1, "detune": 0.0,
-		"pitchEnvEnabled": true,
-		"pitchEnv": _rand(-0.4, -0.2), "pitchAttack": 0.0, "pitchDecay": _rand(0.4, 0.6),
-		"driveEnabled": true, "driveAmount": _rand(0.5, 0.7), "driveMix": 0.9,
-		"ampAttack": 0.0, "ampDecay": 1.0, "ampSustain": 0.0, "ampRelease": 0.0,
-		"volume": _rand(0.45, 0.6),
-	}))
+static func preset_wood_crack() -> Dictionary:
+	var body: Dictionary = _tonal_body(
+		_pick([0, 1]), _rand(200.0, 400.0), _rand(0.08, 0.15),
+		1, 0.0, _rand(0.5, 0.7), 0.0, _rand(0.45, 0.6), 0.8)
+	body.merge(_pitch_env_decay(_rand(-0.4, -0.2), _rand(0.4, 0.6)), true)
+	return {
+		"channels": [
+			_hp_noise_transient(0.03, _rand(1800.0, 2800.0), 0.2, 0.5, 0.7),
+			body,
+		],
+		"master": {"masterVolume": 1.0, "reverbMix": 0.08, "reverbSize": 0.2},
+	}
 
 
-# Stone crack: lower thud + drive — masonry / boulder snap.
-static func preset_stone_crack(params: Dictionary, locked: Dictionary) -> Dictionary:
-	return _apply_target(params, locked, _off_with({
-		"mode": 4,
-		"pitch": _rand(120.0, 200.0),
-		"length": _rand(0.15, 0.25),
-		"voice": 1, "detune": 0.0,
-		"ampAttack": 0.0, "ampDecay": 1.0, "ampSustain": 0.0, "ampRelease": 0.0,
+static func preset_stone_crack() -> Dictionary:
+	var thud: Dictionary = _ch({
+		"mode": 4, "pitch": _rand(120.0, 200.0),
+		"length": _rand(0.15, 0.25), "voice": 1,
 		"driveEnabled": true, "driveAmount": _rand(0.4, 0.6), "driveMix": 0.8,
 		"filterEnabled": true,
 		"filterType": 0, "filterCutoff": _rand(500.0, 900.0), "filterRes": _rand(0.3, 0.5),
 		"filterEnv": _rand(-0.3, 0.0), "filterAttack": 0.0, "filterDecay": _rand(0.4, 0.6),
-		"volume": _rand(0.45, 0.6),
-	}))
+		"volume": _rand(0.45, 0.6), "level": 0.85,
+	})
+	thud.merge(ENV_DECAY_ONLY, true)
+	var crack: Dictionary = _hp_noise_transient(0.04, _rand(1500.0, 2200.0), 0.3, 0.5, 0.7)
+	return {
+		"channels": [crack, thud],
+		"master": {"masterVolume": 1.0, "reverbMix": 0.1, "reverbSize": 0.25},
+	}
 
 
 # Metal clang: 3ch — HP noise click + detuned sine ring + LP noise decay.
@@ -101,20 +102,23 @@ static func preset_rubble() -> Dictionary:
 	}
 
 
-# Rip: filter sweep + drive — fabric tearing / wound opening.
-static func preset_rip(params: Dictionary, locked: Dictionary) -> Dictionary:
-	return _apply_target(params, locked, _off_with({
-		"mode": 4,
-		"pitch": 1000.0,
-		"length": _rand(0.2, 0.35),
-		"voice": 1, "detune": 0.0,
+static func preset_rip() -> Dictionary:
+	var tear: Dictionary = _ch({
+		"mode": 4, "pitch": 1000.0,
+		"length": _rand(0.2, 0.35), "voice": 1,
 		"ampAttack": 0.0, "ampDecay": 0.4, "ampSustain": 0.3, "ampRelease": 0.5,
 		"driveEnabled": true, "driveAmount": _rand(0.4, 0.6), "driveMix": 0.9,
 		"filterEnabled": true,
 		"filterType": 1, "filterCutoff": _rand(1500.0, 2500.0), "filterRes": _rand(0.4, 0.6),
 		"filterEnv": _rand(-0.5, -0.3), "filterAttack": 0.0, "filterDecay": _rand(0.5, 0.7),
-		"volume": _rand(0.4, 0.55),
-	}))
+		"volume": _rand(0.4, 0.55), "level": 0.85,
+	})
+	var fizz: Dictionary = _lp_noise_tail(
+		0.15, 800.0, 0.3, -0.3, 0.4, 0.3, 0.45)
+	return {
+		"channels": [tear, fizz],
+		"master": {"masterVolume": 1.0, "reverbMix": 0.05, "reverbSize": 0.15},
+	}
 
 
 # Impact heavy: 3ch — pitched square impact + LP noise body + sub thump.
@@ -133,16 +137,16 @@ static func preset_impact_heavy() -> Dictionary:
 	}
 
 
-# Impact light: tap — stylus, finger flick, tap on a surface.
-static func preset_impact_light(params: Dictionary, locked: Dictionary) -> Dictionary:
-	return _apply_target(params, locked, _off_with({
-		"mode": _pick([0, 4]),
-		"pitch": _rand(400.0, 700.0),
-		"length": _rand(0.04, 0.08),
-		"voice": 1, "detune": 0.0,
-		"ampAttack": 0.0, "ampDecay": 1.0, "ampSustain": 0.0, "ampRelease": 0.0,
-		"filterEnabled": true,
-		"filterType": 0, "filterCutoff": _rand(1500.0, 2500.0), "filterRes": _rand(0.2, 0.4),
-		"filterEnv": 0.0, "filterAttack": 0.0, "filterDecay": 0.5,
-		"volume": _rand(0.35, 0.5),
-	}))
+static func preset_impact_light() -> Dictionary:
+	var tap: Dictionary = _pitched_transient(
+		_pick([0, 3]), _rand(400.0, 700.0), _rand(0.04, 0.08),
+		_rand(0.35, 0.5), 0.8)
+	tap["filterEnabled"] = true
+	tap["filterType"] = 0
+	tap["filterCutoff"] = _rand(1500.0, 2500.0)
+	tap["filterRes"] = _rand(0.2, 0.4)
+	var click: Dictionary = _hp_noise_transient(0.01, 3500.0, 0.1, 0.3, 0.4)
+	return {
+		"channels": [click, tap],
+		"master": {"masterVolume": 1.0, "reverbMix": 0.03, "reverbSize": 0.1},
+	}

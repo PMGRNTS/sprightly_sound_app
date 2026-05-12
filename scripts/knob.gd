@@ -142,7 +142,7 @@ func _accumulate_scroll(direction: float, factor: float) -> void:
 	if now - _scroll_last_ms > SCROLL_RESET_MS:
 		_scroll_accum = 0.0
 	_scroll_last_ms = now
-	_scroll_accum += direction * maxf(factor, 0.1)
+	_scroll_accum += direction * clampf(factor, 0.1, 1.0)
 	while _scroll_accum >= SCROLL_STEP_THRESHOLD:
 		_scroll_accum -= SCROLL_STEP_THRESHOLD
 		_step_value(1)
