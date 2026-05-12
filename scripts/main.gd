@@ -22,6 +22,7 @@ var audio_player: AudioStreamPlayer
 var save_dialog: FileDialog
 var export_sample_rate: int = 44100
 var export_bit_depth: int = 16
+var export_normalize: bool = false
 
 # ── Piano roll ─────────────────────────────────────────────────────
 var pr_state: PianoRollState
@@ -36,6 +37,7 @@ var batch_count_spin: SpinBox
 var batch_mode_btn: Button
 var batch_mode_mutate: bool = false
 var batch_dir_dialog: FileDialog
+var batch_thread: Thread
 # Coalesces rapid slider drags into a single render. Started/restarted
 # by _request_re_render(); cancelled by any direct _re_render() call.
 var render_timer: Timer
@@ -60,7 +62,11 @@ func _ready() -> void:
 	var saved_res: Vector2i = Persistence.load_resolution()
 	if saved_res != Vector2i.ZERO:
 		get_window().size = saved_res
-		get_window().position = (DisplayServer.screen_get_size() - saved_res) / 2
+		var saved_pos: Vector2i = Persistence.load_window_position()
+		if saved_pos != Vector2i(-1, -1):
+			get_window().position = saved_pos
+		else:
+			get_window().position = (DisplayServer.screen_get_size() - saved_res) / 2
 
 	state = SoundState.new()
 	ui = UIBuilder.new(self, state)
@@ -387,18 +393,29 @@ func _on_export_pressed() -> void:
 	if state.samples.is_empty():
 		ui.flash_status("EMPTY")
 		return
-	save_dialog.current_file = "sfx_%s.wav" % Time.get_ticks_msec()
+	var ts := Time.get_datetime_string_from_system().replace(":", "").replace("-", "").replace("T", "_")
+	save_dialog.current_file = "sfx_%s.wav" % ts
 	save_dialog.popup_centered()
 
 
 func _on_sample_rate_toggled() -> void:
 	export_sample_rate = 22050 if export_sample_rate == 44100 else 44100
-	ui.refresh_export_labels(export_sample_rate, export_bit_depth)
+	ui.refresh_export_labels(export_sample_rate, export_bit_depth, export_normalize)
 
 
 func _on_bit_depth_toggled() -> void:
 	export_bit_depth = 8 if export_bit_depth == 16 else 16
-	ui.refresh_export_labels(export_sample_rate, export_bit_depth)
+	ui.refresh_export_labels(export_sample_rate, export_bit_depth, export_normalize)
+
+
+func _on_normalize_toggled() -> void:
+	export_normalize = not export_normalize
+	ui.refresh_export_labels(export_sample_rate, export_bit_depth, export_normalize)
+
+
+func _export_samples(samples: PackedFloat32Array) -> PackedByteArray:
+	var buf: PackedFloat32Array = SoundData.normalize(samples) if export_normalize else samples
+	return SoundData.encode_wav(buf, export_sample_rate, export_bit_depth)
 
 
 func _on_batch_pressed() -> void:
@@ -410,15 +427,20 @@ func _on_batch_confirmed() -> void:
 
 
 func _on_batch_dir_selected(dir_path: String) -> void:
+	if batch_thread != null and batch_thread.is_started():
+		ui.flash_status("BUSY")
+		return
+
 	var count: int = int(batch_count_spin.value)
 	var saved_sound: Dictionary = state.sound.duplicate(true)
 	var saved_seed: int = state.variation_seed
 	var base_seed: int = state.variation_seed
-	var exported: int = 0
 
+	var sounds: Array[Dictionary] = []
 	for i in count:
 		if batch_mode_mutate:
-			var ch: Dictionary = state.sound.channels[state.active_channel]
+			var s: Dictionary = saved_sound.duplicate(true)
+			var ch: Dictionary = s.channels[state.active_channel]
 			for key in SoundData.PARAM_DEFS:
 				var def: Dictionary = SoundData.PARAM_DEFS[key]
 				var range_span: float = def.max - def.min
@@ -429,28 +451,50 @@ func _on_batch_dir_selected(dir_path: String) -> void:
 					ch[key] = int(round(new_val))
 				else:
 					ch[key] = snappedf(new_val, def.step)
+			sounds.append(s)
 		else:
 			state.variation_seed = base_seed + i
 			state.consume_variation_seed()
-			var ch: Dictionary = state.active_channel_params()
+			var s: Dictionary = saved_sound.duplicate(true)
 			var ch_locks: Dictionary = Presets.effective_locks(state.active_channel_locks())
-			var new_patch: Dictionary = Presets.randomize_all(ch, ch_locks)
-			state.sound.channels[state.active_channel] = new_patch
+			var new_patch: Dictionary = Presets.randomize_all(s.channels[state.active_channel], ch_locks)
+			s.channels[state.active_channel] = new_patch
+			sounds.append(s)
 
-		var rendered: PackedFloat32Array = Synth.render_sound(state.sound)
-		var bytes: PackedByteArray = SoundData.encode_wav(rendered, export_sample_rate, export_bit_depth)
-		var filename: String = "%s/batch_%03d.wav" % [dir_path, i + 1]
+	state.sound = saved_sound
+	state.variation_seed = saved_seed
+
+	var do_normalize: bool = export_normalize
+	var sample_rate: int = export_sample_rate
+	var bit_depth: int = export_bit_depth
+	var ts := Time.get_datetime_string_from_system().replace(":", "").replace("-", "").replace("T", "_")
+
+	ui.flash_status("BATCH...")
+	batch_thread = Thread.new()
+	batch_thread.start(_batch_thread_fn.bind(sounds, dir_path, ts, sample_rate, bit_depth, do_normalize))
+
+
+func _batch_thread_fn(sounds: Array[Dictionary], dir_path: String, ts: String,
+		sample_rate: int, bit_depth: int, do_normalize: bool) -> void:
+	var exported: int = 0
+	for i in sounds.size():
+		var rendered: PackedFloat32Array = Synth.render_sound(sounds[i])
+		if do_normalize:
+			rendered = SoundData.normalize(rendered)
+		var bytes: PackedByteArray = SoundData.encode_wav(rendered, sample_rate, bit_depth)
+		var filename: String = "%s/batch_%s_%03d.wav" % [dir_path, ts, i + 1]
 		var f := FileAccess.open(filename, FileAccess.WRITE)
 		if f != null:
 			f.store_buffer(bytes)
 			f.close()
 			exported += 1
+	call_deferred("_batch_thread_done", exported)
 
-		if batch_mode_mutate:
-			state.sound = saved_sound.duplicate(true)
 
-	state.sound = saved_sound
-	state.variation_seed = saved_seed
+func _batch_thread_done(exported: int) -> void:
+	if batch_thread != null:
+		batch_thread.wait_to_finish()
+		batch_thread = null
 	_re_render()
 	ui.refresh_module_values()
 	ui.flash_status("BATCH %d" % exported)
@@ -462,21 +506,17 @@ func _on_save_file_selected(path: String) -> void:
 	# Godot project works without a manual rename.
 	if not path.to_lower().ends_with(".wav"):
 		path += ".wav"
-	var bytes: PackedByteArray = SoundData.encode_wav(state.samples, export_sample_rate, export_bit_depth)
+	var bytes: PackedByteArray = _export_samples(state.samples)
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f == null:
-		# get_open_error() captures permission/path issues that swallow open().
 		var err: int = FileAccess.get_open_error()
-		ui.flash_status("WRITE FAIL")
-		push_warning("WAV export failed to open %s: %s" % [path, error_string(err)])
+		ui.show_error_dialog("Export Failed", "Could not open file for writing.\n%s\n%s" % [path.get_file(), error_string(err)])
 		return
 	f.store_buffer(bytes)
-	# store_buffer() can fail mid-write (disk full, etc.) — surface that too.
 	var write_err: int = f.get_error()
 	f.close()
 	if write_err != OK:
-		ui.flash_status("WRITE FAIL")
-		push_warning("WAV export failed mid-write at %s: %s" % [path, error_string(write_err)])
+		ui.show_error_dialog("Export Failed", "Write failed mid-export.\n%s\n%s" % [path.get_file(), error_string(write_err)])
 		return
 	ui.flash_status("EXPORTED")
 
@@ -652,7 +692,7 @@ func _on_theme_changed(theme_name: String) -> void:
 func _on_resolution_changed(sz: Vector2i) -> void:
 	get_window().size = sz
 	get_window().position = (DisplayServer.screen_get_size() - sz) / 2
-	Persistence.save_resolution(sz)
+	Persistence.save_resolution(sz, get_window().position)
 	ui.update_resolution_label()
 
 
@@ -733,7 +773,8 @@ func _on_pr_export_pressed() -> void:
 	if buf.is_empty():
 		ui.flash_status("EMPTY SEQ")
 		return
-	pr_save_dialog.current_file = "seq_%s.wav" % Time.get_ticks_msec()
+	var ts := Time.get_datetime_string_from_system().replace(":", "").replace("-", "").replace("T", "_")
+	pr_save_dialog.current_file = "seq_%s.wav" % ts
 	pr_save_dialog.popup_centered()
 
 
@@ -742,16 +783,17 @@ func _on_pr_save_file_selected(path: String) -> void:
 		path += ".wav"
 	var buf: PackedFloat32Array = SequenceRenderer.render_sequence(
 		pr_state.notes, state.sound, pr_state.bpm, pr_state.total_beats())
-	var bytes: PackedByteArray = SoundData.encode_wav(buf, export_sample_rate, export_bit_depth)
+	var bytes: PackedByteArray = _export_samples(buf)
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f == null:
-		ui.flash_status("WRITE FAIL")
+		var err: int = FileAccess.get_open_error()
+		ui.show_error_dialog("Export Failed", "Could not open file for writing.\n%s\n%s" % [path.get_file(), error_string(err)])
 		return
 	f.store_buffer(bytes)
 	var write_err: int = f.get_error()
 	f.close()
 	if write_err != OK:
-		ui.flash_status("WRITE FAIL")
+		ui.show_error_dialog("Export Failed", "Write failed mid-export.\n%s\n%s" % [path.get_file(), error_string(write_err)])
 		return
 	ui.flash_status("SEQ EXPORTED")
 
@@ -824,3 +866,9 @@ func _switch_channel_hotkey(idx: int) -> void:
 func _line_edit_focused() -> bool:
 	var f := get_viewport().gui_get_focus_owner()
 	return f != null and f is LineEdit
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		Persistence.save_resolution(get_window().size, get_window().position)
+		get_tree().quit()

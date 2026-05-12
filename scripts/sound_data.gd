@@ -362,3 +362,17 @@ static func encode_wav(samples: PackedFloat32Array, sample_rate: int = SAMPLE_RA
 			var v: float = clamp(src[i], -1.0, 1.0)
 			buffer.encode_s16(44 + i * 2, int(v * 32767.0))
 	return buffer
+
+
+static func normalize(samples: PackedFloat32Array) -> PackedFloat32Array:
+	var peak: float = 0.0
+	for i in samples.size():
+		peak = maxf(peak, absf(samples[i]))
+	if peak <= 0.0 or peak >= 1.0:
+		return samples
+	var gain: float = 1.0 / peak
+	var out: PackedFloat32Array = PackedFloat32Array()
+	out.resize(samples.size())
+	for i in samples.size():
+		out[i] = samples[i] * gain
+	return out

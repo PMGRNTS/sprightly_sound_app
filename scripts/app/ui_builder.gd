@@ -94,6 +94,7 @@ var preset_grids: Dictionary[String, GridContainer] = {}
 # Save-preset dialog (lazily built on first use).
 var export_rate_btn: Button
 var export_bits_btn: Button
+var export_norm_btn: Button
 var _save_preset_dialog: ConfirmationDialog
 var _save_preset_name_input: LineEdit
 
@@ -171,7 +172,7 @@ func _build_header() -> Control:
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hdr.add_child(left)
 
-	var sub := UIFactory.make_label("// PMGRNTS · v1.5", 10, Palette.TEXT_MUTE, 0.4)
+	var sub := UIFactory.make_label("// PMGRNTS · v%s" % Palette.APP_VERSION, 10, Palette.TEXT_MUTE, 0.4)
 	left.add_child(sub)
 
 	var title := UIFactory.make_label("SPRIGHTLY_SFXR", 24, Palette.TEXT, 0.08)
@@ -703,6 +704,11 @@ func _build_actions_panel() -> Control:
 	export_bits_btn.pressed.connect(_host._on_bit_depth_toggled)
 	grid.add_child(export_bits_btn)
 
+	export_norm_btn = UIFactory.make_action_button("NORM OFF")
+	export_norm_btn.tooltip_text = "Normalize output to 0 dBFS before export"
+	export_norm_btn.pressed.connect(_host._on_normalize_toggled)
+	grid.add_child(export_norm_btn)
+
 	var batch := UIFactory.make_action_button("⚄ BATCH")
 	batch.tooltip_text = "Generate and export multiple variations"
 	batch.pressed.connect(_host._on_batch_pressed)
@@ -861,7 +867,7 @@ func refresh_piano_roll() -> void:
 
 func _build_footer() -> Control:
 	var foot := UIFactory.make_label(
-		"SPRIGHTLY SFXR v1.5 · PMGRNTS · UP TO 4 CHANNELS · LOCK PARAMS TO HOLD THROUGH GEN · ? FOR SHORTCUTS",
+		"SPRIGHTLY SFXR v%s · PMGRNTS · UP TO 4 CHANNELS · LOCK PARAMS TO HOLD THROUGH GEN · ? FOR SHORTCUTS" % Palette.APP_VERSION,
 		10, Palette.TEXT_DIM, 0.3
 	)
 	foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1031,11 +1037,13 @@ func refresh_master_values() -> void:
 	verb_size_label.text = "%.2f" % float(_state.sound.master.reverbSize)
 
 
-func refresh_export_labels(sample_rate: int, bit_depth: int) -> void:
+func refresh_export_labels(sample_rate: int, bit_depth: int, normalize: bool = false) -> void:
 	if export_rate_btn != null:
 		export_rate_btn.text = "22.05kHz" if sample_rate == 22050 else "44.1kHz"
 	if export_bits_btn != null:
 		export_bits_btn.text = "%dBIT" % bit_depth
+	if export_norm_btn != null:
+		export_norm_btn.text = "NORM" if normalize else "NORM OFF"
 
 
 func refresh_bin_list() -> void:
@@ -1130,3 +1138,14 @@ func read_save_preset_name() -> String:
 	if _save_preset_name_input == null:
 		return ""
 	return _save_preset_name_input.text.strip_edges()
+
+
+func show_error_dialog(title: String, message: String) -> void:
+	var dialog := AcceptDialog.new()
+	dialog.title = title
+	dialog.dialog_text = message
+	dialog.size = Vector2i(400, 150)
+	dialog.confirmed.connect(dialog.queue_free)
+	dialog.canceled.connect(dialog.queue_free)
+	_host.add_child(dialog)
+	dialog.popup_centered()

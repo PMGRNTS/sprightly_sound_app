@@ -7,6 +7,8 @@ extends RefCounted
 # rebuild_ui() runs (StyleBox instances bake their colours at construction
 # time, so a theme switch needs the UI to be torn down and rebuilt).
 
+const APP_VERSION := "1.5"
+
 # ── Colours (theme-driven) ─────────────────────────────────────────
 # These 12 colour vars are overwritten by Palette.apply_theme(name).
 # Defaults below match THEMES["Charcoal"] so the app renders correctly
@@ -132,6 +134,23 @@ const THEMES := {
 		"INDICATOR_OFF": Color("#d0d0c8"),
 		"SEPARATOR":   Color("#e0dfd9"),
 		"ACCENT_GHOST": Color(0.17, 0.35, 0.33, 0.08),
+	},
+	# High-contrast for accessibility / color-blind users. Pure black BG,
+	# near-white text, and a bright yellow accent that reads clearly at
+	# any luminance. Avoids relying on hue alone for differentiation.
+	"High Contrast": {
+		"BG":          Color("#000000"),
+		"PANEL":       Color("#111111"),
+		"INSET":       Color("#000000"),
+		"BORDER":      Color("#555555"),
+		"BORDER_HI":   Color("#ffffff"),
+		"TEXT":        Color("#ffffff"),
+		"TEXT_MUTE":   Color("#b0b0b0"),
+		"TEXT_DIM":    Color("#707070"),
+		"ACCENT":      Color("#ffd700"),
+		"INDICATOR_OFF": Color("#1a1a1a"),
+		"SEPARATOR":   Color("#333333"),
+		"ACCENT_GHOST": Color(1.0, 0.84, 0.0, 0.12),
 	},
 	# Glass relies on the project's per-pixel transparency + the
 	# borderless/transparent window flags. BG is fully transparent so

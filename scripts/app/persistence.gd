@@ -41,5 +41,9 @@ static func load_resolution() -> Vector2i:
 	return ResolutionStore.load_size()
 
 
-static func save_resolution(sz: Vector2i) -> bool:
-	return ResolutionStore.persist(sz)
+static func load_window_position() -> Vector2i:
+	return ResolutionStore.load_position()
+
+
+static func save_resolution(sz: Vector2i, pos: Vector2i = Vector2i(-1, -1)) -> bool:
+	return ResolutionStore.persist(sz, pos)
