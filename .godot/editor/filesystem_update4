@@ -1,7 +1,1 @@
 res://scripts/main.gd
-res://scripts/palette.gd
-res://scripts/resolution_store.gd
-res://scripts/waveform_display.gd
-res://scripts/app/persistence.gd
-res://scripts/app/ui_builder.gd
-res://scripts/piano_roll/piano_roll_display.gd

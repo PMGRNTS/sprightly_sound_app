@@ -22,8 +22,10 @@ var locked: bool = false:
 	set = set_locked
 
 var _dragging: bool = false
+var _drag_moved: bool = false
 var _scroll_accum: float = 0.0
 var _scroll_last_ms: int = 0
+var _lock_flash_t: float = 0.0
 
 
 func _init() -> void:
@@ -39,6 +41,13 @@ func set_locked(v: bool) -> void:
 	if v == locked:
 		return
 	locked = v
+	var tw := create_tween()
+	tw.tween_method(_set_lock_flash, 1.0, 0.0, 0.2)
+	queue_redraw()
+
+
+func _set_lock_flash(t: float) -> void:
+	_lock_flash_t = t
 	queue_redraw()
 
 
@@ -70,12 +79,10 @@ func _draw() -> void:
 	var outer: Vector2 = c + Vector2(cos(ang), sin(ang)) * r
 	draw_line(inner, outer, Palette.TEXT, 2.0, true)
 
-	# Locked indicator dot.
 	if locked:
-		draw_circle(Vector2(s.x - 4.0, 4.0), 2.5, Palette.ACCENT)
-
-	# Focus ring.
-	if has_focus():
+		var ring_width: float = lerpf(1.5, 3.0, _lock_flash_t)
+		draw_arc(c, r + 2.0, 0.0, TAU, 36, Palette.ACCENT, ring_width, true)
+	elif has_focus():
 		draw_arc(c, r + 2.0, 0.0, TAU, 36, Palette.BORDER_HI, 1.0, true)
 
 
@@ -84,14 +91,14 @@ func _gui_input(event: InputEvent) -> void:
 		var mb := event as InputEventMouseButton
 		if mb.button_index == MOUSE_BUTTON_LEFT:
 			if mb.pressed:
-				if mb.alt_pressed:
-					set_locked(not locked)
-					lock_toggled.emit(locked)
-				else:
-					_dragging = true
-					grab_focus()
+				_dragging = true
+				_drag_moved = false
+				grab_focus()
 				accept_event()
 			else:
+				if not _drag_moved:
+					set_locked(not locked)
+					lock_toggled.emit(locked)
 				_dragging = false
 				accept_event()
 		elif mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
@@ -113,6 +120,8 @@ func _gui_input(event: InputEvent) -> void:
 			return
 		var range_span: float = max_value - min_value
 		var delta: float = -mm.relative.y * DRAG_SENSITIVITY * range_span
+		if delta != 0.0:
+			_drag_moved = true
 		_set_snapped(value + delta)
 	elif event is InputEventKey and event.pressed:
 		var key := event as InputEventKey

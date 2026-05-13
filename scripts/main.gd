@@ -216,10 +216,22 @@ func _on_param_value_changed(value: float, key: String) -> void:
 	ui.refresh_waveform_info()
 
 
-# Knob alt-click emits the new locked state. Mirror it onto the channel's
-# locks dict; the knob already updated its own visual.
 func _on_param_lock_toggled(is_locked: bool, key: String) -> void:
 	state.locks[state.active_channel][key] = is_locked
+	_restyle_param_label(key, is_locked)
+
+
+func _on_param_label_lock_pressed(key: String) -> void:
+	var new_locked := not bool(state.locks[state.active_channel].get(key, false))
+	state.locks[state.active_channel][key] = new_locked
+	ui.param_knobs[key].set_locked(new_locked)
+	_restyle_param_label(key, new_locked)
+
+
+func _restyle_param_label(key: String, is_locked: bool) -> void:
+	var btn: Button = ui.param_label_btns.get(key)
+	if btn:
+		UIFactory.apply_knob_label_style(btn, is_locked)
 
 
 func _on_param_reset(key: String) -> void:
@@ -255,6 +267,7 @@ func _on_module_lock_pressed(mod: Dictionary) -> void:
 		var knob: Knob = ui.param_knobs.get(p)
 		if knob:
 			knob.set_locked(will_lock)
+		_restyle_param_label(p, will_lock)
 
 
 # ── Channel handlers ───────────────────────────────────────────────
@@ -313,8 +326,10 @@ func _on_channel_solo_pressed(idx: int) -> void:
 	if idx >= state.sound.channels.size():
 		return
 	state.sound.channels[idx]["soloed"] = not bool(state.sound.channels[idx].get("soloed", false))
+	state.active_channel = idx
 	ui.refresh_mix_rows()
 	ui.refresh_channel_tabs()
+	ui.refresh_module_values()
 	_re_render()
 
 
@@ -486,8 +501,12 @@ func _batch_thread_fn(sounds: Array[Dictionary], dir_path: String, ts: String,
 		var f := FileAccess.open(filename, FileAccess.WRITE)
 		if f != null:
 			f.store_buffer(bytes)
+			var err := f.get_error()
 			f.close()
-			exported += 1
+			if err == OK:
+				exported += 1
+			else:
+				push_warning("Batch write failed for %s: %s" % [filename, error_string(err)])
 	call_deferred("_batch_thread_done", exported)
 
 

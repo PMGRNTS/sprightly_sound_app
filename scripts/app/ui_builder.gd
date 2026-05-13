@@ -81,6 +81,7 @@ var preset_buttons_root: VBoxContainer
 
 # Cached references per param key — keyed by param name string.
 var param_knobs: Dictionary[String, Knob] = {}
+var param_label_btns: Dictionary[String, Button] = {}
 var param_value_labels: Dictionary[String, Label] = {}
 var module_panels: Dictionary[String, PanelContainer] = {}
 var module_check_buttons: Dictionary[String, Button] = {}
@@ -258,7 +259,7 @@ func _on_help_button_pressed() -> void:
 		["1 - 4", "Switch channel"],
 		["Cmd/Ctrl+Z", "Undo"],
 		["Cmd/Ctrl+Shift+Z", "Redo"],
-		["Alt-click knob", "Toggle lock"],
+		["Click knob or label", "Toggle lock"],
 		["Right-click knob", "Reset to default"],
 	]
 	for pair in shortcuts:
@@ -448,10 +449,9 @@ func _make_module_panel(mod: Dictionary) -> Control:
 		knob.value_changed.connect(_host._on_param_value_changed.bind(pk))
 		knob.reset_requested.connect(_host._on_param_reset.bind(pk))
 		knob.lock_toggled.connect(_host._on_param_lock_toggled.bind(pk))
-		# Clicking the label resets to default — preserves the prior UX
-		# even though the inline lock button is gone.
-		box_dict.label_btn.pressed.connect(_host._on_param_reset.bind(pk))
+		box_dict.label_btn.pressed.connect(_host._on_param_label_lock_pressed.bind(pk))
 		param_knobs[pk] = knob
+		param_label_btns[pk] = box_dict.label_btn
 		param_value_labels[pk] = box_dict.value_label
 
 	return panel
@@ -1008,7 +1008,11 @@ func refresh_module_values() -> void:
 		knob.set_value_no_signal(v)
 		var label: Label = param_value_labels[key]
 		label.text = SoundData.format_value(key, v)
-		knob.set_locked(bool(ch_locks.get(key, false)))
+		var is_locked: bool = bool(ch_locks.get(key, false))
+		knob.set_locked(is_locked)
+		var lbl_btn: Button = param_label_btns.get(key)
+		if lbl_btn:
+			UIFactory.apply_knob_label_style(lbl_btn, is_locked)
 
 	for mod in SoundData.MODULES:
 		var ek: String = mod.enable_key

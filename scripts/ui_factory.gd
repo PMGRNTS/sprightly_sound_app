@@ -100,6 +100,10 @@ static func apply_button_style(b: Button, locked: bool) -> void:
 	b.text = "🔒" if locked else "🔓"
 
 
+static func apply_knob_label_style(btn: Button, locked: bool) -> void:
+	btn.add_theme_color_override("font_color", Palette.ACCENT if locked else Palette.TEXT_MUTE)
+
+
 static func make_lock_button() -> Button:
 	var b := Button.new()
 	b.text = "🔒"
@@ -203,7 +207,8 @@ static func _build_knob_box(label_text: String, tooltip_title: String, lo: float
 	label_btn.add_theme_color_override("font_hover_color", Palette.ACCENT)
 	label_btn.add_theme_font_size_override("font_size", Palette.FONT_SMALL)
 	label_btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label_btn.tooltip_text = "Click to reset · alt-click knob to lock"
+	label_btn.tooltip_text = "Click to lock/unlock"
+	label_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	label_btn.custom_minimum_size = Vector2(0, 13)
 	label_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	# Strip the default Button stylebox padding so the label row is actually 13 px.
@@ -218,7 +223,7 @@ static func _build_knob_box(label_text: String, tooltip_title: String, lo: float
 	knob.min_value = lo
 	knob.max_value = hi
 	knob.step = st
-	knob.tooltip_text = "%s · drag · right-click reset · alt-click lock" % tooltip_title
+	knob.tooltip_text = "%s · drag to adjust · click to lock · right-click reset" % tooltip_title
 	knob.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	knob.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	knob.custom_minimum_size = Vector2(36, 36)
