@@ -219,10 +219,10 @@ static func apply_theme(name: String) -> void:
 
 
 # ── Font sizes ─────────────────────────────────────────────────────
-const FONT_TITLE    := 26  # app title
-const FONT_VALUE    := 11  # slider value labels, sound-string input, channel-tab labels
-const FONT_LABEL    := 12  # status pill, module checkbox/title, secondary buttons
-const FONT_SMALL    := 10  # mix-row level value, lock icons
+const FONT_TITLE    := 28  # app title
+const FONT_VALUE    := 12  # slider value labels, sound-string input, channel-tab labels
+const FONT_LABEL    := 13  # status pill, module checkbox/title, secondary buttons
+const FONT_SMALL    := 11  # mix-row level value, lock icons
 
 # ── Layout sizes ───────────────────────────────────────────────────
 # Sizes that recur across the layout. Single-use sizes still live near
@@ -231,27 +231,27 @@ const FONT_SMALL    := 10  # mix-row level value, lock icons
 # Three-column body layout: modules grid (widest), controls stack
 # (master/presets/actions/string), bin (narrowest). Mins keep each
 # column usable even when the user shrinks the window aggressively.
-const COLUMN_MODULES_MIN  := Vector2(420, 0)
-const COLUMN_CONTROLS_MIN := Vector2(340, 0)
-const COLUMN_BIN_MIN      := Vector2(220, 0)
-const STATUS_LABEL_SIZE   := Vector2(120, 28)
+const COLUMN_MODULES_MIN  := Vector2(450, 0)
+const COLUMN_CONTROLS_MIN := Vector2(360, 0)
+const COLUMN_BIN_MIN      := Vector2(240, 0)
+const STATUS_LABEL_SIZE   := Vector2(128, 30)
 const HAIRLINE_HEIGHT     := Vector2(0, 1)            # 1 px horizontal divider
 const WAVEFORM_PANEL_MIN  := Vector2(0, 120)
 const WAVEFORM_INFO_LEFT_POS  := Vector2(10, 6)
 const WAVEFORM_INFO_RIGHT_POS := Vector2(-260, 6)
 const WAVEFORM_INFO_RIGHT_SIZE := Vector2(250, 16)
-const MODULE_CHECK_SIZE   := Vector2(18, 18)
-const VARIATION_SEED_SIZE := Vector2(82, 22)
-const REROLL_BTN_SIZE     := Vector2(28, 22)
-const CHANNEL_TAB_SIZE    := Vector2(60, 28)
-const CHANNEL_ADD_SIZE    := Vector2(40, 28)
-const MIX_LABEL_SIZE      := Vector2(40, 22)
-const MINI_BTN_SIZE       := Vector2(22, 22)          # mute / solo / delete / bin-row icons
+const MODULE_CHECK_SIZE   := Vector2(20, 20)
+const VARIATION_SEED_SIZE := Vector2(86, 24)
+const REROLL_BTN_SIZE     := Vector2(30, 24)
+const CHANNEL_TAB_SIZE    := Vector2(64, 30)
+const CHANNEL_ADD_SIZE    := Vector2(44, 30)
+const MIX_LABEL_SIZE      := Vector2(44, 24)
+const MINI_BTN_SIZE       := Vector2(24, 24)          # mute / solo / delete / bin-row icons
 const SAVE_DIALOG_SIZE    := Vector2i(720, 520)
 const PRESET_NAME_DIALOG_SIZE := Vector2i(420, 140)
 const PRESET_NAME_BODY_MIN := Vector2(380, 0)
-const THEME_BTN_SIZE      := Vector2(28, 28)          # ◐ picker button in header
-const RESOLUTION_BTN_SIZE := Vector2(56, 28)
+const THEME_BTN_SIZE      := Vector2(30, 30)          # ◐ picker button in header
+const RESOLUTION_BTN_SIZE := Vector2(60, 30)
 
 const RESOLUTION_PRESETS: Array[Dictionary] = [
 	{"label": "540p",  "size": Vector2i(960, 540)},
@@ -262,8 +262,8 @@ const RESOLUTION_PRESETS: Array[Dictionary] = [
 ]
 
 # ── Window margins ─────────────────────────────────────────────────
-const WINDOW_MARGIN_H := 24
-const WINDOW_MARGIN_V := 18
+const WINDOW_MARGIN_H := 28
+const WINDOW_MARGIN_V := 20
 
 # ── Timing ─────────────────────────────────────────────────────────
 # Render debounce kept short enough that drag tails render without lag.

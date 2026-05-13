@@ -149,7 +149,7 @@ func build_ui() -> void:
 	root_v.add_child(_build_view_tabs())
 
 	_sfx_body = HBoxContainer.new()
-	_sfx_body.add_theme_constant_override("separation", 16)
+	_sfx_body.add_theme_constant_override("separation", 18)
 	_sfx_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root_v.add_child(_sfx_body)
 
@@ -167,7 +167,7 @@ func build_ui() -> void:
 func _build_header() -> Control:
 	var hdr := HBoxContainer.new()
 	hdr.alignment = BoxContainer.ALIGNMENT_BEGIN
-	hdr.add_theme_constant_override("separation", 16)
+	hdr.add_theme_constant_override("separation", 18)
 
 	var left := VBoxContainer.new()
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -181,7 +181,7 @@ func _build_header() -> Control:
 	left.add_child(title)
 
 	var right := HBoxContainer.new()
-	right.add_theme_constant_override("separation", 10)
+	right.add_theme_constant_override("separation", 12)
 	right.size_flags_vertical = Control.SIZE_SHRINK_END
 	hdr.add_child(right)
 
@@ -363,7 +363,7 @@ func _build_modules_column() -> Control:
 	v.add_theme_constant_override("separation", 8)
 
 	channel_tabs_container = HBoxContainer.new()
-	channel_tabs_container.add_theme_constant_override("separation", 4)
+	channel_tabs_container.add_theme_constant_override("separation", 5)
 	v.add_child(channel_tabs_container)
 
 	channel_tab_buttons.clear()
@@ -381,8 +381,8 @@ func _build_modules_column() -> Control:
 	# paired modules fit the viewport at default resolution.
 	modules_container = GridContainer.new()
 	modules_container.columns = 2
-	modules_container.add_theme_constant_override("h_separation", 6)
-	modules_container.add_theme_constant_override("v_separation", 4)
+	modules_container.add_theme_constant_override("h_separation", 8)
+	modules_container.add_theme_constant_override("v_separation", 5)
 	modules_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	modules_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(modules_container)
@@ -409,8 +409,8 @@ func _make_module_panel(mod: Dictionary) -> Control:
 
 	# Header row
 	var header := HBoxContainer.new()
-	header.add_theme_constant_override("separation", 6)
-	v.add_child(UIFactory.wrap_padded(header, 6, 6, 3, 3))
+	header.add_theme_constant_override("separation", 8)
+	v.add_child(UIFactory.wrap_padded(header, 8, 8, 4, 4))
 
 	v.add_child(UIFactory.make_hairline())
 
@@ -438,9 +438,9 @@ func _make_module_panel(mod: Dictionary) -> Control:
 
 	# Body: horizontal row of knob boxes — one per param.
 	var body := HBoxContainer.new()
-	body.add_theme_constant_override("separation", 2)
+	body.add_theme_constant_override("separation", 4)
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.add_child(UIFactory.wrap_padded(body, 4, 4, 3, 4))
+	v.add_child(UIFactory.wrap_padded(body, 6, 6, 4, 5))
 
 	for pk in mod.params:
 		var box_dict: Dictionary = UIFactory.make_knob_box(pk)
@@ -464,7 +464,7 @@ func _make_module_panel(mod: Dictionary) -> Control:
 # min-size guards against squish.
 func _build_controls_column() -> Control:
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 4)
+	v.add_theme_constant_override("separation", 6)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.size_flags_stretch_ratio = 2.0
@@ -473,7 +473,6 @@ func _build_controls_column() -> Control:
 	v.add_child(_build_master_panel())
 	v.add_child(_build_presets_panel())
 	v.add_child(_build_actions_panel())
-	v.add_child(_build_sound_string_panel())
 
 	return v
 
@@ -484,6 +483,7 @@ func _build_controls_column() -> Control:
 # the controls column is currently displaying.
 func _build_bin_column() -> Control:
 	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 6)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.size_flags_stretch_ratio = 1.5
@@ -492,6 +492,8 @@ func _build_bin_column() -> Control:
 	var bin_panel := _build_bin_panel()
 	bin_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(bin_panel)
+
+	v.add_child(_build_sound_string_panel())
 
 	return v
 
@@ -503,7 +505,7 @@ func _build_master_panel() -> Control:
 	body.add_child(UIFactory.make_label("MIX", 9, Palette.TEXT_DIM, 0.3))
 
 	mix_container = VBoxContainer.new()
-	mix_container.add_theme_constant_override("separation", 4)
+	mix_container.add_theme_constant_override("separation", 5)
 	body.add_child(mix_container)
 
 	mix_rows.clear()
@@ -517,7 +519,7 @@ func _build_master_panel() -> Control:
 
 	# Output knobs in one horizontal row.
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 4)
+	row.add_theme_constant_override("separation", 6)
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_child(row)
 
@@ -552,7 +554,7 @@ func _build_presets_panel() -> Control:
 	var panel := UIFactory.make_section_panel("PRESETS")
 	var body: VBoxContainer = panel.get_meta("body")
 	preset_buttons_root = VBoxContainer.new()
-	preset_buttons_root.add_theme_constant_override("separation", 4)
+	preset_buttons_root.add_theme_constant_override("separation", 5)
 	body.add_child(preset_buttons_root)
 	refresh_preset_panel()
 	return panel
@@ -592,7 +594,7 @@ func refresh_preset_panel() -> void:
 
 	# Tab-button row.
 	var tabs := HBoxContainer.new()
-	tabs.add_theme_constant_override("separation", 4)
+	tabs.add_theme_constant_override("separation", 5)
 	tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	preset_buttons_root.add_child(tabs)
 
@@ -607,8 +609,8 @@ func refresh_preset_panel() -> void:
 	for g in groups:
 		var grid := GridContainer.new()
 		grid.columns = 6
-		grid.add_theme_constant_override("h_separation", 4)
-		grid.add_theme_constant_override("v_separation", 4)
+		grid.add_theme_constant_override("h_separation", 5)
+		grid.add_theme_constant_override("v_separation", 5)
 		grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		preset_buttons_root.add_child(grid)
 		preset_grids[g] = grid
@@ -673,8 +675,8 @@ func _build_actions_panel() -> Control:
 
 	var grid := GridContainer.new()
 	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 6)
-	grid.add_theme_constant_override("v_separation", 6)
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 8)
 	body.add_child(grid)
 
 	var gen := UIFactory.make_action_button("⚄ GEN", true)
@@ -951,7 +953,7 @@ func refresh_mix_rows() -> void:
 
 func _make_mix_row_static(i: int) -> Dictionary:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 6)
+	row.add_theme_constant_override("separation", 8)
 
 	var label_btn := UIFactory.make_mix_label_btn(i, false)
 	label_btn.pressed.connect(_host._on_channel_tab_pressed.bind(i))

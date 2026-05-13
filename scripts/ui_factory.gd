@@ -51,10 +51,10 @@ static func make_stylebox(bg: Color, border: Color) -> StyleBoxFlat:
 	s.border_color = border
 	s.set_border_width_all(1)
 	s.set_corner_radius_all(0)
-	s.content_margin_left = 6
-	s.content_margin_right = 6
-	s.content_margin_top = 3
-	s.content_margin_bottom = 3
+	s.content_margin_left = 8
+	s.content_margin_right = 8
+	s.content_margin_top = 4
+	s.content_margin_bottom = 4
 	return s
 
 
@@ -108,7 +108,7 @@ static func make_lock_button() -> Button:
 	var b := Button.new()
 	b.text = "🔒"
 	b.tooltip_text = "Lock to preserve while randomizing"
-	b.custom_minimum_size = Vector2(22, 22)
+	b.custom_minimum_size = Vector2(24, 24)
 	b.add_theme_font_size_override("font_size", Palette.FONT_SMALL)
 	b.toggle_mode = false
 	apply_button_style(b, false)
@@ -152,7 +152,7 @@ static func make_action_button(text: String, primary: bool = false) -> Button:
 	b.add_theme_color_override("font_hover_color", Palette.BG)
 	b.add_theme_color_override("font_pressed_color", Palette.BG)
 	b.add_theme_font_size_override("font_size", Palette.FONT_VALUE)
-	b.custom_minimum_size = Vector2(0, 26)
+	b.custom_minimum_size = Vector2(0, 28)
 
 	var normal := make_stylebox(Color("#261f17") if primary else Color(0, 0, 0, 0), Palette.BORDER_HI)
 	var hover := make_stylebox(Palette.ACCENT, Palette.ACCENT)
@@ -196,8 +196,8 @@ static func make_master_knob_box(label_text: String, lo: float, hi: float, st: f
 
 static func _build_knob_box(label_text: String, tooltip_title: String, lo: float, hi: float, st: float) -> Dictionary:
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 1)
-	box.custom_minimum_size = Vector2(56, 72)
+	box.add_theme_constant_override("separation", 2)
+	box.custom_minimum_size = Vector2(62, 72)
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 	var label_btn := Button.new()
@@ -209,7 +209,7 @@ static func _build_knob_box(label_text: String, tooltip_title: String, lo: float
 	label_btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label_btn.tooltip_text = "Click to lock/unlock"
 	label_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	label_btn.custom_minimum_size = Vector2(0, 13)
+	label_btn.custom_minimum_size = Vector2(0, 15)
 	label_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	# Strip the default Button stylebox padding so the label row is actually 13 px.
 	var empty_sb := StyleBoxEmpty.new()
@@ -226,7 +226,7 @@ static func _build_knob_box(label_text: String, tooltip_title: String, lo: float
 	knob.tooltip_text = "%s · drag to adjust · click to lock · right-click reset" % tooltip_title
 	knob.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	knob.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	knob.custom_minimum_size = Vector2(36, 36)
+	knob.custom_minimum_size = Vector2(38, 38)
 	box.add_child(knob)
 
 	var value_label := Label.new()
@@ -234,7 +234,7 @@ static func _build_knob_box(label_text: String, tooltip_title: String, lo: float
 	value_label.add_theme_color_override("font_color", Palette.TEXT)
 	value_label.add_theme_font_size_override("font_size", Palette.FONT_SMALL)
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	value_label.custom_minimum_size = Vector2(0, 12)
+	value_label.custom_minimum_size = Vector2(0, 14)
 	value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	box.add_child(value_label)
 
@@ -266,8 +266,8 @@ static func make_section_panel(title_text: String, flexible_height: bool = false
 	panel.add_child(v)
 
 	var title_row := HBoxContainer.new()
-	title_row.add_theme_constant_override("separation", 8)
-	v.add_child(wrap_padded(title_row, 10, 10, 3, 3))
+	title_row.add_theme_constant_override("separation", 10)
+	v.add_child(wrap_padded(title_row, 12, 12, 4, 4))
 
 	var title := make_label(title_text, Palette.FONT_SMALL, Palette.TEXT_MUTE, 0.3)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -276,8 +276,8 @@ static func make_section_panel(title_text: String, flexible_height: bool = false
 	v.add_child(make_hairline(Palette.BORDER))
 
 	var body := VBoxContainer.new()
-	body.add_theme_constant_override("separation", 3)
-	var body_wrap := wrap_padded(body, 10, 10, 4, 6)
+	body.add_theme_constant_override("separation", 4)
+	var body_wrap := wrap_padded(body, 12, 12, 5, 7)
 	if flexible_height:
 		body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		body_wrap.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -332,7 +332,7 @@ static func make_module_indicator() -> ColorRect:
 	var inner := ColorRect.new()
 	inner.color = Palette.ACCENT
 	inner.set_anchors_preset(Control.PRESET_CENTER)
-	inner.position = Vector2(6, 6)
+	inner.position = Vector2(7, 7)
 	inner.size = Vector2(6, 6)
 	indicator.add_child(inner)
 	return indicator
@@ -476,10 +476,10 @@ static func apply_preset_tab_style(btn: Button, active: bool) -> void:
 # add it to the bin list) plus the buttons (so handlers can be wired).
 static func make_bin_row(entry_name: String) -> Dictionary:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 6)
+	row.add_theme_constant_override("separation", 8)
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
-	var name_lbl := make_label(entry_name, 11, Palette.TEXT, 0.1)
+	var name_lbl := make_label(entry_name, Palette.FONT_VALUE, Palette.TEXT, 0.1)
 	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(name_lbl)
 
@@ -503,7 +503,7 @@ static func make_bin_row(entry_name: String) -> Dictionary:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 0)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.add_child(wrap_padded(row, 12, 12, 6, 6))
+	v.add_child(wrap_padded(row, 14, 14, 7, 7))
 	v.add_child(make_hairline(Palette.SEPARATOR))
 
 	return {
