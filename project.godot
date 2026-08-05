@@ -14,8 +14,8 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 [application]
 
-config/name="Sprightly SFXR"
-config/description="SFX generator port of sfx_generator.jsx — multi-channel chiptune synth with ADSR, filter, drive, delay, crush, reverb, and presets."
+config/name="Hone"
+config/description="Multi-channel sound effect synthesizer with ADSR envelopes, filters, drive, delay, crush, reverb, flanger, chord stacking, and 90+ presets."
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="uid://bqw81ib63p7mp"

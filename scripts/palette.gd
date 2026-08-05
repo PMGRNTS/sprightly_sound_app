@@ -7,7 +7,7 @@ extends RefCounted
 # rebuild_ui() runs (StyleBox instances bake their colours at construction
 # time, so a theme switch needs the UI to be torn down and rebuilt).
 
-const APP_VERSION := "1.5"
+const APP_VERSION := "1.0"
 
 # ── Colours (theme-driven) ─────────────────────────────────────────
 # These 12 colour vars are overwritten by Palette.apply_theme(name).

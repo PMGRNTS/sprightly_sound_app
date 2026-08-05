@@ -176,7 +176,7 @@ func _build_header() -> Control:
 	var sub := UIFactory.make_label("// PMGRNTS · v%s" % Palette.APP_VERSION, 10, Palette.TEXT_MUTE, 0.4)
 	left.add_child(sub)
 
-	var title := UIFactory.make_label("SPRIGHTLY_SFXR", 24, Palette.TEXT, 0.08)
+	var title := UIFactory.make_label("HONE", 24, Palette.TEXT, 0.08)
 	title.add_theme_font_size_override("font_size", Palette.FONT_TITLE)
 	left.add_child(title)
 
@@ -869,7 +869,7 @@ func refresh_piano_roll() -> void:
 
 func _build_footer() -> Control:
 	var foot := UIFactory.make_label(
-		"SPRIGHTLY SFXR v%s · PMGRNTS · UP TO 4 CHANNELS · LOCK PARAMS TO HOLD THROUGH GEN · ? FOR SHORTCUTS" % Palette.APP_VERSION,
+		"HONE v%s · PMGRNTS · UP TO 4 CHANNELS · LOCK PARAMS TO HOLD THROUGH GEN · ? FOR SHORTCUTS" % Palette.APP_VERSION,
 		10, Palette.TEXT_DIM, 0.3
 	)
 	foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
