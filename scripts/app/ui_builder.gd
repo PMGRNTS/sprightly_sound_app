@@ -99,14 +99,6 @@ var export_norm_btn: Button
 var _save_preset_dialog: ConfirmationDialog
 var _save_preset_name_input: LineEdit
 
-# Piano roll
-var piano_roll_panel: PianoRollPanel
-var _sfx_body: HBoxContainer
-var _pr_body: Control
-var _view_sfx_btn: Button
-var _view_pr_btn: Button
-var _view_is_piano_roll: bool = false
-
 # Status flash token (incremented per flash so stale resets are ignored).
 var _status_token: int = 0
 
@@ -146,20 +138,15 @@ func build_ui() -> void:
 
 	root_v.add_child(_build_header())
 	root_v.add_child(_build_waveform())
-	root_v.add_child(_build_view_tabs())
 
-	_sfx_body = HBoxContainer.new()
-	_sfx_body.add_theme_constant_override("separation", 18)
-	_sfx_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	root_v.add_child(_sfx_body)
+	var body := HBoxContainer.new()
+	body.add_theme_constant_override("separation", 18)
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	root_v.add_child(body)
 
-	_sfx_body.add_child(_build_modules_column())
-	_sfx_body.add_child(_build_controls_column())
-	_sfx_body.add_child(_build_bin_column())
-
-	_pr_body = _build_piano_roll_body()
-	_pr_body.visible = false
-	root_v.add_child(_pr_body)
+	body.add_child(_build_modules_column())
+	body.add_child(_build_controls_column())
+	body.add_child(_build_bin_column())
 
 	root_v.add_child(_build_footer())
 
@@ -821,50 +808,6 @@ func _build_bin_panel() -> Control:
 func _on_bin_search_changed(text: String) -> void:
 	bin_search_query = text.strip_edges().to_lower()
 	refresh_bin_list()
-
-
-func _build_view_tabs() -> Control:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 4)
-
-	_view_sfx_btn = UIFactory.make_action_button("SFX")
-	_view_sfx_btn.custom_minimum_size = Vector2(100, 26)
-	_view_sfx_btn.pressed.connect(_on_view_tab_pressed.bind(false))
-	row.add_child(_view_sfx_btn)
-
-	_view_pr_btn = UIFactory.make_action_button("PIANO ROLL")
-	_view_pr_btn.custom_minimum_size = Vector2(100, 26)
-	_view_pr_btn.pressed.connect(_on_view_tab_pressed.bind(true))
-	row.add_child(_view_pr_btn)
-
-	_restyle_view_tabs()
-	return row
-
-
-func _build_piano_roll_body() -> Control:
-	piano_roll_panel = PianoRollPanel.new()
-	piano_roll_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	piano_roll_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	return piano_roll_panel
-
-
-func _on_view_tab_pressed(is_piano_roll: bool) -> void:
-	if _view_is_piano_roll == is_piano_roll:
-		return
-	_view_is_piano_roll = is_piano_roll
-	_sfx_body.visible = not is_piano_roll
-	_pr_body.visible = is_piano_roll
-	_restyle_view_tabs()
-
-
-func _restyle_view_tabs() -> void:
-	UIFactory.apply_preset_tab_style(_view_sfx_btn, not _view_is_piano_roll)
-	UIFactory.apply_preset_tab_style(_view_pr_btn, _view_is_piano_roll)
-
-
-func refresh_piano_roll() -> void:
-	if piano_roll_panel != null:
-		piano_roll_panel.refresh(_state)
 
 
 func _build_footer() -> Control:

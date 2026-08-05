@@ -24,13 +24,6 @@ var export_sample_rate: int = 44100
 var export_bit_depth: int = 16
 var export_normalize: bool = false
 
-# ── Piano roll ─────────────────────────────────────────────────────
-var pr_state: PianoRollState
-var pr_audio_player: AudioStreamPlayer
-var pr_save_dialog: FileDialog
-var pr_playback_timer: Timer
-var pr_playback_start_time: float = 0.0
-
 # Batch export
 var batch_dialog: ConfirmationDialog
 var batch_count_spin: SpinBox
@@ -127,38 +120,7 @@ func _ready() -> void:
 	batch_dir_dialog.dir_selected.connect(_on_batch_dir_selected)
 	add_child(batch_dir_dialog)
 
-	# Piano roll infra
-	pr_state = PianoRollState.new()
-	var pr_saved: Dictionary = PianoRollPersistence.load_state()
-	if not pr_saved.is_empty():
-		pr_state.from_dict(pr_saved)
-
-	pr_audio_player = AudioStreamPlayer.new()
-	add_child(pr_audio_player)
-
-	pr_save_dialog = FileDialog.new()
-	pr_save_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
-	pr_save_dialog.access = FileDialog.ACCESS_FILESYSTEM
-	pr_save_dialog.add_filter("*.wav", "WAV audio")
-	pr_save_dialog.size = Palette.SAVE_DIALOG_SIZE
-	pr_save_dialog.file_selected.connect(_on_pr_save_file_selected)
-	add_child(pr_save_dialog)
-
-	pr_playback_timer = Timer.new()
-	pr_playback_timer.wait_time = 0.03
-	pr_playback_timer.timeout.connect(_on_pr_playback_tick)
-	add_child(pr_playback_timer)
-
 	ui.build_ui()
-
-	# Init piano roll panel after UI is built
-	ui.piano_roll_panel.setup(pr_state, state)
-	ui.piano_roll_panel.sequence_play_requested.connect(_on_pr_play_pressed)
-	ui.piano_roll_panel.sequence_stop_requested.connect(_on_pr_stop_pressed)
-	ui.piano_roll_panel.sequence_export_requested.connect(_on_pr_export_pressed)
-	ui.piano_roll_panel.bpm_changed.connect(_on_pr_bpm_changed)
-	ui.piano_roll_panel.bars_changed.connect(_on_pr_bars_changed)
-	ui.piano_roll_panel.notes_changed.connect(_pr_persist)
 
 	state.bin.assign(Persistence.load_bin())
 	_re_render()
@@ -280,7 +242,6 @@ func _on_channel_tab_pressed(idx: int) -> void:
 	ui.refresh_mix_rows()
 	ui.refresh_module_values()
 	ui.refresh_waveform_info()
-	ui.refresh_piano_roll()
 
 
 func _on_add_channel_pressed() -> void:
@@ -290,7 +251,6 @@ func _on_add_channel_pressed() -> void:
 	ui.refresh_channel_tabs()
 	ui.refresh_mix_rows()
 	ui.refresh_module_values()
-	ui.refresh_piano_roll()
 	_re_render()
 
 
@@ -302,7 +262,6 @@ func _on_channel_delete_pressed(idx: int) -> void:
 	ui.refresh_channel_tabs()
 	ui.refresh_mix_rows()
 	ui.refresh_module_values()
-	ui.refresh_piano_roll()
 	_re_render()
 
 
@@ -690,19 +649,12 @@ func _on_theme_changed(theme_name: String) -> void:
 		ui.teardown()
 	ui = UIBuilder.new(self, state)
 	ui.build_ui()
-	ui.piano_roll_panel.setup(pr_state, state)
-	ui.piano_roll_panel.sequence_play_requested.connect(_on_pr_play_pressed)
-	ui.piano_roll_panel.sequence_stop_requested.connect(_on_pr_stop_pressed)
-	ui.piano_roll_panel.sequence_export_requested.connect(_on_pr_export_pressed)
-	ui.piano_roll_panel.bpm_changed.connect(_on_pr_bpm_changed)
-	ui.piano_roll_panel.bars_changed.connect(_on_pr_bars_changed)
 	_re_render()
 	ui.refresh_channel_tabs()
 	ui.refresh_mix_rows()
 	ui.refresh_module_values()
 	ui.refresh_master_values()
 	ui.refresh_bin_list()
-	ui.refresh_piano_roll()
 	ui.flash_status(theme_name.to_upper())
 
 
@@ -749,89 +701,6 @@ func _redo() -> void:
 	ui.refresh_master_values()
 
 
-# ── Piano roll handlers ────────────────────────────────────────────
-
-func _on_pr_play_pressed() -> void:
-	var buf: PackedFloat32Array = SequenceRenderer.render_sequence(
-		pr_state.notes, state.sound, pr_state.bpm, pr_state.total_beats())
-	if buf.is_empty():
-		ui.flash_status("EMPTY SEQ")
-		return
-	pr_audio_player.stop()
-	pr_audio_player.stream = Playback.build_stream(buf)
-	pr_audio_player.play()
-	pr_playback_start_time = Time.get_ticks_msec() / 1000.0
-	pr_playback_timer.start()
-	ui.flash_status("SEQ ▶")
-
-
-func _on_pr_stop_pressed() -> void:
-	pr_audio_player.stop()
-	pr_playback_timer.stop()
-	ui.piano_roll_panel.set_playhead(-1.0)
-	ui.flash_status("SEQ ■")
-
-
-func _on_pr_playback_tick() -> void:
-	if not pr_audio_player.playing:
-		pr_playback_timer.stop()
-		ui.piano_roll_panel.set_playhead(-1.0)
-		return
-	var elapsed: float = Time.get_ticks_msec() / 1000.0 - pr_playback_start_time
-	var beat: float = elapsed * float(pr_state.bpm) / 60.0
-	if beat > pr_state.total_beats():
-		pr_playback_timer.stop()
-		ui.piano_roll_panel.set_playhead(-1.0)
-		return
-	ui.piano_roll_panel.set_playhead(beat)
-
-
-func _on_pr_export_pressed() -> void:
-	var buf: PackedFloat32Array = SequenceRenderer.render_sequence(
-		pr_state.notes, state.sound, pr_state.bpm, pr_state.total_beats())
-	if buf.is_empty():
-		ui.flash_status("EMPTY SEQ")
-		return
-	var ts := Time.get_datetime_string_from_system().replace(":", "").replace("-", "").replace("T", "_")
-	pr_save_dialog.current_file = "seq_%s.wav" % ts
-	pr_save_dialog.popup_centered()
-
-
-func _on_pr_save_file_selected(path: String) -> void:
-	if not path.to_lower().ends_with(".wav"):
-		path += ".wav"
-	var buf: PackedFloat32Array = SequenceRenderer.render_sequence(
-		pr_state.notes, state.sound, pr_state.bpm, pr_state.total_beats())
-	var bytes: PackedByteArray = _export_samples(buf)
-	var f := FileAccess.open(path, FileAccess.WRITE)
-	if f == null:
-		var err: int = FileAccess.get_open_error()
-		ui.show_error_dialog("Export Failed", "Could not open file for writing.\n%s\n%s" % [path.get_file(), error_string(err)])
-		return
-	f.store_buffer(bytes)
-	var write_err: int = f.get_error()
-	f.close()
-	if write_err != OK:
-		ui.show_error_dialog("Export Failed", "Write failed mid-export.\n%s\n%s" % [path.get_file(), error_string(write_err)])
-		return
-	ui.flash_status("SEQ EXPORTED")
-
-
-func _on_pr_bpm_changed(bpm: int) -> void:
-	pr_state.bpm = bpm
-	PianoRollPersistence.save_state(pr_state)
-
-
-func _on_pr_bars_changed(bars: int) -> void:
-	pr_state.bars = bars
-	ui.piano_roll_panel.refresh(state)
-	PianoRollPersistence.save_state(pr_state)
-
-
-func _pr_persist() -> void:
-	PianoRollPersistence.save_state(pr_state)
-
-
 # ── Input ──────────────────────────────────────────────────────────
 
 func _input(event: InputEvent) -> void:
@@ -864,11 +733,6 @@ func _input(event: InputEvent) -> void:
 		_switch_channel_hotkey(2)
 	elif event.is_action_pressed("channel_4"):
 		_switch_channel_hotkey(3)
-	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_P:
-		if pr_audio_player.playing:
-			_on_pr_stop_pressed()
-		else:
-			_on_pr_play_pressed()
 
 
 # Hotkey-driven channel switch: silently no-ops when the channel doesn't
