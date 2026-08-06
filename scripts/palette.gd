@@ -219,42 +219,60 @@ static func apply_theme(name: String) -> void:
 
 
 # ── Font sizes ─────────────────────────────────────────────────────
-const FONT_TITLE    := 28  # app title
-const FONT_VALUE    := 12  # slider value labels, sound-string input, channel-tab labels
-const FONT_LABEL    := 13  # status pill, module checkbox/title, secondary buttons
-const FONT_SMALL    := 11  # mix-row level value, lock icons
+const FONT_TITLE    := 20  # app title
+const FONT_VALUE    := 11  # slider value labels, sound-string input, channel-tab labels
+const FONT_LABEL    := 11  # status pill, module checkbox/title, secondary buttons
+const FONT_SMALL    := 10  # mix-row level value, lock icons
+const FONT_TINY     := 9   # section captions (MIX / OUTPUT / WAVEFORM / footer)
 
 # ── Layout sizes ───────────────────────────────────────────────────
-# Sizes that recur across the layout. Single-use sizes still live near
-# their call site (Vector2(82, 22) for VAR spinbox, etc.) when changing
-# them is unlikely to need to ripple anywhere else.
-# Three-column body layout: modules grid (widest), controls stack
-# (master/presets/actions/string), bin (narrowest). Mins keep each
-# column usable even when the user shrinks the window aggressively.
-const COLUMN_MODULES_MIN  := Vector2(450, 0)
-const COLUMN_CONTROLS_MIN := Vector2(360, 0)
-const COLUMN_BIN_MIN      := Vector2(240, 0)
-const STATUS_LABEL_SIZE   := Vector2(128, 30)
+# Compact density throughout. The app is a dense instrument panel, and
+# the binding constraint is vertical: a 32:9 display leaves ~660 pt of
+# height, of which fixed chrome used to eat 40%. Every token here was
+# cut to the smallest size that still reads and still hits comfortably
+# with a mouse — 20 pt is the floor for anything clickable.
+const COLUMN_MODULES_MIN  := Vector2(340, 0)
+const COLUMN_CONTROLS_MIN := Vector2(280, 0)
+const COLUMN_BIN_MIN      := Vector2(200, 0)
+const STATUS_LABEL_SIZE   := Vector2(96, 22)
 const HAIRLINE_HEIGHT     := Vector2(0, 1)            # 1 px horizontal divider
-const WAVEFORM_PANEL_MIN  := Vector2(0, 120)
-const WAVEFORM_INFO_LEFT_POS  := Vector2(10, 6)
-const WAVEFORM_INFO_RIGHT_POS := Vector2(-260, 6)
-const WAVEFORM_INFO_RIGHT_SIZE := Vector2(250, 16)
-const MODULE_CHECK_SIZE   := Vector2(20, 20)
-const VARIATION_SEED_SIZE := Vector2(86, 24)
-const REROLL_BTN_SIZE     := Vector2(30, 24)
-const CHANNEL_TAB_SIZE    := Vector2(64, 30)
-const CHANNEL_ADD_SIZE    := Vector2(44, 30)
-const MIX_LABEL_SIZE      := Vector2(44, 24)
-const MINI_BTN_SIZE       := Vector2(24, 24)          # mute / solo / delete / bin-row icons
-const ACTION_BTN_H        := 28                       # GEN / PLAY / preset / tab buttons
-const BODY_SCROLL_MIN     := Vector2(0, 200)          # floor for the scrollable 3-column body
-const BIN_LIST_MIN        := Vector2(0, 120)          # floor for the scrollable bin list
+const WAVEFORM_PANEL_MIN  := Vector2(0, 72)
+const WAVEFORM_INFO_LEFT_POS  := Vector2(8, 4)
+const WAVEFORM_INFO_RIGHT_POS := Vector2(-200, 4)
+const WAVEFORM_INFO_RIGHT_SIZE := Vector2(190, 12)
+const MODULE_CHECK_SIZE   := Vector2(16, 16)
+const VARIATION_SEED_SIZE := Vector2(72, 20)
+const REROLL_BTN_SIZE     := Vector2(24, 20)
+const CHANNEL_TAB_SIZE    := Vector2(52, 24)
+const CHANNEL_ADD_SIZE    := Vector2(34, 24)
+const MIX_LABEL_SIZE      := Vector2(34, 20)
+const MINI_BTN_SIZE       := Vector2(20, 20)          # mute / solo / delete / bin-row icons
+const ACTION_BTN_H        := 22                       # GEN / PLAY / preset / tab buttons
+const LOCK_BTN_SIZE       := Vector2(20, 20)          # 🔒 on module headers
+const BODY_SCROLL_MIN     := Vector2(0, 160)          # floor for the scrollable body
+const BIN_LIST_MIN        := Vector2(0, 100)          # floor for the scrollable bin list
+
+# Knob boxes: label / knob / value stacked. The knob itself is the
+# smallest element that still tracks a drag precisely.
+const KNOB_BOX_SIZE       := Vector2(52, 58)
+const KNOB_SIZE           := Vector2(30, 30)
+const KNOB_LABEL_H        := 12
+const KNOB_VALUE_H        := 12
 const SAVE_DIALOG_SIZE    := Vector2i(720, 520)
 const PRESET_NAME_DIALOG_SIZE := Vector2i(420, 140)
 const PRESET_NAME_BODY_MIN := Vector2(380, 0)
-const THEME_BTN_SIZE      := Vector2(30, 30)          # ◐ picker button in header
-const RESOLUTION_BTN_SIZE := Vector2(60, 30)
+const BATCH_DIALOG_SIZE   := Vector2i(360, 160)
+const BATCH_DIALOG_BODY_MIN := Vector2(320, 0)
+const THEME_BTN_SIZE      := Vector2(24, 24)          # ◐ picker button in header
+const RESOLUTION_BTN_SIZE := Vector2(48, 24)
+
+# ── Layout breakpoints (viewport width, points) ────────────────────
+# Above MODULES_3COL the module grid goes three wide (four rows instead
+# of six); above CONTROLS_FLAT the master/presets/actions stack turns
+# into a row. Together these are what let the whole app sit above the
+# fold on a short, wide display.
+const BP_MODULES_3COL  := 1700.0
+const BP_CONTROLS_FLAT := 2000.0
 
 # Window sizes in POINTS (main.gd converts to pixels via ui_scale).
 # The layout is authored at DESIGN_SIZE; MIN_WINDOW_SIZE is the floor
@@ -271,8 +289,8 @@ const RESOLUTION_PRESETS: Array[Dictionary] = [
 ]
 
 # ── Window margins ─────────────────────────────────────────────────
-const WINDOW_MARGIN_H := 28
-const WINDOW_MARGIN_V := 20
+const WINDOW_MARGIN_H := 14
+const WINDOW_MARGIN_V := 10
 
 # ── Timing ─────────────────────────────────────────────────────────
 # Render debounce kept short enough that drag tails render without lag.

@@ -24,11 +24,8 @@ var export_sample_rate: int = 44100
 var export_bit_depth: int = 16
 var export_normalize: bool = false
 
-# Batch export
-var batch_dialog: ConfirmationDialog
-var batch_count_spin: SpinBox
-var batch_mode_btn: Button
-var batch_mode_mutate: bool = false
+# Batch export. The options dialog is UI and lives in UIBuilder; the
+# directory picker and worker thread are infrastructure and live here.
 var batch_dir_dialog: FileDialog
 var batch_thread: Thread
 # Coalesces rapid slider drags into a single render. Started/restarted
@@ -87,38 +84,6 @@ func _ready() -> void:
 	save_dialog.size = Palette.SAVE_DIALOG_SIZE
 	save_dialog.file_selected.connect(_on_save_file_selected)
 	add_child(save_dialog)
-
-	batch_dialog = ConfirmationDialog.new()
-	batch_dialog.title = "Batch Export"
-	batch_dialog.size = Vector2i(360, 160)
-	batch_dialog.confirmed.connect(_on_batch_confirmed)
-	var bv := VBoxContainer.new()
-	bv.add_theme_constant_override("separation", 8)
-	bv.custom_minimum_size = Vector2(320, 0)
-	batch_dialog.add_child(bv)
-	var count_row := HBoxContainer.new()
-	count_row.add_theme_constant_override("separation", 8)
-	count_row.add_child(UIFactory.make_label("Count:", Palette.FONT_VALUE, Palette.TEXT))
-	batch_count_spin = SpinBox.new()
-	batch_count_spin.min_value = 1
-	batch_count_spin.max_value = 100
-	batch_count_spin.value = 10
-	batch_count_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	count_row.add_child(batch_count_spin)
-	bv.add_child(count_row)
-	var mode_row := HBoxContainer.new()
-	mode_row.add_theme_constant_override("separation", 8)
-	mode_row.add_child(UIFactory.make_label("Mode:", Palette.FONT_VALUE, Palette.TEXT))
-	batch_mode_btn = Button.new()
-	batch_mode_btn.text = "GENERATE"
-	batch_mode_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	batch_mode_btn.pressed.connect(func():
-		batch_mode_mutate = not batch_mode_mutate
-		batch_mode_btn.text = "MUTATE" if batch_mode_mutate else "GENERATE"
-	)
-	mode_row.add_child(batch_mode_btn)
-	bv.add_child(mode_row)
-	add_child(batch_dialog)
 
 	batch_dir_dialog = FileDialog.new()
 	batch_dir_dialog.file_mode = FileDialog.FILE_MODE_OPEN_DIR
@@ -401,20 +366,7 @@ func _on_generate_pressed() -> void:
 
 func _on_mutate_pressed() -> void:
 	state.push_undo()
-	var ch: Dictionary = state.sound.channels[state.active_channel]
-	var ch_locks: Dictionary = state.active_channel_locks()
-	for key in SoundData.PARAM_DEFS:
-		if ch_locks.get(key, false):
-			continue
-		var def: Dictionary = SoundData.PARAM_DEFS[key]
-		var range_span: float = def.max - def.min
-		var nudge: float = (randf() * 2.0 - 1.0) * range_span * 0.1
-		var old_val: float = float(ch.get(key, def.get("min", 0.0)))
-		var new_val: float = clampf(old_val + nudge, def.min, def.max)
-		if def.step >= 1.0:
-			ch[key] = int(round(new_val))
-		else:
-			ch[key] = snappedf(new_val, def.step)
+	Presets.mutate_channel(state.sound.channels[state.active_channel], state.active_channel_locks())
 	_apply_and_play("MUTATE")
 	ui.refresh_module_values()
 
@@ -453,7 +405,7 @@ func _export_samples(samples: PackedFloat32Array) -> PackedByteArray:
 
 
 func _on_batch_pressed() -> void:
-	batch_dialog.popup_centered()
+	ui.open_batch_dialog()
 
 
 func _on_batch_confirmed() -> void:
@@ -465,26 +417,17 @@ func _on_batch_dir_selected(dir_path: String) -> void:
 		ui.flash_status("BUSY")
 		return
 
-	var count: int = int(batch_count_spin.value)
+	var count: int = ui.read_batch_count()
+	var batch_mutate: bool = ui.read_batch_mutate()
 	var saved_sound: Dictionary = state.sound.duplicate(true)
 	var saved_seed: int = state.variation_seed
 	var base_seed: int = state.variation_seed
 
 	var sounds: Array[Dictionary] = []
 	for i in count:
-		if batch_mode_mutate:
+		if batch_mutate:
 			var s: Dictionary = saved_sound.duplicate(true)
-			var ch: Dictionary = s.channels[state.active_channel]
-			for key in SoundData.PARAM_DEFS:
-				var def: Dictionary = SoundData.PARAM_DEFS[key]
-				var range_span: float = def.max - def.min
-				var nudge: float = (randf() * 2.0 - 1.0) * range_span * 0.1
-				var old_val: float = float(ch.get(key, def.get("min", 0.0)))
-				var new_val: float = clampf(old_val + nudge, def.min, def.max)
-				if def.step >= 1.0:
-					ch[key] = int(round(new_val))
-				else:
-					ch[key] = snappedf(new_val, def.step)
+			Presets.mutate_channel(s.channels[state.active_channel], state.active_channel_locks())
 			sounds.append(s)
 		else:
 			state.variation_seed = base_seed + i

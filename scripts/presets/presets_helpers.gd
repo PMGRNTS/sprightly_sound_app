@@ -192,6 +192,26 @@ static func _pitched_transient(mode: int, pitch: float, length: float,
 
 # ── Randomize-all (the GEN button) ──────────────────────────────────
 
+# Nudge every unlocked param by up to ±MUTATE_AMOUNT of its range,
+# in place. Locked params hold, same as they do through GEN.
+const MUTATE_AMOUNT := 0.1
+
+
+static func mutate_channel(ch: Dictionary, locked: Dictionary) -> void:
+	for key in SoundData.PARAM_DEFS:
+		if bool(locked.get(key, false)):
+			continue
+		var def: Dictionary = SoundData.PARAM_DEFS[key]
+		var range_span: float = def.max - def.min
+		var nudge: float = (randf() * 2.0 - 1.0) * range_span * MUTATE_AMOUNT
+		var old_val: float = float(ch.get(key, def.get("min", 0.0)))
+		var new_val: float = clampf(old_val + nudge, def.min, def.max)
+		if def.step >= 1.0:
+			ch[key] = int(round(new_val))
+		else:
+			ch[key] = snappedf(new_val, def.step)
+
+
 static func randomize_all(params: Dictionary, locked: Dictionary) -> Dictionary:
 	# Bias ADSR toward percussive shapes (most SFX are hits).
 	var sustained: bool = randf() < 0.2

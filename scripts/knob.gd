@@ -29,7 +29,7 @@ var _lock_flash_t: float = 0.0
 
 
 func _init() -> void:
-	custom_minimum_size = Vector2(32, 32)
+	custom_minimum_size = Palette.KNOB_SIZE
 	focus_mode = Control.FOCUS_ALL
 
 

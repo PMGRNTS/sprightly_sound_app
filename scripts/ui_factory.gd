@@ -44,17 +44,19 @@ static func wrap_padded(child: Control, l: int, r: int, t: int, b: int) -> Margi
 
 # ── Styleboxes ─────────────────────────────────────────────────────
 
-# 1 px border, 6×3 padding, square corners. The default panel/input look.
+# 1 px border, tight padding, square corners. The default panel/input
+# look, and the single biggest lever on overall density — every button
+# and input in the app inherits this padding.
 static func make_stylebox(bg: Color, border: Color) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
 	s.bg_color = bg
 	s.border_color = border
 	s.set_border_width_all(1)
 	s.set_corner_radius_all(0)
-	s.content_margin_left = 8
-	s.content_margin_right = 8
-	s.content_margin_top = 4
-	s.content_margin_bottom = 4
+	s.content_margin_left = 6
+	s.content_margin_right = 6
+	s.content_margin_top = 2
+	s.content_margin_bottom = 2
 	return s
 
 
@@ -78,25 +80,46 @@ static func apply_lineedit_style(le: LineEdit) -> void:
 	var f := make_stylebox(Palette.INSET, Palette.ACCENT)
 	le.add_theme_stylebox_override("normal", n)
 	le.add_theme_stylebox_override("focus", f)
+	le.add_theme_color_override("font_color", Palette.TEXT)
+	le.add_theme_color_override("font_placeholder_color", Palette.TEXT_DIM)
+	le.add_theme_font_size_override("font_size", Palette.FONT_VALUE)
+
+
+# SpinBox wraps a LineEdit that ignores the app's theme entirely, so it
+# rendered as a default-dark field on the light themes. Style the inner
+# editor the same way as every other input.
+static func style_spinbox(sb: SpinBox) -> void:
+	apply_lineedit_style(sb.get_line_edit())
+	sb.add_theme_color_override("font_color", Palette.TEXT)
+	sb.add_theme_font_size_override("font_size", Palette.FONT_VALUE)
 
 
 # ── Buttons ────────────────────────────────────────────────────────
 
-# Lock button (🔒/🔓) styling. Filled accent when locked, hollow when
-# unlocked. Hover always inverts to accent.
-static func apply_button_style(b: Button, locked: bool) -> void:
-	var bg: Color = Palette.ACCENT if locked else Color(0, 0, 0, 0)
-	var border: Color = Palette.ACCENT if locked else Palette.BORDER_HI
-	var fg: Color = Palette.BG if locked else Palette.TEXT_DIM
-
-	var normal := make_stylebox(bg, border)
-	var hover := make_stylebox(Palette.ACCENT, Palette.ACCENT)
+# The app speaks one button language: filled with the accent when ON,
+# hollow with a border when off, inverting on hover, and staying lit
+# while held. Lock buttons, module checkboxes, preset tabs and the mini
+# M/S/× buttons are all this rule with different off-state colours —
+# they were five separate spellings of it before.
+static func apply_toggle_style(b: Button, on: bool,
+		off_fg: Color = Palette.TEXT_MUTE,
+		off_border: Color = Palette.BORDER_HI,
+		hover_bg: Color = Palette.ACCENT,
+		hover_border: Color = Palette.ACCENT) -> void:
+	var normal := make_stylebox(Palette.ACCENT if on else Palette.TRANSPARENT,
+		Palette.ACCENT if on else off_border)
+	var hover := make_stylebox(hover_bg, hover_border)
 	b.add_theme_stylebox_override("normal", normal)
 	b.add_theme_stylebox_override("hover", hover)
 	b.add_theme_stylebox_override("pressed", hover)
 	b.add_theme_stylebox_override("focus", normal)
-	b.add_theme_color_override("font_color", fg)
+	b.add_theme_color_override("font_color", Palette.BG if on else off_fg)
 	b.add_theme_color_override("font_hover_color", Palette.BG)
+
+
+# Lock button (🔒/🔓). Dimmer off-state text than the other toggles.
+static func apply_button_style(b: Button, locked: bool) -> void:
+	apply_toggle_style(b, locked, Palette.TEXT_DIM)
 	b.text = "🔒" if locked else "🔓"
 
 
@@ -108,7 +131,7 @@ static func make_lock_button() -> Button:
 	var b := Button.new()
 	b.text = "🔒"
 	b.tooltip_text = "Lock to preserve while randomizing"
-	b.custom_minimum_size = Vector2(24, 24)
+	b.custom_minimum_size = Palette.LOCK_BTN_SIZE
 	b.add_theme_font_size_override("font_size", Palette.FONT_SMALL)
 	b.toggle_mode = false
 	apply_button_style(b, false)
@@ -117,18 +140,13 @@ static func make_lock_button() -> Button:
 
 # Custom checkbox-style toggle. The React app uses a small filled box
 # instead of the default Godot CheckBox (which doesn't accept the same
-# styling), so we replicate that look here.
+# styling), so we replicate that look here. At MODULE_CHECK_SIZE a full
+# accent invert on hover reads as shouting, so this one stays subtler
+# than the other toggles.
 static func apply_check_style(b: Button, on: bool) -> void:
-	var bg: Color = Palette.ACCENT if on else Color(0, 0, 0, 0)
-	var fg: Color = Palette.BG if on else Palette.TEXT_MUTE
-	var border: Color = Palette.ACCENT if on else Palette.BORDER_HI
-	var normal := make_stylebox(bg, border)
-	var hover := make_stylebox(bg.lightened(0.05) if on else Palette.BORDER, border)
-	b.add_theme_stylebox_override("normal", normal)
-	b.add_theme_stylebox_override("hover", hover)
-	b.add_theme_stylebox_override("pressed", normal)
-	b.add_theme_stylebox_override("focus", normal)
-	b.add_theme_color_override("font_color", fg)
+	apply_toggle_style(b, on, Palette.TEXT_MUTE, Palette.BORDER_HI,
+		Palette.ACCENT.lightened(0.05) if on else Palette.BORDER,
+		Palette.ACCENT if on else Palette.BORDER_HI)
 	b.text = "■" if on else " "
 	b.add_theme_font_size_override("font_size", Palette.FONT_SMALL)
 
@@ -154,7 +172,10 @@ static func make_action_button(text: String, primary: bool = false) -> Button:
 	b.add_theme_font_size_override("font_size", Palette.FONT_VALUE)
 	b.custom_minimum_size = Vector2(0, Palette.ACTION_BTN_H)
 
-	var normal := make_stylebox(Color("#261f17") if primary else Color(0, 0, 0, 0), Palette.BORDER_HI)
+	# ACCENT_GHOST, not a hardcoded colour: the old literal was a dark
+	# brown that rendered GEN as a near-black box with dark text — and so
+	# an unreadable label — under the Paper, Sepia and High Contrast themes.
+	var normal := make_stylebox(Palette.ACCENT_GHOST if primary else Palette.TRANSPARENT, Palette.BORDER_HI)
 	var hover := make_stylebox(Palette.ACCENT, Palette.ACCENT)
 	var pressed := make_stylebox(Palette.ACCENT, Palette.ACCENT)
 	b.add_theme_stylebox_override("normal", normal)
@@ -166,7 +187,7 @@ static func make_action_button(text: String, primary: bool = false) -> Button:
 
 # ── Knob boxes ─────────────────────────────────────────────────────
 
-# Most PARAM_DEFS labels fit a 56 px knob box at 10 pt; a handful don't, so
+# Most PARAM_DEFS labels fit a KNOB_BOX_SIZE-wide box; a handful don't, so
 # we override the display text here for the knob view only. The PARAM_DEFS
 # label is still used by the value-readout formatter and by anything that
 # wants the long form.
@@ -179,7 +200,7 @@ const KNOB_LABEL_OVERRIDES: Dictionary = {
 }
 
 
-# Builds a 56 × 72 knob box (label · knob · value). Returns a dictionary so
+# Builds a KNOB_BOX_SIZE knob box (label · knob · value). Returns a dictionary so
 # the controller can cache the inner controls the same way it caches sliders
 # today (param_knobs / param_value_labels / param_lock-equivalents).
 static func make_knob_box(param_key: String) -> Dictionary:
@@ -196,8 +217,8 @@ static func make_master_knob_box(label_text: String, lo: float, hi: float, st: f
 
 static func _build_knob_box(label_text: String, tooltip_title: String, lo: float, hi: float, st: float) -> Dictionary:
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 2)
-	box.custom_minimum_size = Vector2(62, 72)
+	box.add_theme_constant_override("separation", 1)
+	box.custom_minimum_size = Palette.KNOB_BOX_SIZE
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 	var label_btn := Button.new()
@@ -209,7 +230,7 @@ static func _build_knob_box(label_text: String, tooltip_title: String, lo: float
 	label_btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label_btn.tooltip_text = "Click to lock/unlock"
 	label_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	label_btn.custom_minimum_size = Vector2(0, 15)
+	label_btn.custom_minimum_size = Vector2(0, Palette.KNOB_LABEL_H)
 	label_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	# Strip the default Button stylebox padding so the label row is actually 13 px.
 	var empty_sb := StyleBoxEmpty.new()
@@ -226,7 +247,7 @@ static func _build_knob_box(label_text: String, tooltip_title: String, lo: float
 	knob.tooltip_text = "%s · drag to adjust · click to lock · right-click reset" % tooltip_title
 	knob.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	knob.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	knob.custom_minimum_size = Vector2(38, 38)
+	knob.custom_minimum_size = Palette.KNOB_SIZE
 	box.add_child(knob)
 
 	var value_label := Label.new()
@@ -234,7 +255,7 @@ static func _build_knob_box(label_text: String, tooltip_title: String, lo: float
 	value_label.add_theme_color_override("font_color", Palette.TEXT)
 	value_label.add_theme_font_size_override("font_size", Palette.FONT_SMALL)
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	value_label.custom_minimum_size = Vector2(0, 14)
+	value_label.custom_minimum_size = Vector2(0, Palette.KNOB_VALUE_H)
 	value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	box.add_child(value_label)
 
@@ -267,7 +288,7 @@ static func make_section_panel(title_text: String, flexible_height: bool = false
 
 	var title_row := HBoxContainer.new()
 	title_row.add_theme_constant_override("separation", 10)
-	v.add_child(wrap_padded(title_row, 12, 12, 4, 4))
+	v.add_child(wrap_padded(title_row, 8, 8, 3, 3))
 
 	var title := make_label(title_text, Palette.FONT_SMALL, Palette.TEXT_MUTE, 0.3)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -276,8 +297,8 @@ static func make_section_panel(title_text: String, flexible_height: bool = false
 	v.add_child(make_hairline(Palette.BORDER))
 
 	var body := VBoxContainer.new()
-	body.add_theme_constant_override("separation", 4)
-	var body_wrap := wrap_padded(body, 12, 12, 5, 7)
+	body.add_theme_constant_override("separation", 3)
+	var body_wrap := wrap_padded(body, 8, 8, 4, 5)
 	if flexible_height:
 		body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		body_wrap.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -345,27 +366,15 @@ static func make_module_indicator() -> ColorRect:
 # when not active; muted channels get a half-opacity modulate.
 static func make_channel_tab(label: String, active: bool, soloed: bool, muted: bool) -> Button:
 	var btn := Button.new()
-	btn.text = label
 	btn.custom_minimum_size = Palette.CHANNEL_TAB_SIZE
 	btn.add_theme_font_size_override("font_size", Palette.FONT_VALUE)
-
-	var bg: Color = Palette.ACCENT if active else Palette.TRANSPARENT
-	var fg: Color = Palette.BG if active else Palette.TEXT
-	var border: Color = Palette.ACCENT if (active or soloed) else Palette.BORDER
-	var hover_bg: Color = Palette.ACCENT.lightened(0.05) if active else Palette.ACCENT_GHOST
-
-	var normal := make_stylebox(bg, border)
-	var hover := make_stylebox(hover_bg, border)
-	btn.add_theme_stylebox_override("normal", normal)
-	btn.add_theme_stylebox_override("hover", hover)
-	btn.add_theme_stylebox_override("pressed", normal)
-	btn.add_theme_stylebox_override("focus", normal)
-	btn.add_theme_color_override("font_color", fg)
-	btn.add_theme_color_override("font_hover_color", fg)
-	btn.modulate = Palette.MODULATE_MUTED if muted else Color.WHITE
+	restyle_channel_tab(btn, label, active, soloed, muted)
 	return btn
 
 
+# Not apply_toggle_style: a channel tab carries three independent states
+# (active / soloed / muted), keeps its own text colour on hover, and uses
+# the ghost fill rather than a full accent invert.
 static func restyle_channel_tab(btn: Button, label: String, active: bool, soloed: bool, muted: bool) -> void:
 	btn.text = label
 	var bg: Color = Palette.ACCENT if active else Palette.TRANSPARENT
@@ -402,39 +411,18 @@ static func make_channel_add_btn() -> Button:
 
 # ── Mini buttons (M / S / × / ▶) ───────────────────────────────────
 
-# 22 × 22 toggle button used by mix-row mute/solo/delete and bin-row
-# play/delete. `on` paints it with the filled accent treatment; off is
-# hollow with text in TEXT_MUTE.
+# 24 × 24 toggle used by mix-row mute/solo/delete and bin-row play/delete.
 static func make_mini_btn(text: String, on: bool) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.custom_minimum_size = Palette.MINI_BTN_SIZE
 	b.add_theme_font_size_override("font_size", Palette.FONT_SMALL)
-
-	var bg: Color = Palette.ACCENT if on else Palette.TRANSPARENT
-	var fg: Color = Palette.BG if on else Palette.TEXT_MUTE
-	var border: Color = Palette.ACCENT if on else Palette.BORDER_HI
-	var normal := make_stylebox(bg, border)
-	var hover := make_stylebox(Palette.ACCENT, Palette.ACCENT)
-	b.add_theme_stylebox_override("normal", normal)
-	b.add_theme_stylebox_override("hover", hover)
-	b.add_theme_stylebox_override("pressed", normal)
-	b.add_theme_stylebox_override("focus", normal)
-	b.add_theme_color_override("font_color", fg)
-	b.add_theme_color_override("font_hover_color", Palette.BG)
+	restyle_mini_btn(b, on)
 	return b
 
 
 static func restyle_mini_btn(b: Button, on: bool) -> void:
-	var bg: Color = Palette.ACCENT if on else Palette.TRANSPARENT
-	var fg: Color = Palette.BG if on else Palette.TEXT_MUTE
-	var border: Color = Palette.ACCENT if on else Palette.BORDER_HI
-	b.add_theme_stylebox_override("normal", make_stylebox(bg, border))
-	b.add_theme_stylebox_override("hover", make_stylebox(Palette.ACCENT, Palette.ACCENT))
-	b.add_theme_stylebox_override("pressed", make_stylebox(bg, border))
-	b.add_theme_stylebox_override("focus", make_stylebox(bg, border))
-	b.add_theme_color_override("font_color", fg)
-	b.add_theme_color_override("font_hover_color", Palette.BG)
+	apply_toggle_style(b, on)
 
 
 # Mix-row channel label (CH1..CH4) — flat button so clicking it switches
@@ -453,20 +441,9 @@ static func make_mix_label_btn(idx: int, active: bool) -> Button:
 
 # ── Preset tab styling ─────────────────────────────────────────────
 
-# Active-tab gets a filled accent stylebox; inactive stays hollow. Reuses
-# make_stylebox so it matches the rest of the app's button language.
+# Active tab is filled, inactive is hollow — the standard toggle rule.
 static func apply_preset_tab_style(btn: Button, active: bool) -> void:
-	var bg: Color = Palette.ACCENT if active else Palette.TRANSPARENT
-	var fg: Color = Palette.BG if active else Palette.TEXT_MUTE
-	var border: Color = Palette.ACCENT if active else Palette.BORDER_HI
-	var normal := make_stylebox(bg, border)
-	var hover := make_stylebox(Palette.ACCENT, Palette.ACCENT)
-	btn.add_theme_stylebox_override("normal", normal)
-	btn.add_theme_stylebox_override("hover", hover)
-	btn.add_theme_stylebox_override("pressed", normal)
-	btn.add_theme_stylebox_override("focus", normal)
-	btn.add_theme_color_override("font_color", fg)
-	btn.add_theme_color_override("font_hover_color", Palette.BG)
+	apply_toggle_style(btn, active)
 
 
 # ── Bin row ────────────────────────────────────────────────────────
@@ -503,7 +480,7 @@ static func make_bin_row(entry_name: String) -> Dictionary:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 0)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.add_child(wrap_padded(row, 14, 14, 7, 7))
+	v.add_child(wrap_padded(row, 10, 10, 4, 4))
 	v.add_child(make_hairline(Palette.SEPARATOR))
 
 	return {

@@ -15,7 +15,7 @@ extends RefCounted
 # then call the appropriate refresh_*.
 
 # Display order for the module grid. The grid's column count is chosen at
-# runtime from the viewport width (see _apply_module_columns), so this is
+# runtime from the viewport width (see _apply_layout_breakpoints), so this is
 # a flat list rather than fixed rows — it reads row-major at 2 or 3 wide.
 const MODULE_ORDER := [
 	"source", "amp", "filter",
@@ -23,11 +23,6 @@ const MODULE_ORDER := [
 	"arpeggio", "delay", "drive",
 	"crush", "flanger", "chord",
 ]
-
-# Widest module panel is FILTER at six knob boxes (~404 pt). Three columns
-# of modules plus the controls and bin columns need ~1920 pt of viewport;
-# below that we fall back to two columns and a taller grid.
-const MODULE_3COL_MIN_WIDTH := 1920.0
 
 # Preset-tab consolidation: ten registry groups bin into five display
 # groups so the panel shows fewer tabs. Done at the UI layer because
@@ -76,6 +71,7 @@ var channel_tabs_container: HBoxContainer
 var channel_tab_buttons: Array[Button] = []
 var channel_add_button: Button
 var modules_container: GridContainer
+var controls_box: BoxContainer
 var mix_container: VBoxContainer
 var mix_rows: Array[Dictionary] = []
 var master_v_knob: Knob
@@ -99,12 +95,21 @@ var preset_active_group: String = ""
 var preset_tab_buttons: Dictionary[String, Button] = {}
 var preset_grids: Dictionary[String, GridContainer] = {}
 
-# Save-preset dialog (lazily built on first use).
 var export_rate_btn: Button
 var export_bits_btn: Button
 var export_norm_btn: Button
+
+# Dialogs are lazily built on first use and parented to _host rather than
+# _ui_root, so they outlive the UI subtree a theme switch tears down.
+# _owned_dialogs exists so teardown can still free them — otherwise every
+# theme switch stranded another dialog under _host.
+var _owned_dialogs: Array[Node] = []
 var _save_preset_dialog: ConfirmationDialog
 var _save_preset_name_input: LineEdit
+var _batch_dialog: ConfirmationDialog
+var _batch_count_spin: SpinBox
+var _batch_mode_btn: Button
+var _batch_mutate: bool = false
 
 # Status flash token (incremented per flash so stale resets are ignored).
 var _status_token: int = 0
@@ -140,7 +145,7 @@ func build_ui() -> void:
 	_ui_root.add_child(margin)
 
 	var root_v := VBoxContainer.new()
-	root_v.add_theme_constant_override("separation", 8)
+	root_v.add_theme_constant_override("separation", 5)
 	margin.add_child(root_v)
 
 	root_v.add_child(_build_header())
@@ -160,7 +165,7 @@ func build_ui() -> void:
 	root_v.add_child(body_scroll)
 
 	var body := HBoxContainer.new()
-	body.add_theme_constant_override("separation", 18)
+	body.add_theme_constant_override("separation", 10)
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body_scroll.add_child(body)
@@ -169,22 +174,25 @@ func build_ui() -> void:
 	body.add_child(_build_controls_column())
 	body.add_child(_build_bin_column())
 
+	_host.get_viewport().size_changed.connect(_apply_layout_breakpoints)
+	_apply_layout_breakpoints()
+
 	root_v.add_child(_build_footer())
 
 
 func _build_header() -> Control:
 	var hdr := HBoxContainer.new()
 	hdr.alignment = BoxContainer.ALIGNMENT_BEGIN
-	hdr.add_theme_constant_override("separation", 18)
+	hdr.add_theme_constant_override("separation", 12)
 
 	var left := VBoxContainer.new()
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hdr.add_child(left)
 
-	var sub := UIFactory.make_label("// PMGRNTS · v%s" % Palette.APP_VERSION, 10, Palette.TEXT_MUTE, 0.4)
+	var sub := UIFactory.make_label("// PMGRNTS · v%s" % Palette.APP_VERSION, Palette.FONT_TINY, Palette.TEXT_MUTE, 0.4)
 	left.add_child(sub)
 
-	var title := UIFactory.make_label("HONE", 24, Palette.TEXT, 0.08)
+	var title := UIFactory.make_label("HONE", Palette.FONT_TITLE, Palette.TEXT, 0.08)
 	title.add_theme_font_size_override("font_size", Palette.FONT_TITLE)
 	left.add_child(title)
 
@@ -193,7 +201,7 @@ func _build_header() -> Control:
 	right.size_flags_vertical = Control.SIZE_SHRINK_END
 	hdr.add_child(right)
 
-	right.add_child(UIFactory.make_label("STATUS", 10, Palette.TEXT_MUTE, 0.3))
+	right.add_child(UIFactory.make_label("STATUS", Palette.FONT_TINY, Palette.TEXT_MUTE, 0.3))
 
 	status_label = UIFactory.make_status_pill("READY")
 	right.add_child(status_label)
@@ -217,7 +225,7 @@ func _build_header() -> Control:
 	right.add_child(theme_button)
 
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 14)
+	v.add_theme_constant_override("separation", 8)
 	v.add_child(hdr)
 	v.add_child(UIFactory.make_hairline())
 	return v
@@ -328,8 +336,12 @@ func teardown() -> void:
 	# Drop the viewport subscription too, or every theme switch leaves
 	# another dead UIBuilder connected to size_changed.
 	var vp := _host.get_viewport()
-	if vp != null and vp.size_changed.is_connected(_apply_module_columns):
-		vp.size_changed.disconnect(_apply_module_columns)
+	if vp != null and vp.size_changed.is_connected(_apply_layout_breakpoints):
+		vp.size_changed.disconnect(_apply_layout_breakpoints)
+	for dialog in _owned_dialogs:
+		if is_instance_valid(dialog):
+			dialog.queue_free()
+	_owned_dialogs.clear()
 	if _ui_root != null and is_instance_valid(_ui_root):
 		_host.remove_child(_ui_root)
 		_ui_root.queue_free()
@@ -350,12 +362,12 @@ func _build_waveform() -> Control:
 	waveform.set_anchors_preset(Control.PRESET_FULL_RECT)
 	holder.add_child(waveform)
 
-	waveform_info_left = UIFactory.make_label("WAVEFORM", 10, Palette.TEXT_MUTE, 0.25)
+	waveform_info_left = UIFactory.make_label("WAVEFORM", Palette.FONT_TINY, Palette.TEXT_MUTE, 0.25)
 	waveform_info_left.position = Palette.WAVEFORM_INFO_LEFT_POS
 	waveform_info_left.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(waveform_info_left)
 
-	waveform_info_right = UIFactory.make_label("", 10, Palette.TEXT_MUTE, 0.25)
+	waveform_info_right = UIFactory.make_label("", Palette.FONT_TINY, Palette.TEXT_MUTE, 0.25)
 	waveform_info_right.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	waveform_info_right.position = Palette.WAVEFORM_INFO_RIGHT_POS
 	waveform_info_right.size = Palette.WAVEFORM_INFO_RIGHT_SIZE
@@ -373,10 +385,10 @@ func _build_modules_column() -> Control:
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.size_flags_stretch_ratio = 3.0
 	v.custom_minimum_size = Palette.COLUMN_MODULES_MIN
-	v.add_theme_constant_override("separation", 8)
+	v.add_theme_constant_override("separation", 5)
 
 	channel_tabs_container = HBoxContainer.new()
-	channel_tabs_container.add_theme_constant_override("separation", 5)
+	channel_tabs_container.add_theme_constant_override("separation", 3)
 	v.add_child(channel_tabs_container)
 
 	channel_tab_buttons.clear()
@@ -392,8 +404,8 @@ func _build_modules_column() -> Control:
 
 	modules_container = GridContainer.new()
 	modules_container.columns = 2
-	modules_container.add_theme_constant_override("h_separation", 8)
-	modules_container.add_theme_constant_override("v_separation", 5)
+	modules_container.add_theme_constant_override("h_separation", 6)
+	modules_container.add_theme_constant_override("v_separation", 4)
 	modules_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	modules_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(modules_container)
@@ -404,25 +416,31 @@ func _build_modules_column() -> Control:
 	for k in MODULE_ORDER:
 		modules_container.add_child(_make_module_panel(by_key[k]))
 
-	# Column count follows the viewport, not the grid's own width — keying
-	# off the grid would feed its new minimum width back into the layout
-	# that produced it, and the two could oscillate.
-	_host.get_viewport().size_changed.connect(_apply_module_columns)
-	_apply_module_columns()
-
 	return v
 
 
-# Wide viewports get three columns of modules (four rows), which on a
-# short or ultrawide display is the difference between the ACTIONS panel
-# sitting above the fold or below it. Narrow viewports get two.
-func _apply_module_columns() -> void:
-	if modules_container == null or not is_instance_valid(modules_container):
-		return
+# Both breakpoints follow the viewport, not the containers' own widths —
+# keying off a container would feed its new minimum size back into the
+# layout that produced it, and the two could oscillate.
+#
+# Wide viewports get three columns of modules (four rows instead of six)
+# and a horizontal controls row. On a short, wide display that pair is
+# the difference between the whole app sitting above the fold or not.
+func _apply_layout_breakpoints() -> void:
 	var width: float = _host.get_viewport_rect().size.x
-	var cols: int = 3 if width >= MODULE_3COL_MIN_WIDTH else 2
-	if modules_container.columns != cols:
-		modules_container.columns = cols
+
+	if modules_container != null and is_instance_valid(modules_container):
+		var cols: int = 3 if width >= Palette.BP_MODULES_3COL else 2
+		if modules_container.columns != cols:
+			modules_container.columns = cols
+
+	if controls_box != null and is_instance_valid(controls_box):
+		var stacked: bool = width < Palette.BP_CONTROLS_FLAT
+		if controls_box.vertical != stacked:
+			controls_box.vertical = stacked
+			# A row of three panels needs a bigger share of the body than
+			# the same three stacked in a column.
+			controls_box.size_flags_stretch_ratio = 2.0 if stacked else 5.0
 
 
 func _make_module_panel(mod: Dictionary) -> Control:
@@ -437,8 +455,8 @@ func _make_module_panel(mod: Dictionary) -> Control:
 
 	# Header row
 	var header := HBoxContainer.new()
-	header.add_theme_constant_override("separation", 8)
-	v.add_child(UIFactory.wrap_padded(header, 8, 8, 4, 4))
+	header.add_theme_constant_override("separation", 6)
+	v.add_child(UIFactory.wrap_padded(header, 6, 6, 2, 2))
 
 	v.add_child(UIFactory.make_hairline())
 
@@ -466,9 +484,9 @@ func _make_module_panel(mod: Dictionary) -> Control:
 
 	# Body: horizontal row of knob boxes — one per param.
 	var body := HBoxContainer.new()
-	body.add_theme_constant_override("separation", 4)
+	body.add_theme_constant_override("separation", 3)
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.add_child(UIFactory.wrap_padded(body, 6, 6, 4, 5))
+	v.add_child(UIFactory.wrap_padded(body, 4, 4, 2, 3))
 
 	for pk in mod.params:
 		var box_dict: Dictionary = UIFactory.make_knob_box(pk)
@@ -486,23 +504,30 @@ func _make_module_panel(mod: Dictionary) -> Control:
 
 
 # ── Controls column ────────────────────────────────────────────────
-# Master + presets + actions + sound-string stack. Sized to fit the
-# tallest realistic content (4 channels in MIX, 5-row preset tab) at the
-# default 1280×900 viewport. No internal scroll — the project's window
-# min-size guards against squish.
+# Master + presets + actions. A plain BoxContainer rather than a
+# VBoxContainer so _apply_layout_breakpoints can flip `vertical` and turn
+# the stack into a row on wide viewports — no reparenting, no rebuild.
+# Stacked, these three are ~600 pt tall; in a row they are ~215, which is
+# what gets them above the fold on a short display.
 func _build_controls_column() -> Control:
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 6)
-	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.size_flags_stretch_ratio = 2.0
-	v.custom_minimum_size = Palette.COLUMN_CONTROLS_MIN
+	controls_box = BoxContainer.new()
+	controls_box.vertical = true
+	controls_box.add_theme_constant_override("separation", 5)
+	controls_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	controls_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	controls_box.size_flags_stretch_ratio = 2.0
+	controls_box.custom_minimum_size = Palette.COLUMN_CONTROLS_MIN
 
-	v.add_child(_build_master_panel())
-	v.add_child(_build_presets_panel())
-	v.add_child(_build_actions_panel())
+	# Width shares for the flat row. MASTER carries four mix sliders and
+	# PRESETS a six-column grid, so neither survives an equal split.
+	for panel_ratio in [[_build_master_panel(), 1.5], [_build_presets_panel(), 2.0],
+			[_build_actions_panel(), 1.0]]:
+		var panel: Control = panel_ratio[0]
+		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		panel.size_flags_stretch_ratio = panel_ratio[1]
+		controls_box.add_child(panel)
 
-	return v
+	return controls_box
 
 
 # ── Bin column ─────────────────────────────────────────────────────
@@ -511,7 +536,7 @@ func _build_controls_column() -> Control:
 # the controls column is currently displaying.
 func _build_bin_column() -> Control:
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 6)
+	v.add_theme_constant_override("separation", 5)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.size_flags_stretch_ratio = 1.5
@@ -530,10 +555,10 @@ func _build_master_panel() -> Control:
 	var panel := UIFactory.make_section_panel("MASTER")
 	var body: VBoxContainer = panel.get_meta("body")
 
-	body.add_child(UIFactory.make_label("MIX", 9, Palette.TEXT_DIM, 0.3))
+	body.add_child(UIFactory.make_label("MIX", Palette.FONT_TINY, Palette.TEXT_DIM, 0.3))
 
 	mix_container = VBoxContainer.new()
-	mix_container.add_theme_constant_override("separation", 5)
+	mix_container.add_theme_constant_override("separation", 3)
 	body.add_child(mix_container)
 
 	mix_rows.clear()
@@ -542,8 +567,8 @@ func _build_master_panel() -> Control:
 		mix_container.add_child(row_data.container)
 		mix_rows.append(row_data)
 
-	body.add_child(UIFactory.wrap_padded(UIFactory.make_hairline(), 0, 0, 6, 0))
-	body.add_child(UIFactory.make_label("OUTPUT", 9, Palette.TEXT_DIM, 0.3))
+	body.add_child(UIFactory.wrap_padded(UIFactory.make_hairline(), 0, 0, 4, 0))
+	body.add_child(UIFactory.make_label("OUTPUT", Palette.FONT_TINY, Palette.TEXT_DIM, 0.3))
 
 	# Output knobs in one horizontal row.
 	var row := HBoxContainer.new()
@@ -582,7 +607,7 @@ func _build_presets_panel() -> Control:
 	var panel := UIFactory.make_section_panel("PRESETS")
 	var body: VBoxContainer = panel.get_meta("body")
 	preset_buttons_root = VBoxContainer.new()
-	preset_buttons_root.add_theme_constant_override("separation", 5)
+	preset_buttons_root.add_theme_constant_override("separation", 4)
 	body.add_child(preset_buttons_root)
 	refresh_preset_panel()
 	return panel
@@ -622,7 +647,7 @@ func refresh_preset_panel() -> void:
 
 	# Tab-button row.
 	var tabs := HBoxContainer.new()
-	tabs.add_theme_constant_override("separation", 5)
+	tabs.add_theme_constant_override("separation", 4)
 	tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	preset_buttons_root.add_child(tabs)
 
@@ -659,7 +684,7 @@ func refresh_preset_panel() -> void:
 	for g in groups:
 		var grid := GridContainer.new()
 		grid.columns = PRESET_GRID_COLUMNS
-		grid.add_theme_constant_override("h_separation", 5)
+		grid.add_theme_constant_override("h_separation", 4)
 		grid.add_theme_constant_override("v_separation", PRESET_GRID_V_SEP)
 		grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		grid.custom_minimum_size = Vector2(0, grid_height)
@@ -717,8 +742,8 @@ func _build_actions_panel() -> Control:
 
 	var grid := GridContainer.new()
 	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 8)
-	grid.add_theme_constant_override("v_separation", 8)
+	grid.add_theme_constant_override("h_separation", 5)
+	grid.add_theme_constant_override("v_separation", 5)
 	body.add_child(grid)
 
 	var gen := UIFactory.make_action_button("⚄ GEN", true)
@@ -786,6 +811,7 @@ func _build_variation_row() -> HBoxContainer:
 	variation_seed_input.custom_minimum_size = Palette.VARIATION_SEED_SIZE
 	variation_seed_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	variation_seed_input.tooltip_text = "Next random seed. Auto-increments after each preset/GEN. Type any value to revisit that variant."
+	UIFactory.style_spinbox(variation_seed_input)
 	variation_seed_input.value_changed.connect(_host._on_variation_seed_changed)
 	row.add_child(variation_seed_input)
 
@@ -804,16 +830,13 @@ func _build_sound_string_panel() -> Control:
 
 	sound_string_input = LineEdit.new()
 	sound_string_input.placeholder_text = "sfx7:..."
-	sound_string_input.add_theme_color_override("font_color", Palette.TEXT)
-	sound_string_input.add_theme_color_override("font_placeholder_color", Palette.TEXT_DIM)
-	sound_string_input.add_theme_font_size_override("font_size", Palette.FONT_VALUE)
 	UIFactory.apply_lineedit_style(sound_string_input)
 	body.add_child(sound_string_input)
 
 	var grid := GridContainer.new()
 	grid.columns = 3
-	grid.add_theme_constant_override("h_separation", 6)
-	grid.add_theme_constant_override("v_separation", 6)
+	grid.add_theme_constant_override("h_separation", 5)
+	grid.add_theme_constant_override("v_separation", 5)
 	body.add_child(grid)
 
 	var copy_btn := UIFactory.make_action_button("⧉ COPY")
@@ -844,9 +867,6 @@ func _build_bin_panel() -> Control:
 	# list live as the user types — no Enter required.
 	bin_search_input = LineEdit.new()
 	bin_search_input.placeholder_text = "search…"
-	bin_search_input.add_theme_color_override("font_color", Palette.TEXT)
-	bin_search_input.add_theme_color_override("font_placeholder_color", Palette.TEXT_DIM)
-	bin_search_input.add_theme_font_size_override("font_size", Palette.FONT_VALUE)
 	bin_search_input.clear_button_enabled = true
 	UIFactory.apply_lineedit_style(bin_search_input)
 	bin_search_input.text_changed.connect(_on_bin_search_changed)
@@ -879,7 +899,7 @@ func _on_bin_search_changed(text: String) -> void:
 func _build_footer() -> Control:
 	var foot := UIFactory.make_label(
 		"HONE v%s · PMGRNTS · UP TO 4 CHANNELS · LOCK PARAMS TO HOLD THROUGH GEN · ? FOR SHORTCUTS" % Palette.APP_VERSION,
-		10, Palette.TEXT_DIM, 0.3
+		Palette.FONT_TINY, Palette.TEXT_DIM, 0.3
 	)
 	foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	foot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1070,10 +1090,10 @@ func refresh_bin_list() -> void:
 	bin_count_label.text = "BIN [%d]" % _state.bin.size()
 
 	if _state.bin.is_empty():
-		var empty := UIFactory.make_label("EMPTY · SAVE A SOUND", 11, Palette.TEXT_DIM, 0.3)
+		var empty := UIFactory.make_label("EMPTY · SAVE A SOUND", Palette.FONT_SMALL, Palette.TEXT_DIM, 0.3)
 		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		empty.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		bin_container.add_child(UIFactory.wrap_padded(empty, 0, 0, 24, 24))
+		bin_container.add_child(UIFactory.wrap_padded(empty, 0, 0, 16, 16))
 		return
 
 	# Apply the search filter. Substring match on lowercased name; empty
@@ -1083,10 +1103,10 @@ func refresh_bin_list() -> void:
 		visible = _state.bin.filter(func(e): return String(e.get("name", "")).to_lower().contains(bin_search_query))
 
 	if visible.is_empty():
-		var miss := UIFactory.make_label("NO MATCH · CLEAR SEARCH", 11, Palette.TEXT_DIM, 0.3)
+		var miss := UIFactory.make_label("NO MATCH · CLEAR SEARCH", Palette.FONT_SMALL, Palette.TEXT_DIM, 0.3)
 		miss.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		miss.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		bin_container.add_child(UIFactory.wrap_padded(miss, 0, 0, 24, 24))
+		bin_container.add_child(UIFactory.wrap_padded(miss, 0, 0, 16, 16))
 		return
 
 	for entry in visible:
@@ -1133,12 +1153,74 @@ func ensure_save_preset_dialog() -> void:
 	v.add_child(UIFactory.make_label("Name:", Palette.FONT_VALUE, Palette.TEXT))
 	_save_preset_name_input = LineEdit.new()
 	_save_preset_name_input.placeholder_text = "MY_LASER"
-	_save_preset_name_input.add_theme_color_override("font_color", Palette.TEXT)
-	_save_preset_name_input.add_theme_font_size_override("font_size", Palette.FONT_VALUE)
 	UIFactory.apply_lineedit_style(_save_preset_name_input)
 	v.add_child(_save_preset_name_input)
 
-	_host.add_child(_save_preset_dialog)
+	_adopt_dialog(_save_preset_dialog)
+
+
+# ── Batch-export dialog (lazy) ─────────────────────────────────────
+
+func ensure_batch_dialog() -> void:
+	if _batch_dialog != null:
+		return
+	_batch_dialog = ConfirmationDialog.new()
+	_batch_dialog.title = "Batch Export"
+	_batch_dialog.size = Palette.BATCH_DIALOG_SIZE
+	_batch_dialog.confirmed.connect(_host._on_batch_confirmed)
+
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 8)
+	v.custom_minimum_size = Palette.BATCH_DIALOG_BODY_MIN
+	_batch_dialog.add_child(v)
+
+	var count_row := HBoxContainer.new()
+	count_row.add_theme_constant_override("separation", 8)
+	count_row.add_child(UIFactory.make_label("Count:", Palette.FONT_VALUE, Palette.TEXT))
+	_batch_count_spin = SpinBox.new()
+	_batch_count_spin.min_value = 1
+	_batch_count_spin.max_value = 100
+	_batch_count_spin.value = 10
+	_batch_count_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UIFactory.style_spinbox(_batch_count_spin)
+	count_row.add_child(_batch_count_spin)
+	v.add_child(count_row)
+
+	var mode_row := HBoxContainer.new()
+	mode_row.add_theme_constant_override("separation", 8)
+	mode_row.add_child(UIFactory.make_label("Mode:", Palette.FONT_VALUE, Palette.TEXT))
+	_batch_mode_btn = Button.new()
+	_batch_mode_btn.text = "GENERATE"
+	_batch_mode_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_batch_mode_btn.pressed.connect(_on_batch_mode_toggled)
+	mode_row.add_child(_batch_mode_btn)
+	v.add_child(mode_row)
+
+	_adopt_dialog(_batch_dialog)
+
+
+func _on_batch_mode_toggled() -> void:
+	_batch_mutate = not _batch_mutate
+	_batch_mode_btn.text = "MUTATE" if _batch_mutate else "GENERATE"
+
+
+func open_batch_dialog() -> void:
+	ensure_batch_dialog()
+	_batch_dialog.popup_centered()
+
+
+func read_batch_count() -> int:
+	return int(_batch_count_spin.value) if _batch_count_spin != null else 0
+
+
+func read_batch_mutate() -> bool:
+	return _batch_mutate
+
+
+# Parent a dialog to _host and register it for teardown.
+func _adopt_dialog(dialog: Window) -> void:
+	_owned_dialogs.append(dialog)
+	_host.add_child(dialog)
 
 
 func open_save_preset_dialog(default_name: String) -> void:
