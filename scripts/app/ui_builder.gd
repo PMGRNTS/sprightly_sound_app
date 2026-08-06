@@ -14,16 +14,20 @@ extends RefCounted
 # State mutations: never happen here — main.gd handlers mutate state and
 # then call the appropriate refresh_*.
 
-# Module pairing for the 2-column grid. Five rows × two cols puts every
-# module on one screen at 1280×900 with no scrolling.
-const MODULE_ROW_PAIRS := [
-	["source",   "amp"],
-	["filter",   "pitchEnv"],
-	["vibrato",  "tremolo"],
-	["arpeggio", "delay"],
-	["drive",    "crush"],
-	["flanger", "chord"],
+# Display order for the module grid. The grid's column count is chosen at
+# runtime from the viewport width (see _apply_module_columns), so this is
+# a flat list rather than fixed rows — it reads row-major at 2 or 3 wide.
+const MODULE_ORDER := [
+	"source", "amp", "filter",
+	"pitchEnv", "vibrato", "tremolo",
+	"arpeggio", "delay", "drive",
+	"crush", "flanger", "chord",
 ]
+
+# Widest module panel is FILTER at six knob boxes (~404 pt). Three columns
+# of modules plus the controls and bin columns need ~1920 pt of viewport;
+# below that we fall back to two columns and a taller grid.
+const MODULE_3COL_MIN_WIDTH := 1920.0
 
 # Preset-tab consolidation: ten registry groups bin into five display
 # groups so the panel shows fewer tabs. Done at the UI layer because
@@ -42,6 +46,9 @@ const PRESET_DISPLAY_GROUPS := {
 	"MOVEMENT": "WORLD",
 	"AMBIENT":  "WORLD",
 }
+
+const PRESET_GRID_COLUMNS := 6
+const PRESET_GRID_V_SEP := 5
 
 
 var _state: SoundState
@@ -139,10 +146,24 @@ func build_ui() -> void:
 	root_v.add_child(_build_header())
 	root_v.add_child(_build_waveform())
 
+	# The body scrolls rather than clipping. When it fits — the normal
+	# case — both scrollbars stay hidden and the ScrollContainer stretches
+	# the body to full size (Godot expands a SIZE_FILL child on any axis
+	# whose scrollbar isn't showing), so the layout is pixel-identical to
+	# having no scroll container at all. When the window is genuinely too
+	# small, the content stays reachable instead of vanishing off-edge.
+	var body_scroll := ScrollContainer.new()
+	body_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	body_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	body_scroll.custom_minimum_size = Palette.BODY_SCROLL_MIN
+	root_v.add_child(body_scroll)
+
 	var body := HBoxContainer.new()
 	body.add_theme_constant_override("separation", 18)
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	root_v.add_child(body)
+	body_scroll.add_child(body)
 
 	body.add_child(_build_modules_column())
 	body.add_child(_build_controls_column())
@@ -264,7 +285,7 @@ func _on_help_button_pressed() -> void:
 
 func _on_resolution_button_pressed() -> void:
 	var popup := PopupMenu.new()
-	var win_size: Vector2i = _host.get_window().size
+	var win_size: Vector2i = _host.to_points(_host.get_window().size)
 	for i in Palette.RESOLUTION_PRESETS.size():
 		var entry: Dictionary = Palette.RESOLUTION_PRESETS[i]
 		popup.add_radio_check_item(String(entry.label), i)
@@ -284,7 +305,7 @@ func _on_resolution_button_pressed() -> void:
 func _current_resolution_label() -> String:
 	var win_size: Vector2i = Vector2i.ZERO
 	if _host != null and _host.is_inside_tree():
-		win_size = _host.get_window().size
+		win_size = _host.to_points(_host.get_window().size)
 	for entry in Palette.RESOLUTION_PRESETS:
 		if entry.size == win_size:
 			return String(entry.label)
@@ -304,6 +325,11 @@ func teardown() -> void:
 	# token stale so the lambda no-ops instead of touching status_label
 	# (which we're about to free below).
 	_status_token += 1
+	# Drop the viewport subscription too, or every theme switch leaves
+	# another dead UIBuilder connected to size_changed.
+	var vp := _host.get_viewport()
+	if vp != null and vp.size_changed.is_connected(_apply_module_columns):
+		vp.size_changed.disconnect(_apply_module_columns)
 	if _ui_root != null and is_instance_valid(_ui_root):
 		_host.remove_child(_ui_root)
 		_ui_root.queue_free()
@@ -364,8 +390,6 @@ func _build_modules_column() -> Control:
 	channel_add_button.pressed.connect(_host._on_add_channel_pressed)
 	channel_tabs_container.add_child(channel_add_button)
 
-	# 2-column grid replaces the prior ScrollContainer + VBox. Five rows of
-	# paired modules fit the viewport at default resolution.
 	modules_container = GridContainer.new()
 	modules_container.columns = 2
 	modules_container.add_theme_constant_override("h_separation", 8)
@@ -377,11 +401,28 @@ func _build_modules_column() -> Control:
 	var by_key: Dictionary = {}
 	for mod in SoundData.MODULES:
 		by_key[mod.key] = mod
-	for pair in MODULE_ROW_PAIRS:
-		for k in pair:
-			modules_container.add_child(_make_module_panel(by_key[k]))
+	for k in MODULE_ORDER:
+		modules_container.add_child(_make_module_panel(by_key[k]))
+
+	# Column count follows the viewport, not the grid's own width — keying
+	# off the grid would feed its new minimum width back into the layout
+	# that produced it, and the two could oscillate.
+	_host.get_viewport().size_changed.connect(_apply_module_columns)
+	_apply_module_columns()
 
 	return v
+
+
+# Wide viewports get three columns of modules (four rows), which on a
+# short or ultrawide display is the difference between the ACTIONS panel
+# sitting above the fold or below it. Narrow viewports get two.
+func _apply_module_columns() -> void:
+	if modules_container == null or not is_instance_valid(modules_container):
+		return
+	var width: float = _host.get_viewport_rect().size.x
+	var cols: int = 3 if width >= MODULE_3COL_MIN_WIDTH else 2
+	if modules_container.columns != cols:
+		modules_container.columns = cols
 
 
 func _make_module_panel(mod: Dictionary) -> Control:
@@ -592,16 +633,13 @@ func refresh_preset_panel() -> void:
 		tabs.add_child(tab_btn)
 		preset_tab_buttons[g] = tab_btn
 
-	# One grid per group; only the active group's grid is visible.
+	# Bucket the entries first so we can size every grid to the TALLEST
+	# group. Groups differ by several rows (ARCADE has 25 entries, UI has
+	# 11), and without a common height the whole column — and everything
+	# below it — jumped by ~100 px on each tab click.
+	var entries_by_group: Dictionary = {}
+	var max_rows: int = 0
 	for g in groups:
-		var grid := GridContainer.new()
-		grid.columns = 6
-		grid.add_theme_constant_override("h_separation", 5)
-		grid.add_theme_constant_override("v_separation", 5)
-		grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		preset_buttons_root.add_child(grid)
-		preset_grids[g] = grid
-
 		var entries: Array
 		if g == "USER":
 			entries = user_entries
@@ -610,8 +648,25 @@ func refresh_preset_panel() -> void:
 			for entry in Presets.REGISTRY:
 				if String(PRESET_DISPLAY_GROUPS.get(entry.group, entry.group)) == g:
 					entries.append(entry)
+		entries_by_group[g] = entries
+		max_rows = maxi(max_rows, ceili(float(entries.size()) / float(PRESET_GRID_COLUMNS)))
 
-		for entry in entries:
+	var grid_height: float = 0.0
+	if max_rows > 0:
+		grid_height = max_rows * Palette.ACTION_BTN_H + (max_rows - 1) * PRESET_GRID_V_SEP
+
+	# One grid per group; only the active group's grid is visible.
+	for g in groups:
+		var grid := GridContainer.new()
+		grid.columns = PRESET_GRID_COLUMNS
+		grid.add_theme_constant_override("h_separation", 5)
+		grid.add_theme_constant_override("v_separation", PRESET_GRID_V_SEP)
+		grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		grid.custom_minimum_size = Vector2(0, grid_height)
+		preset_buttons_root.add_child(grid)
+		preset_grids[g] = grid
+
+		for entry in entries_by_group[g]:
 			var btn := UIFactory.make_action_button(entry.name)
 			btn.pressed.connect(_host._on_preset_pressed.bind(entry))
 			grid.add_child(btn)
@@ -797,10 +852,21 @@ func _build_bin_panel() -> Control:
 	bin_search_input.text_changed.connect(_on_bin_search_changed)
 	body.add_child(bin_search_input)
 
+	# The bin holds up to BIN_MAX entries at ~39 px each — far more than
+	# any column can show. Scrolling it keeps the entry count from
+	# feeding back into the layout's height.
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.custom_minimum_size = Palette.BIN_LIST_MIN
+	body.add_child(scroll)
+
 	bin_container = VBoxContainer.new()
 	bin_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bin_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	body.add_child(bin_container)
+	scroll.add_child(bin_container)
 
 	return panel
 

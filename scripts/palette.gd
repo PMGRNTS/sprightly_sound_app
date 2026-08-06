@@ -247,14 +247,23 @@ const CHANNEL_TAB_SIZE    := Vector2(64, 30)
 const CHANNEL_ADD_SIZE    := Vector2(44, 30)
 const MIX_LABEL_SIZE      := Vector2(44, 24)
 const MINI_BTN_SIZE       := Vector2(24, 24)          # mute / solo / delete / bin-row icons
+const ACTION_BTN_H        := 28                       # GEN / PLAY / preset / tab buttons
+const BODY_SCROLL_MIN     := Vector2(0, 200)          # floor for the scrollable 3-column body
+const BIN_LIST_MIN        := Vector2(0, 120)          # floor for the scrollable bin list
 const SAVE_DIALOG_SIZE    := Vector2i(720, 520)
 const PRESET_NAME_DIALOG_SIZE := Vector2i(420, 140)
 const PRESET_NAME_BODY_MIN := Vector2(380, 0)
 const THEME_BTN_SIZE      := Vector2(30, 30)          # ◐ picker button in header
 const RESOLUTION_BTN_SIZE := Vector2(60, 30)
 
+# Window sizes in POINTS (main.gd converts to pixels via ui_scale).
+# The layout is authored at DESIGN_SIZE; MIN_WINDOW_SIZE is the floor
+# below which the body starts scrolling instead of shrinking.
+const DESIGN_SIZE      := Vector2i(1520, 900)
+const MIN_WINDOW_SIZE  := Vector2i(960, 620)
+
+# Nothing below MIN_WINDOW_SIZE — min_size would silently override it.
 const RESOLUTION_PRESETS: Array[Dictionary] = [
-	{"label": "540p",  "size": Vector2i(960, 540)},
 	{"label": "720p",  "size": Vector2i(1280, 720)},
 	{"label": "900p",  "size": Vector2i(1600, 900)},
 	{"label": "1080p", "size": Vector2i(1920, 1080)},

@@ -35,16 +35,18 @@ var batch_thread: Thread
 # by _request_re_render(); cancelled by any direct _re_render() call.
 var render_timer: Timer
 
+# ── Window scaling ─────────────────────────────────────────────────
+# Physical pixels per layout point on the current screen (2.0 on a Retina
+# display, 1.0 on a conventional one). Sizes in Palette are points; the
+# Window API is always pixels, so anything crossing that boundary gets
+# multiplied by this.
+var ui_scale: float = 1.0
+
 
 # ── Lifecycle ──────────────────────────────────────────────────────
 
 func _ready() -> void:
-	# Window can scale down to roughly half the design size and still
-	# stay legible. Below the design size (1280×900) the project's
-	# canvas_items stretch mode scales the entire UI proportionally
-	# rather than clipping content; above it, columns flex via stretch
-	# ratios. The min keeps fonts/knobs from shrinking below readable.
-	get_window().min_size = Vector2i(720, 540)
+	_configure_window_scaling()
 
 	# Apply saved theme BEFORE build_ui so initial styling matches the
 	# user's last choice. Empty string = no saved choice → keep default.
@@ -60,6 +62,11 @@ func _ready() -> void:
 			get_window().position = saved_pos
 		else:
 			get_window().position = (DisplayServer.screen_get_size() - saved_res) / 2
+	else:
+		# First run: open at the design size.
+		var first: Vector2i = to_pixels(Palette.DESIGN_SIZE)
+		get_window().size = first
+		get_window().position = (DisplayServer.screen_get_size() - first) / 2
 
 	state = SoundState.new()
 	ui = UIBuilder.new(self, state)
@@ -129,6 +136,59 @@ func _ready() -> void:
 	ui.refresh_module_values()
 	ui.refresh_master_values()
 	ui.refresh_bin_list()
+
+
+# ── Window scaling ─────────────────────────────────────────────────
+# The UI is laid out in points. On a HiDPI screen the OS measures the
+# window in physical pixels — a 2560×1440-point window reports as
+# 5120×2880 — so we drive the canvas_items stretch base from
+# window_size / ui_scale. One layout point then equals one OS point at
+# any DPI: text stays crisp and correctly sized, and a bigger window
+# buys more ROOM rather than bigger widgets.
+#
+# The previous setup pinned the stretch base at a fixed 1920×1080, so the
+# logical viewport was always exactly 1080 points tall no matter how large
+# the window got. Enlarging the window only magnified the UI, and content
+# growth spilled past the bottom edge with no way to reach it.
+func _configure_window_scaling() -> void:
+	var win := get_window()
+	ui_scale = _detect_ui_scale()
+	win.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
+	win.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+	win.min_size = to_pixels(Palette.MIN_WINDOW_SIZE)
+	win.size_changed.connect(_sync_content_scale)
+	_sync_content_scale()
+
+
+func _sync_content_scale() -> void:
+	var win := get_window()
+	# Base == window size in points ⇒ the stretch factor is exactly
+	# ui_scale on both axes, with no aspect-driven letterboxing.
+	win.content_scale_size = Vector2i(Vector2(win.size) / ui_scale)
+	# Dragging the window edge changes the size too, not just the picker.
+	if ui != null:
+		ui.update_resolution_label()
+
+
+# Physical pixels per point for the window's current screen.
+# screen_get_scale() is exact on macOS; on platforms where it always
+# reports 1.0 we derive the factor from the reported DPI instead.
+func _detect_ui_scale() -> float:
+	var screen: int = DisplayServer.window_get_current_screen()
+	var s: float = DisplayServer.screen_get_scale(screen)
+	if s <= 1.0:
+		var dpi: int = DisplayServer.screen_get_dpi(screen)
+		if dpi > 0:
+			s = float(dpi) / 96.0
+	return clampf(snappedf(s, 0.25), 1.0, 3.0)
+
+
+func to_pixels(points: Vector2i) -> Vector2i:
+	return Vector2i(Vector2(points) * ui_scale)
+
+
+func to_points(pixels: Vector2i) -> Vector2i:
+	return Vector2i(Vector2(pixels) / ui_scale)
 
 
 # ── Render orchestration ───────────────────────────────────────────
@@ -596,9 +656,9 @@ func _on_save_preset_confirmed() -> void:
 	if name.is_empty():
 		ui.flash_status("EMPTY NAME")
 		return
-	Persistence.add_user_preset(name, state.sound_string)
+	var ok: bool = Persistence.add_user_preset(name, state.sound_string)
 	ui.refresh_preset_panel()
-	ui.flash_status("SAVED ★")
+	ui.flash_status("SAVED ★" if ok else "SAVE FAILED")
 
 
 # ── Bin handlers ───────────────────────────────────────────────────
@@ -660,10 +720,12 @@ func _on_theme_changed(theme_name: String) -> void:
 
 # ── Resolution handler ─────────────────────────────────────────────
 
+# `sz` arrives in points; the Window API wants pixels.
 func _on_resolution_changed(sz: Vector2i) -> void:
-	get_window().size = sz
-	get_window().position = (DisplayServer.screen_get_size() - sz) / 2
-	Persistence.save_resolution(sz, get_window().position)
+	var px: Vector2i = to_pixels(sz)
+	get_window().size = px
+	get_window().position = (DisplayServer.screen_get_size() - px) / 2
+	Persistence.save_resolution(get_window().size, get_window().position)
 	ui.update_resolution_label()
 
 

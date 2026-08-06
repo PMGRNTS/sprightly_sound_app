@@ -152,7 +152,7 @@ static func make_action_button(text: String, primary: bool = false) -> Button:
 	b.add_theme_color_override("font_hover_color", Palette.BG)
 	b.add_theme_color_override("font_pressed_color", Palette.BG)
 	b.add_theme_font_size_override("font_size", Palette.FONT_VALUE)
-	b.custom_minimum_size = Vector2(0, 28)
+	b.custom_minimum_size = Vector2(0, Palette.ACTION_BTN_H)
 
 	var normal := make_stylebox(Color("#261f17") if primary else Color(0, 0, 0, 0), Palette.BORDER_HI)
 	var hover := make_stylebox(Palette.ACCENT, Palette.ACCENT)

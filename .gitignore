@@ -1,0 +1,15 @@
+# Godot editor cache / imported assets — regenerated on open.
+.godot/
+
+# macOS
+.DS_Store
+
+# Build outputs
+*.dmg
+*.exe
+*.x86_64
+*.zip
+build/
+
+# NOTE: *.import files are deliberately NOT ignored. Godot needs them to
+# resolve imported assets on a fresh clone.
