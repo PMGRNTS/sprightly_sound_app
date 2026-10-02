@@ -1,0 +1,17 @@
+{
+  "name": "Hone — Sound Effect Synth",
+  "short_name": "Hone",
+  "description": "Multi-channel sound effect synthesizer with ADSR envelopes, filters, drive, delay, crush, reverb, flanger, chord stacking, and 90+ presets.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1a1814",
+  "theme_color": "#1a1814",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

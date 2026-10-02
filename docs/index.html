@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en" data-theme="Charcoal">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Hone — multi-channel sound effect synthesizer with 90+ presets. Runs in the browser and installs to the iPhone Home Screen.">
+  <meta name="theme-color" content="#1a1814">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Hone">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="style.css">
+  <title>Hone</title>
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <div id="app">
+    <header class="top">
+      <div class="bar">
+        <div class="brand">
+          <span class="sub" id="version">// PMGRNTS</span>
+          <h1>HONE</h1>
+        </div>
+        <output class="status" id="status" aria-live="polite">READY</output>
+        <div class="bar-btns">
+          <button type="button" class="icon-btn" id="undo" aria-label="Undo" disabled>↶</button>
+          <button type="button" class="icon-btn" id="redo" aria-label="Redo" disabled>↷</button>
+          <button type="button" class="icon-btn" id="theme-btn" aria-label="Theme"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 1.8a6.2 6.2 0 0 1 0 12.4z" fill="currentColor"/></svg></button>
+          <button type="button" class="icon-btn" id="help-btn" aria-label="Help">?</button>
+        </div>
+      </div>
+      <div class="wave" id="wave" role="button" aria-label="Play sound" tabindex="-1">
+        <canvas></canvas>
+        <span class="wave-info left" id="wave-left"></span>
+        <span class="wave-info right" id="wave-right"></span>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="pane pane-synth" data-pane="synth" aria-label="Synth">
+        <div class="channel-tabs" id="channel-tabs" role="tablist" aria-label="Channels"></div>
+        <div class="modules" id="modules"></div>
+      </section>
+
+      <section class="pane pane-presets" data-pane="presets" aria-label="Presets">
+        <div class="panel">
+          <h2 class="panel-title">PRESETS</h2>
+          <div class="seed-row">
+            <label for="seed" class="cap">VAR</label>
+            <input type="number" id="seed" class="field" min="0" max="9999" value="0" inputmode="numeric"
+                   title="Next random seed. Auto-increments after each preset / GEN. Type an earlier value to revisit that take.">
+            <button type="button" class="btn" id="reroll" aria-label="Random seed">↻</button>
+            <button type="button" class="btn" id="save-preset">★ SAVE</button>
+          </div>
+          <div class="chips" id="preset-groups" role="tablist" aria-label="Preset groups"></div>
+          <div class="preset-grid" id="preset-grid"></div>
+        </div>
+      </section>
+
+      <section class="pane pane-mix" data-pane="mix" aria-label="Mix">
+        <div class="panel">
+          <h2 class="panel-title">MASTER</h2>
+          <p class="cap">MIX</p>
+          <div class="mix-rows" id="mix-rows"></div>
+          <hr>
+          <p class="cap">OUTPUT</p>
+          <div class="kgrid master-knobs" id="master-knobs"></div>
+        </div>
+      </section>
+
+      <section class="pane pane-files" data-pane="files" aria-label="Files">
+        <div class="panel">
+          <h2 class="panel-title">EXPORT</h2>
+          <button type="button" class="btn primary wide big" id="export-wav">↓ SAVE WAV</button>
+          <div class="btn-row">
+            <button type="button" class="btn" id="export-rate" title="Export sample rate">44.1kHz</button>
+            <button type="button" class="btn" id="export-bits" title="Export bit depth">16BIT</button>
+            <button type="button" class="btn" id="export-norm" title="Normalize to 0 dBFS">NORM OFF</button>
+          </div>
+          <button type="button" class="btn wide" id="batch">⚄ BATCH EXPORT…</button>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">BIN <span id="bin-count">[0]</span></h2>
+            <button type="button" class="btn" id="bin-save">+ SAVE</button>
+          </div>
+          <input type="search" id="bin-search" class="field" placeholder="search…" autocomplete="off" aria-label="Search bin">
+          <div class="bin-list" id="bin-list"></div>
+        </div>
+
+        <div class="panel">
+          <h2 class="panel-title">SOUND STRING</h2>
+          <textarea id="sound-string" class="field mono" rows="3" spellcheck="false" autocomplete="off"
+                    autocapitalize="off" placeholder="sfx7:…" aria-label="Sound string"></textarea>
+          <div class="btn-row four">
+            <button type="button" class="btn" id="copy">⧉ COPY</button>
+            <button type="button" class="btn" id="paste">⏎ PASTE</button>
+            <button type="button" class="btn" id="load">LOAD</button>
+            <button type="button" class="btn" id="share-link">⇪ LINK</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <nav class="dock" aria-label="Transport and sections">
+      <div class="transport">
+        <button type="button" class="btn primary play" id="play">▶ PLAY</button>
+        <button type="button" class="btn" id="gen">⚄ GEN</button>
+        <button type="button" class="btn" id="mutate">↝ MUTATE</button>
+        <button type="button" class="btn auto" id="autoplay" title="Play automatically after each change" aria-label="Auto-play">AUTO</button>
+      </div>
+      <div class="tabbar" role="tablist">
+        <button type="button" role="tab" data-tab="synth"><span aria-hidden="true">◎</span>SYNTH</button>
+        <button type="button" role="tab" data-tab="presets"><span aria-hidden="true">▦</span>PRESETS</button>
+        <button type="button" role="tab" data-tab="mix"><span aria-hidden="true">≡</span>MIX</button>
+        <button type="button" role="tab" data-tab="files"><span aria-hidden="true">⇩</span>FILES</button>
+      </div>
+    </nav>
+  </div>
+
+  <dialog id="sheet" aria-labelledby="sheet-title">
+    <div class="sheet-inner">
+      <div class="sheet-head">
+        <h2 id="sheet-title" class="panel-title"></h2>
+        <button type="button" class="icon-btn" id="sheet-close" aria-label="Close">×</button>
+      </div>
+      <div id="sheet-body"></div>
+    </div>
+  </dialog>
+</body>
+</html>
