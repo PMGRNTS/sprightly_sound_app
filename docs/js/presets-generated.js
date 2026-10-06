@@ -2,251 +2,444 @@
 // Do not edit by hand — edit the GDScript and re-run the converter.
 /* eslint-disable */
 import {
-  _rand, _rand_int, _pick, _apply_target, _off_with, _ch, ENV_DECAY_ONLY,
-  _pitch_env_decay, _pitch_env_rise, _hp_noise_transient, _lp_noise_tail,
-  _tonal_body, _resonant_sweep, _pitched_transient,
+  _rand, _rand_int, _pick, _apply_target, _off_with,
+  SQR, SAW, TRI, SIN, NSE, PNK, BRN, LP, HP, BP,
+  _layer, _sound, _env, _filt, _drive, _bend, _vib, _trem, _pulses,
+  _at, _arp, _echo, _crush, _flange, _chord,
 } from './presets-helpers.js';
 
 export const REGISTRY = [
   {
-    "name": "GUN",
+    "name": "PISTOL",
     "kind": "sound",
-    "group": "SHOOTER",
-    "fn": "preset_gunshot"
+    "group": "FIREARM",
+    "fn": "preset_pistol"
   },
   {
-    "name": "HVY",
+    "name": "RIFLE",
     "kind": "sound",
-    "group": "SHOOTER",
-    "fn": "preset_heavy_gun"
+    "group": "FIREARM",
+    "fn": "preset_rifle"
   },
   {
-    "name": "BURST",
+    "name": "SHOTGUN",
     "kind": "sound",
-    "group": "SHOOTER",
-    "fn": "preset_burst"
+    "group": "FIREARM",
+    "fn": "preset_shotgun"
   },
   {
-    "name": "DASH",
+    "name": "SNIPER",
     "kind": "sound",
-    "group": "SHOOTER",
-    "fn": "preset_dash"
+    "group": "FIREARM",
+    "fn": "preset_sniper"
   },
   {
-    "name": "CONF",
+    "name": "SMG",
     "kind": "sound",
-    "group": "SHOOTER",
-    "fn": "preset_confirm"
+    "group": "FIREARM",
+    "fn": "preset_smg"
   },
   {
-    "name": "HEAD",
+    "name": "SUPPRESS",
     "kind": "sound",
-    "group": "SHOOTER",
-    "fn": "preset_headshot"
+    "group": "FIREARM",
+    "fn": "preset_suppressed"
   },
   {
-    "name": "SHIELD",
+    "name": "EMPTY",
     "kind": "sound",
-    "group": "SHOOTER",
-    "fn": "preset_shield"
+    "group": "FIREARM",
+    "fn": "preset_empty"
   },
   {
-    "name": "KILL",
+    "name": "RELOAD",
     "kind": "sound",
-    "group": "SHOOTER",
-    "fn": "preset_kill"
+    "group": "FIREARM",
+    "fn": "preset_reload"
   },
   {
-    "name": "CLICK",
+    "name": "CASINGS",
     "kind": "sound",
-    "group": "SHOOTER",
-    "fn": "preset_click"
+    "group": "FIREARM",
+    "fn": "preset_casings"
   },
   {
-    "name": "JUMP",
+    "name": "RICOCHET",
     "kind": "sound",
-    "group": "ARCADE",
-    "fn": "preset_jump"
+    "group": "FIREARM",
+    "fn": "preset_ricochet"
   },
   {
-    "name": "SHOOT",
+    "name": "FLYBY",
     "kind": "sound",
-    "group": "ARCADE",
-    "fn": "preset_shoot"
+    "group": "FIREARM",
+    "fn": "preset_flyby"
   },
   {
-    "name": "HIT",
+    "name": "GRENADE",
     "kind": "sound",
-    "group": "ARCADE",
-    "fn": "preset_hit"
+    "group": "FIREARM",
+    "fn": "preset_grenade"
   },
   {
-    "name": "COIN",
+    "name": "DISTANT",
     "kind": "sound",
-    "group": "ARCADE",
-    "fn": "preset_coin"
+    "group": "FIREARM",
+    "fn": "preset_distant"
   },
   {
-    "name": "EXPLODE",
+    "name": "PIN",
     "kind": "sound",
-    "group": "ARCADE",
-    "fn": "preset_explode"
+    "group": "FIREARM",
+    "fn": "preset_pin_pull"
   },
   {
-    "name": "POWERUP",
+    "name": "SWING",
     "kind": "sound",
-    "group": "ARCADE",
-    "fn": "preset_powerup"
+    "group": "MELEE",
+    "fn": "preset_swing"
   },
   {
-    "name": "BLIP",
-    "kind": "patch",
-    "group": "ARCADE",
-    "fn": "preset_blip"
-  },
-  {
-    "name": "LASER",
+    "name": "SLASH",
     "kind": "sound",
-    "group": "ARCADE",
-    "fn": "preset_laser"
+    "group": "MELEE",
+    "fn": "preset_slash"
   },
   {
-    "name": "ALARM",
-    "kind": "patch",
-    "group": "ARCADE",
-    "fn": "preset_alarm"
-  },
-  {
-    "name": "CHIRP",
-    "kind": "patch",
-    "group": "ARCADE",
-    "fn": "preset_chirp"
-  },
-  {
-    "name": "THUD",
-    "kind": "patch",
-    "group": "ARCADE",
-    "fn": "preset_thud"
-  },
-  {
-    "name": "BOING",
-    "kind": "patch",
-    "group": "ARCADE",
-    "fn": "preset_boing"
-  },
-  {
-    "name": "STEP",
-    "kind": "patch",
-    "group": "ARCADE",
-    "fn": "preset_step"
-  },
-  {
-    "name": "ZAP",
+    "name": "CLASH",
     "kind": "sound",
-    "group": "ARCADE",
-    "fn": "preset_zap"
+    "group": "MELEE",
+    "fn": "preset_clash"
   },
   {
-    "name": "BUBBLE",
-    "kind": "patch",
-    "group": "ARCADE",
-    "fn": "preset_bubble"
-  },
-  {
-    "name": "WHOOSH",
+    "name": "DRAW",
     "kind": "sound",
-    "group": "ARCADE",
-    "fn": "preset_whoosh"
+    "group": "MELEE",
+    "fn": "preset_draw"
   },
   {
-    "name": "WUB",
-    "kind": "patch",
-    "group": "ARCADE",
-    "fn": "preset_wub"
-  },
-  {
-    "name": "GROWL",
+    "name": "PUNCH",
     "kind": "sound",
-    "group": "ARCADE",
-    "fn": "preset_growl"
+    "group": "MELEE",
+    "fn": "preset_punch"
   },
   {
-    "name": "HOVER",
-    "kind": "patch",
-    "group": "UI",
-    "fn": "preset_hover"
+    "name": "BOWSHOT",
+    "kind": "sound",
+    "group": "MELEE",
+    "fn": "preset_bowshot"
   },
   {
-    "name": "PRESS",
-    "kind": "patch",
-    "group": "UI",
-    "fn": "preset_press"
+    "name": "ARROWHIT",
+    "kind": "sound",
+    "group": "MELEE",
+    "fn": "preset_arrow_hit"
   },
   {
-    "name": "TGL-ON",
-    "kind": "patch",
-    "group": "UI",
-    "fn": "preset_toggle_on"
+    "name": "BLOCK",
+    "kind": "sound",
+    "group": "MELEE",
+    "fn": "preset_block"
   },
   {
-    "name": "TGL-OFF",
-    "kind": "patch",
-    "group": "UI",
-    "fn": "preset_toggle_off"
+    "name": "CHOP",
+    "kind": "sound",
+    "group": "MELEE",
+    "fn": "preset_chop"
   },
   {
-    "name": "MENU",
-    "kind": "patch",
-    "group": "UI",
-    "fn": "preset_menu"
+    "name": "WHIP",
+    "kind": "sound",
+    "group": "MELEE",
+    "fn": "preset_whip"
   },
   {
-    "name": "CANCEL",
-    "kind": "patch",
-    "group": "UI",
-    "fn": "preset_cancel"
+    "name": "WOODSTEP",
+    "kind": "sound",
+    "group": "FOLEY",
+    "fn": "preset_step_wood"
   },
   {
-    "name": "ERROR",
-    "kind": "patch",
-    "group": "UI",
-    "fn": "preset_error"
+    "name": "GRAVEL",
+    "kind": "sound",
+    "group": "FOLEY",
+    "fn": "preset_step_gravel"
   },
   {
-    "name": "NOTIFY",
-    "kind": "patch",
-    "group": "UI",
-    "fn": "preset_notify"
+    "name": "GRATE",
+    "kind": "sound",
+    "group": "FOLEY",
+    "fn": "preset_step_grate"
   },
   {
-    "name": "TYPE",
-    "kind": "patch",
-    "group": "UI",
-    "fn": "preset_typing"
+    "name": "SNOW",
+    "kind": "sound",
+    "group": "FOLEY",
+    "fn": "preset_step_snow"
   },
   {
-    "name": "OPEN",
-    "kind": "patch",
-    "group": "UI",
-    "fn": "preset_open"
+    "name": "PUDDLE",
+    "kind": "sound",
+    "group": "FOLEY",
+    "fn": "preset_puddle"
   },
   {
-    "name": "CLOSE",
-    "kind": "patch",
-    "group": "UI",
-    "fn": "preset_close"
+    "name": "CREAK",
+    "kind": "sound",
+    "group": "FOLEY",
+    "fn": "preset_creak"
   },
   {
-    "name": "CAST",
+    "name": "SLAM",
+    "kind": "sound",
+    "group": "FOLEY",
+    "fn": "preset_slam"
+  },
+  {
+    "name": "KNOCK",
+    "kind": "sound",
+    "group": "FOLEY",
+    "fn": "preset_knock"
+  },
+  {
+    "name": "LATCH",
+    "kind": "sound",
+    "group": "FOLEY",
+    "fn": "preset_latch"
+  },
+  {
+    "name": "ZIPPER",
+    "kind": "sound",
+    "group": "FOLEY",
+    "fn": "preset_zipper"
+  },
+  {
+    "name": "CLOTH",
+    "kind": "sound",
+    "group": "FOLEY",
+    "fn": "preset_cloth"
+  },
+  {
+    "name": "PAGE",
+    "kind": "sound",
+    "group": "FOLEY",
+    "fn": "preset_page"
+  },
+  {
+    "name": "KEYS",
+    "kind": "sound",
+    "group": "FOLEY",
+    "fn": "preset_keys"
+  },
+  {
+    "name": "BODYFALL",
+    "kind": "sound",
+    "group": "FOLEY",
+    "fn": "preset_bodyfall"
+  },
+  {
+    "name": "CLINK",
+    "kind": "sound",
+    "group": "FOLEY",
+    "fn": "preset_clink"
+  },
+  {
+    "name": "SMASH",
+    "kind": "sound",
+    "group": "IMPACT",
+    "fn": "preset_smash"
+  },
+  {
+    "name": "SPLINTER",
+    "kind": "sound",
+    "group": "IMPACT",
+    "fn": "preset_splinter"
+  },
+  {
+    "name": "CLANG",
+    "kind": "sound",
+    "group": "IMPACT",
+    "fn": "preset_clang"
+  },
+  {
+    "name": "CRASH",
+    "kind": "sound",
+    "group": "IMPACT",
+    "fn": "preset_crash"
+  },
+  {
+    "name": "RUBBLE",
+    "kind": "sound",
+    "group": "IMPACT",
+    "fn": "preset_rubble"
+  },
+  {
+    "name": "PLATE",
+    "kind": "sound",
+    "group": "IMPACT",
+    "fn": "preset_plate"
+  },
+  {
+    "name": "BOXDROP",
+    "kind": "sound",
+    "group": "IMPACT",
+    "fn": "preset_box_drop"
+  },
+  {
+    "name": "RAIN",
+    "kind": "sound",
+    "group": "WEATHER",
+    "fn": "preset_rain"
+  },
+  {
+    "name": "THUNDER",
+    "kind": "sound",
+    "group": "WEATHER",
+    "fn": "preset_thunder"
+  },
+  {
+    "name": "WIND",
+    "kind": "sound",
+    "group": "WEATHER",
+    "fn": "preset_wind"
+  },
+  {
+    "name": "WAVES",
+    "kind": "sound",
+    "group": "WEATHER",
+    "fn": "preset_waves"
+  },
+  {
+    "name": "STREAM",
+    "kind": "sound",
+    "group": "WEATHER",
+    "fn": "preset_stream"
+  },
+  {
+    "name": "DRIP",
+    "kind": "sound",
+    "group": "WEATHER",
+    "fn": "preset_drip"
+  },
+  {
+    "name": "SPLASH",
+    "kind": "sound",
+    "group": "WEATHER",
+    "fn": "preset_splash"
+  },
+  {
+    "name": "BUBBLES",
+    "kind": "sound",
+    "group": "WEATHER",
+    "fn": "preset_bubbles"
+  },
+  {
+    "name": "CAMPFIRE",
+    "kind": "sound",
+    "group": "WEATHER",
+    "fn": "preset_campfire"
+  },
+  {
+    "name": "IGNITE",
+    "kind": "sound",
+    "group": "WEATHER",
+    "fn": "preset_ignite"
+  },
+  {
+    "name": "RUSTLE",
+    "kind": "sound",
+    "group": "WEATHER",
+    "fn": "preset_rustle"
+  },
+  {
+    "name": "BIRDS",
+    "kind": "sound",
+    "group": "ANIMAL",
+    "fn": "preset_birds"
+  },
+  {
+    "name": "CROW",
+    "kind": "sound",
+    "group": "ANIMAL",
+    "fn": "preset_crow"
+  },
+  {
+    "name": "OWL",
+    "kind": "sound",
+    "group": "ANIMAL",
+    "fn": "preset_owl"
+  },
+  {
+    "name": "CRICKETS",
+    "kind": "sound",
+    "group": "ANIMAL",
+    "fn": "preset_crickets"
+  },
+  {
+    "name": "FROG",
+    "kind": "sound",
+    "group": "ANIMAL",
+    "fn": "preset_frog"
+  },
+  {
+    "name": "BUZZ",
+    "kind": "sound",
+    "group": "ANIMAL",
+    "fn": "preset_buzz"
+  },
+  {
+    "name": "DOG",
+    "kind": "sound",
+    "group": "ANIMAL",
+    "fn": "preset_dog"
+  },
+  {
+    "name": "CAT",
+    "kind": "sound",
+    "group": "ANIMAL",
+    "fn": "preset_cat"
+  },
+  {
+    "name": "WOLF",
+    "kind": "sound",
+    "group": "ANIMAL",
+    "fn": "preset_wolf"
+  },
+  {
+    "name": "COW",
+    "kind": "sound",
+    "group": "ANIMAL",
+    "fn": "preset_cow"
+  },
+  {
+    "name": "RATTLER",
+    "kind": "sound",
+    "group": "ANIMAL",
+    "fn": "preset_rattler"
+  },
+  {
+    "name": "GULL",
+    "kind": "sound",
+    "group": "ANIMAL",
+    "fn": "preset_gull"
+  },
+  {
+    "name": "FIREBALL",
     "kind": "sound",
     "group": "MAGIC",
-    "fn": "preset_cast"
+    "fn": "preset_fireball"
   },
   {
-    "name": "SPARKLE",
+    "name": "FROST",
     "kind": "sound",
     "group": "MAGIC",
-    "fn": "preset_sparkle"
+    "fn": "preset_frost"
+  },
+  {
+    "name": "BOLT",
+    "kind": "sound",
+    "group": "MAGIC",
+    "fn": "preset_bolt"
   },
   {
     "name": "HEAL",
@@ -255,40 +448,28 @@ export const REGISTRY = [
     "fn": "preset_heal"
   },
   {
-    "name": "BUFF",
+    "name": "HOLY",
     "kind": "sound",
     "group": "MAGIC",
-    "fn": "preset_buff"
+    "fn": "preset_holy"
   },
   {
-    "name": "DEBUFF",
+    "name": "CURSE",
     "kind": "sound",
     "group": "MAGIC",
-    "fn": "preset_debuff"
+    "fn": "preset_curse"
   },
   {
-    "name": "TELEPORT",
+    "name": "PORTAL",
     "kind": "sound",
     "group": "MAGIC",
-    "fn": "preset_teleport"
+    "fn": "preset_portal"
   },
   {
-    "name": "FREEZE",
+    "name": "BLINK",
     "kind": "sound",
     "group": "MAGIC",
-    "fn": "preset_freeze"
-  },
-  {
-    "name": "FIRE",
-    "kind": "sound",
-    "group": "MAGIC",
-    "fn": "preset_fire_whoosh"
-  },
-  {
-    "name": "BREAK",
-    "kind": "sound",
-    "group": "MAGIC",
-    "fn": "preset_shield_break"
+    "fn": "preset_blink"
   },
   {
     "name": "SUMMON",
@@ -297,2167 +478,2333 @@ export const REGISTRY = [
     "fn": "preset_summon"
   },
   {
-    "name": "YELP",
+    "name": "POTION",
     "kind": "sound",
-    "group": "CREATURE",
-    "fn": "preset_yelp"
+    "group": "MAGIC",
+    "fn": "preset_potion"
   },
   {
-    "name": "HURT",
+    "name": "CHARGE",
     "kind": "sound",
-    "group": "CREATURE",
-    "fn": "preset_hurt"
+    "group": "MAGIC",
+    "fn": "preset_charge"
   },
   {
-    "name": "DEATH",
+    "name": "FIZZLE",
     "kind": "sound",
-    "group": "CREATURE",
-    "fn": "preset_death"
+    "group": "MAGIC",
+    "fn": "preset_fizzle"
   },
   {
-    "name": "IDLE",
+    "name": "ENCHANT",
     "kind": "sound",
-    "group": "CREATURE",
-    "fn": "preset_idle"
+    "group": "MAGIC",
+    "fn": "preset_enchant"
+  },
+  {
+    "name": "BARRIER",
+    "kind": "sound",
+    "group": "MAGIC",
+    "fn": "preset_barrier"
   },
   {
     "name": "ROAR",
     "kind": "sound",
-    "group": "CREATURE",
+    "group": "MONSTER",
     "fn": "preset_roar"
   },
   {
-    "name": "CHITTER",
+    "name": "GROWL",
     "kind": "sound",
-    "group": "CREATURE",
-    "fn": "preset_chitter"
+    "group": "MONSTER",
+    "fn": "preset_growl"
   },
   {
-    "name": "SQUEAK",
+    "name": "DRAGON",
     "kind": "sound",
-    "group": "CREATURE",
-    "fn": "preset_squeak"
+    "group": "MONSTER",
+    "fn": "preset_dragon"
   },
   {
-    "name": "FLAP",
+    "name": "GHOST",
     "kind": "sound",
-    "group": "CREATURE",
-    "fn": "preset_flap"
+    "group": "MONSTER",
+    "fn": "preset_ghost"
   },
   {
-    "name": "SLITHER",
+    "name": "ZOMBIE",
     "kind": "sound",
-    "group": "CREATURE",
-    "fn": "preset_slither"
+    "group": "MONSTER",
+    "fn": "preset_zombie"
   },
   {
-    "name": "WOOD",
+    "name": "SLIME",
     "kind": "sound",
-    "group": "MOVEMENT",
-    "fn": "preset_step_wood"
+    "group": "MONSTER",
+    "fn": "preset_slime"
   },
   {
-    "name": "STONE",
+    "name": "GOBLIN",
     "kind": "sound",
-    "group": "MOVEMENT",
-    "fn": "preset_step_stone"
+    "group": "MONSTER",
+    "fn": "preset_goblin"
   },
   {
-    "name": "METAL",
+    "name": "SWARM",
     "kind": "sound",
-    "group": "MOVEMENT",
-    "fn": "preset_step_metal"
+    "group": "MONSTER",
+    "fn": "preset_swarm"
   },
   {
-    "name": "WATER",
+    "name": "BLASTER",
     "kind": "sound",
-    "group": "MOVEMENT",
-    "fn": "preset_step_water"
+    "group": "SCIFI",
+    "fn": "preset_blaster"
   },
   {
-    "name": "LAND",
+    "name": "LASER",
     "kind": "sound",
-    "group": "MOVEMENT",
-    "fn": "preset_land"
+    "group": "SCIFI",
+    "fn": "preset_laser"
   },
   {
-    "name": "SLIDE",
-    "kind": "patch",
-    "group": "MOVEMENT",
-    "fn": "preset_slide"
-  },
-  {
-    "name": "CLIMB",
-    "kind": "patch",
-    "group": "MOVEMENT",
-    "fn": "preset_climb"
-  },
-  {
-    "name": "JLAND",
+    "name": "PLASMA",
     "kind": "sound",
-    "group": "MOVEMENT",
-    "fn": "preset_jump_land"
+    "group": "SCIFI",
+    "fn": "preset_plasma"
   },
   {
-    "name": "ROLL",
-    "kind": "patch",
-    "group": "MOVEMENT",
-    "fn": "preset_roll"
-  },
-  {
-    "name": "GLASS",
+    "name": "RAILGUN",
     "kind": "sound",
-    "group": "DESTRUCT",
-    "fn": "preset_glass_break"
+    "group": "SCIFI",
+    "fn": "preset_railgun"
   },
   {
-    "name": "WOOD-CR",
+    "name": "FORCEFLD",
     "kind": "sound",
-    "group": "DESTRUCT",
-    "fn": "preset_wood_crack"
+    "group": "SCIFI",
+    "fn": "preset_forcefield"
   },
   {
-    "name": "STONE-CR",
+    "name": "SCANNER",
     "kind": "sound",
-    "group": "DESTRUCT",
-    "fn": "preset_stone_crack"
+    "group": "SCIFI",
+    "fn": "preset_scanner"
   },
   {
-    "name": "CLANG",
+    "name": "POWERDN",
     "kind": "sound",
-    "group": "DESTRUCT",
-    "fn": "preset_metal_clang"
+    "group": "SCIFI",
+    "fn": "preset_power_down"
   },
   {
-    "name": "RUBBLE",
+    "name": "WARP",
     "kind": "sound",
-    "group": "DESTRUCT",
-    "fn": "preset_rubble"
+    "group": "SCIFI",
+    "fn": "preset_warp"
   },
   {
-    "name": "RIP",
+    "name": "AIRLOCK",
     "kind": "sound",
-    "group": "DESTRUCT",
-    "fn": "preset_rip"
+    "group": "SCIFI",
+    "fn": "preset_airlock"
   },
   {
-    "name": "IMP-HVY",
+    "name": "SERVO",
     "kind": "sound",
-    "group": "DESTRUCT",
-    "fn": "preset_impact_heavy"
+    "group": "SCIFI",
+    "fn": "preset_servo"
   },
   {
-    "name": "IMP-LT",
+    "name": "COMPUTER",
     "kind": "sound",
-    "group": "DESTRUCT",
-    "fn": "preset_impact_light"
+    "group": "SCIFI",
+    "fn": "preset_computer"
   },
   {
-    "name": "WIND",
-    "kind": "patch",
-    "group": "AMBIENT",
-    "fn": "preset_wind"
-  },
-  {
-    "name": "RAIN",
-    "kind": "patch",
-    "group": "AMBIENT",
-    "fn": "preset_rain"
-  },
-  {
-    "name": "CRACKLE",
-    "kind": "patch",
-    "group": "AMBIENT",
-    "fn": "preset_fire_crackle"
-  },
-  {
-    "name": "HUM",
-    "kind": "patch",
-    "group": "AMBIENT",
-    "fn": "preset_electric_hum"
-  },
-  {
-    "name": "DRIP",
-    "kind": "patch",
-    "group": "AMBIENT",
-    "fn": "preset_water_drip"
+    "name": "KLAXON",
+    "kind": "sound",
+    "group": "SCIFI",
+    "fn": "preset_klaxon"
   },
   {
     "name": "ENGINE",
-    "kind": "patch",
-    "group": "AMBIENT",
-    "fn": "preset_engine_idle"
-  },
-  {
-    "name": "WIN",
     "kind": "sound",
-    "group": "MUSIC-UI",
-    "fn": "preset_stinger_win"
+    "group": "MACHINE",
+    "fn": "preset_engine"
   },
   {
-    "name": "LOSE",
+    "name": "REVUP",
     "kind": "sound",
-    "group": "MUSIC-UI",
-    "fn": "preset_stinger_lose"
+    "group": "MACHINE",
+    "fn": "preset_rev_up"
   },
   {
-    "name": "FD-IN",
-    "kind": "patch",
-    "group": "MUSIC-UI",
-    "fn": "preset_fade_in"
-  },
-  {
-    "name": "FD-OUT",
-    "kind": "patch",
-    "group": "MUSIC-UI",
-    "fn": "preset_fade_out"
-  },
-  {
-    "name": "PAUSE",
-    "kind": "patch",
-    "group": "MUSIC-UI",
-    "fn": "preset_pause"
-  },
-  {
-    "name": "RESUME",
-    "kind": "patch",
-    "group": "MUSIC-UI",
-    "fn": "preset_resume"
-  },
-  {
-    "name": "FANFARE",
+    "name": "HELI",
     "kind": "sound",
-    "group": "MUSIC-UI",
-    "fn": "preset_fanfare"
+    "group": "MACHINE",
+    "fn": "preset_heli"
   },
   {
-    "name": "HEART",
+    "name": "CLOCK",
     "kind": "sound",
-    "group": "MODERN",
-    "fn": "preset_heartbeat"
+    "group": "MACHINE",
+    "fn": "preset_clock"
   },
   {
-    "name": "LOW-HP",
+    "name": "PHONE",
     "kind": "sound",
-    "group": "MODERN",
-    "fn": "preset_low_health"
+    "group": "MACHINE",
+    "fn": "preset_phone"
   },
   {
-    "name": "RELOAD",
+    "name": "DING",
     "kind": "sound",
-    "group": "MODERN",
-    "fn": "preset_reload"
+    "group": "MACHINE",
+    "fn": "preset_ding"
   },
   {
-    "name": "DRY",
-    "kind": "patch",
-    "group": "MODERN",
-    "fn": "preset_empty_chamber"
+    "name": "SHUTTER",
+    "kind": "sound",
+    "group": "MACHINE",
+    "fn": "preset_shutter"
   },
   {
     "name": "SWITCH",
-    "kind": "patch",
-    "group": "MODERN",
-    "fn": "preset_switch_weapon"
+    "kind": "sound",
+    "group": "MACHINE",
+    "fn": "preset_switch"
   },
   {
-    "name": "COVER",
+    "name": "DRILL",
     "kind": "sound",
-    "group": "MODERN",
-    "fn": "preset_cover_enter"
+    "group": "MACHINE",
+    "fn": "preset_drill"
+  },
+  {
+    "name": "STEAM",
+    "kind": "sound",
+    "group": "MACHINE",
+    "fn": "preset_steam"
+  },
+  {
+    "name": "CLICK",
+    "kind": "sound",
+    "group": "UI",
+    "fn": "preset_click"
+  },
+  {
+    "name": "HOVER",
+    "kind": "sound",
+    "group": "UI",
+    "fn": "preset_hover"
+  },
+  {
+    "name": "CONFIRM",
+    "kind": "sound",
+    "group": "UI",
+    "fn": "preset_confirm"
+  },
+  {
+    "name": "BACK",
+    "kind": "sound",
+    "group": "UI",
+    "fn": "preset_back"
+  },
+  {
+    "name": "ERROR",
+    "kind": "sound",
+    "group": "UI",
+    "fn": "preset_error"
+  },
+  {
+    "name": "NOTIFY",
+    "kind": "sound",
+    "group": "UI",
+    "fn": "preset_notify"
+  },
+  {
+    "name": "MESSAGE",
+    "kind": "sound",
+    "group": "UI",
+    "fn": "preset_message"
+  },
+  {
+    "name": "TOGGLE",
+    "kind": "sound",
+    "group": "UI",
+    "fn": "preset_toggle"
+  },
+  {
+    "name": "KEYTYPE",
+    "kind": "sound",
+    "group": "UI",
+    "fn": "preset_key_type"
+  },
+  {
+    "name": "OPEN",
+    "kind": "sound",
+    "group": "UI",
+    "fn": "preset_open"
+  },
+  {
+    "name": "CLOSE",
+    "kind": "sound",
+    "group": "UI",
+    "fn": "preset_close"
+  },
+  {
+    "name": "COIN",
+    "kind": "sound",
+    "group": "GAME",
+    "fn": "preset_coin"
+  },
+  {
+    "name": "GEMS",
+    "kind": "sound",
+    "group": "GAME",
+    "fn": "preset_gems"
+  },
+  {
+    "name": "PICKUP",
+    "kind": "sound",
+    "group": "GAME",
+    "fn": "preset_pickup"
+  },
+  {
+    "name": "LEVELUP",
+    "kind": "sound",
+    "group": "GAME",
+    "fn": "preset_level_up"
+  },
+  {
+    "name": "ACHIEVE",
+    "kind": "sound",
+    "group": "GAME",
+    "fn": "preset_achievement"
+  },
+  {
+    "name": "QUEST",
+    "kind": "sound",
+    "group": "GAME",
+    "fn": "preset_quest"
+  },
+  {
+    "name": "GAMEOVER",
+    "kind": "sound",
+    "group": "GAME",
+    "fn": "preset_game_over"
+  },
+  {
+    "name": "COUNTDWN",
+    "kind": "sound",
+    "group": "GAME",
+    "fn": "preset_countdown"
+  },
+  {
+    "name": "HEARTBT",
+    "kind": "sound",
+    "group": "GAME",
+    "fn": "preset_heartbeat"
+  },
+  {
+    "name": "PURCHASE",
+    "kind": "sound",
+    "group": "GAME",
+    "fn": "preset_purchase"
+  },
+  {
+    "name": "JUMP",
+    "kind": "sound",
+    "group": "GAME",
+    "fn": "preset_jump"
+  },
+  {
+    "name": "POWERUP",
+    "kind": "sound",
+    "group": "GAME",
+    "fn": "preset_powerup"
+  },
+  {
+    "name": "HURT",
+    "kind": "sound",
+    "group": "GAME",
+    "fn": "preset_hurt"
   }
 ];
 
 export const GROUPS = {};
 
-// ── SHOOTER (presets_shooter.gd) ────────────────────
-GROUPS["SHOOTER"] = (() => {
+// ── FIREARM (presets_firearm.gd) ────────────────────
+GROUPS["FIREARM"] = (() => {
 
-  // Multi-channel "sound" presets that replace the entire Sound (rather than
-  // patching the active channel). Layered SFX: transient + body + tail —
-  // the standard recipe for impact-style sounds.
+  // Guns, ammo handling and explosives. A shot is built the way it is in a
+  // real recording: a broadband crack (the muzzle blast / supersonic snap),
+  // a low pitched boom, a filtered noise body that darkens as it dies, and
+  // a mechanical layer (slide, bolt, pump) that sells the weapon's action.
 
 
-  function preset_gunshot() {
-    // Body: low square through drive + LP (the "thump"). Custom envelope
-    // (ampDecay 0.4, not full 1.0) so the body lands tight.
-    let body = _ch({
-      "mode": 0, "pitch": 90.0, "length": 0.18, "voice": 1,
-      "ampAttack": 0.0, "ampDecay": 0.4, "ampSustain": 0.0, "ampRelease": 0.0,
-      "driveEnabled": true, "driveAmount": 0.65, "driveMix": 1.0,
-      "filterEnabled": true, "filterType": 0, "filterCutoff": 900.0, "filterRes": 0.2,
-      "filterEnv": 0.0, "filterAttack": 0.0, "filterDecay": 0.5,
-      "volume": 0.55, "level": 0.85,
-    })
-    Object.assign(body, _pitch_env_decay(-0.4, 0.4))
-    return {
-      "channels": [
-        _hp_noise_transient(0.04, 2000.0, 0.2, 0.6, 0.8),     // snap
-        body,                                                  // thump
-        _lp_noise_tail(0.22, 700.0, 0.4, 0.6, 0.7, 0.4, 0.5),  // sizzle
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.12, "reverbSize": 0.3},
-    }
+  function preset_pistol() {
+    let crack = _layer({"mode": NSE, "length": 0.035, "volume": 1.00, "level": 0.37},
+      [_filt(HP, _rand(1600.0, 2400.0), 0.15), _drive(0.5)])
+    let boom = _layer({"mode": SIN, "pitch": _rand(50.0, 62.0), "length": 0.18, "volume": 0.90, "level": 0.41},
+      [_bend(0.6, 0.0, 0.35), _drive(0.6)])
+    // Body: noise whose lowpass slams shut — bright blast, dark decay.
+    let body = _layer({"mode": NSE, "length": 0.3, "volume": 0.80, "level": 0.33},
+      [_filt(LP, _rand(700.0, 1100.0), 0.2, 1.0, 0.0, 0.25)])
+    // Slide cycling: a resonant metallic "ch-chk".
+    let action = _layer({"mode": NSE, "length": 0.03, "volume": 0.80, "level": 0.14},
+      [_filt(BP, _rand(3200.0, 3800.0), 0.7), _echo(55.0, 1.0, 0.35)])
+    return _sound([crack, boom, body, action], 0.18, 0.35)
   }
 
 
-  function preset_heavy_gun() {
-    // Body: detuned dual-voice low square — heavier "thunk" than gunshot.
-    let body = _ch({
-      "mode": 0, "pitch": 55.0, "length": 0.3, "voice": 2, "detune": 0.04,
-      "ampAttack": 0.0, "ampDecay": 0.5, "ampSustain": 0.0, "ampRelease": 0.0,
-      "driveEnabled": true, "driveAmount": 0.8, "driveMix": 1.0,
-      "filterEnabled": true, "filterType": 0, "filterCutoff": 600.0, "filterRes": 0.3,
-      "volume": 0.6, "level": 0.95,
-    })
-    Object.assign(body, _pitch_env_decay(-0.5, 0.5))
-    return {
-      "channels": [
-        _hp_noise_transient(0.05, 1500.0, 0.3, 0.65, 0.85),
-        body,
-        _lp_noise_tail(0.4, 500.0, 0.5, 0.7, 0.8, 0.45, 0.55),
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.2, "reverbSize": 0.5},
-    }
+  function preset_rifle() {
+    // Supersonic snap: shorter and brighter than a pistol's crack.
+    let crack = _layer({"mode": NSE, "length": 0.025, "volume": 1.00, "level": 0.35},
+      [_filt(HP, _rand(2600.0, 3400.0), 0.1), _drive(0.7)])
+    let blast = _layer({"mode": NSE, "length": 0.14, "volume": 0.90, "level": 0.28},
+      [_filt(LP, 2200.0, 0.2, 0.6, 0.0, 0.3), _drive(0.5)])
+    let boom = _layer({"mode": SIN, "pitch": _rand(44.0, 52.0), "length": 0.3, "volume": 0.90, "level": 0.35},
+      [_bend(0.7, 0.0, 0.3), _drive(0.7), _filt(LP, 400.0, 0.1)])
+    // Tail: the shot slapping back off nearby walls.
+    let tail = _layer({"mode": NSE, "length": 0.9, "volume": 0.70, "level": 0.21},
+      [_filt(LP, 500.0, 0.1, 0.8, 0.0, 0.3), _echo(_rand(100.0, 140.0), 0.35, 0.3)])
+    return _sound([crack, blast, boom, tail], 0.22, 0.5)
   }
 
 
-  function preset_burst() {
-    return {
-      "channels": [
-        _ch({
-          "mode": 1, "pitch": _rand(700.0, 1000.0), "length": 0.18, "voice": 1,
-          "ampAttack": 0.0, "ampDecay": 0.3, "ampSustain": 0.2, "ampRelease": 0.5,
-          "pitchEnvEnabled": true, "pitchEnv": -0.5, "pitchAttack": 0.0, "pitchDecay": 0.6,
-          "driveEnabled": true, "driveAmount": 0.5, "driveMix": 1.0,
-          "filterEnabled": true, "filterType": 0, "filterCutoff": 1500.0, "filterRes": 0.5,
-          "filterEnv": 0.4, "filterAttack": 0.0, "filterDecay": 0.5,
-          "volume": 0.5,
-        }),
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.1, "reverbSize": 0.3},
-    }
+  function preset_shotgun() {
+    let blast = _layer({"mode": NSE, "length": 0.09, "volume": 1.00, "level": 0.46},
+      [_filt(LP, 3500.0, 0.1), _drive(0.8)])
+    let boom = _layer({"mode": SIN, "pitch": _rand(38.0, 46.0), "length": 0.4, "volume": 1.00, "level": 0.46},
+      [_bend(0.8, 0.0, 0.35), _drive(0.8)])
+    let tail = _layer({"mode": NSE, "length": 0.7, "volume": 0.80, "level": 0.32},
+      [_filt(LP, 450.0, 0.15, 0.9, 0.0, 0.25), _echo(140.0, 0.3, 0.25)])
+    // Pump rack, delayed to land after the blast: two clicks 40 ms apart.
+    let pump = _layer({"mode": NSE, "length": 0.09, "volume": 0.90, "level": 0.25},
+      [_filt(BP, _rand(1900.0, 2400.0), 0.55), _pulses(25.0), _echo(_rand(430.0, 480.0), 1.0)])
+    return _sound([blast, boom, tail, pump], 0.25, 0.45)
   }
 
 
-  function preset_dash() {
-    return {
-      "channels": [
-        _ch({
-          "mode": 4, "pitch": 1000.0, "length": 0.32, "voice": 1,
-          "ampAttack": 0.04, "ampDecay": 0.4, "ampSustain": 0.3, "ampRelease": 0.5,
-          "filterEnabled": true, "filterType": 0, "filterCutoff": 200.0, "filterRes": 0.4,
-          "filterEnv": 0.8, "filterAttack": 0.0, "filterDecay": 0.85,
-          "volume": 0.45, "level": 0.85,
-        }),
-        _ch({
-          "mode": 3, "pitch": 80.0, "length": 0.12, "voice": 1,
-          "ampAttack": 0.0, "ampDecay": 1.0, "ampSustain": 0.0, "ampRelease": 0.0,
-          "pitchEnvEnabled": true, "pitchEnv": -0.3, "pitchAttack": 0.0, "pitchDecay": 0.5,
-          "volume": 0.45, "level": 0.6,
-        }),
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.05, "reverbSize": 0.2},
-    }
+  function preset_sniper() {
+    let crack = _layer({"mode": NSE, "length": 0.02, "volume": 1.00, "level": 0.39},
+      [_filt(HP, 3500.0, 0.1), _drive(0.8)])
+    let boom = _layer({"mode": SIN, "pitch": _rand(36.0, 42.0), "length": 0.5, "volume": 1.00, "level": 0.39},
+      [_bend(0.9, 0.0, 0.3), _drive(0.8)])
+    let body = _layer({"mode": NSE, "length": 0.25, "volume": 0.90, "level": 0.29},
+      [_filt(LP, 1500.0, 0.15, 0.8, 0.0, 0.2)])
+    // Distant echo off a far hillside: arrives ~0.4 s later, duller each pass.
+    let echo = _layer({"mode": NSE, "length": 0.35, "volume": 0.80, "level": 0.19},
+      [_filt(LP, 700.0, 0.1, 0.5, 0.0, 0.3), _echo(_rand(380.0, 460.0), 1.0, 0.35)])
+    return _sound([crack, boom, body, echo], 0.3, 0.8)
   }
 
 
-  function preset_confirm() {
-    let bell = _ch({
-      "mode": 3, "pitch": 1400.0, "length": 0.1, "voice": 1,
-      "ampAttack": 0.0, "ampDecay": 0.5, "ampSustain": 0.0, "ampRelease": 0.0,
-      "volume": 0.5, "level": 0.85,
-    })
-    Object.assign(bell, _pitch_env_decay(0.15, 0.4))
-    return {
-      "channels": [
-        _hp_noise_transient(0.025, 3000.0, 0.3, 0.55, 0.7),  // tick
-        bell,                                                // bright bell
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.08, "reverbSize": 0.25},
-    }
+  function preset_smg() {
+    // Every layer shares the same pulse rate, so each round lines up.
+    let rate = _rand(13.0, 16.0)
+    let crack = _layer({"mode": NSE, "length": 0.9, "volume": 1.00, "level": 0.41},
+      [_env(0.0, 0.5, 0.0, 0.0), _filt(HP, 1800.0, 0.15), _drive(0.5), _pulses(rate)])
+    let thump = _layer({"mode": SIN, "pitch": _rand(62.0, 72.0), "length": 0.9, "volume": 0.90, "level": 0.51},
+      [_env(0.0, 0.5, 0.0, 0.0), _drive(0.7), _pulses(rate)])
+    let bolt = _layer({"mode": NSE, "length": 0.9, "volume": 0.80, "level": 0.15},
+      [_env(0.0, 0.5, 0.0, 0.0), _filt(BP, 3400.0, 0.7), _pulses(rate)])
+    // Ungated low roar that builds under the burst, as reflections pile up.
+    let roar = _layer({"mode": NSE, "length": 0.8, "volume": 0.70, "level": 0.28},
+      [_env(0.1, 0.3, 0.4, 0.5), _filt(LP, 600.0, 0.2)])
+    return _sound([crack, thump, bolt, roar], 0.22, 0.4)
   }
 
 
-  function preset_headshot() {
-    let ring = _ch({
-      "mode": 3, "pitch": 2200.0, "length": 0.4, "voice": 1,
-      "ampAttack": 0.0, "ampDecay": 0.2, "ampSustain": 0.5, "ampRelease": 0.6,
-      "volume": 0.4, "level": 0.8,
-    })
-    Object.assign(ring, _pitch_env_decay(0.08, 0.3))
-    return {
-      "channels": [
-        _hp_noise_transient(0.04, 4000.0, 0.4, 0.5, 0.7),  // high snap
-        ring,                                              // ringing tail
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.25, "reverbSize": 0.5},
-    }
+  function preset_suppressed() {
+    // A suppressor leaves a soft "thwip" — the gun's action becomes the
+    // loudest part of the shot.
+    let thwip = _layer({"mode": NSE, "length": 0.06, "volume": 1.00, "level": 0.75},
+      [_filt(BP, _rand(900.0, 1300.0), 0.35, -0.4, 0.0, 0.6)])
+    let puff = _layer({"mode": SIN, "pitch": 90.0, "length": 0.07, "volume": 0.70, "level": 0.73},
+      [_bend(0.5, 0.0, 0.5)])
+    let slide = _layer({"mode": NSE, "length": 0.035, "volume": 1.00, "level": 0.75},
+      [_filt(BP, _rand(3400.0, 4200.0), 0.75), _echo(45.0, 0.8, 0.2)])
+    // Spent casing hitting the floor and bouncing.
+    let casing = _layer({"mode": SIN, "pitch": _rand(2400.0, 2800.0), "length": 0.06, "volume": 0.50, "level": 0.30},
+      [_chord(12, 17, 23, 0.6), _echo(_rand(340.0, 420.0), 1.0, 0.3)])
+    return _sound([thwip, puff, slide, casing], 0.12, 0.3)
   }
 
 
-  function preset_shield() {
-    return {
-      "channels": [
-        _ch({
-          "mode": 0, "pitch": 350.0, "length": 0.5, "voice": 1,
-          "ampAttack": 0.1, "ampDecay": 0.2, "ampSustain": 0.6, "ampRelease": 0.4,
-          "arpEnabled": true, "arpRate": 14.0, "arpStep1": 4, "arpStep2": 7, "arpStep3": 12,
-          "filterEnabled": true, "filterType": 0, "filterCutoff": 1500.0, "filterRes": 0.3,
-          "delayEnabled": true, "delayTime": 80.0, "delayFeedback": 0.35, "delayMix": 0.3,
-          "volume": 0.45, "level": 0.85,
-        }),
-        _ch({
-          "mode": 4, "pitch": 1000.0, "length": 0.5, "voice": 1,
-          "ampAttack": 0.15, "ampDecay": 0.2, "ampSustain": 0.5, "ampRelease": 0.5,
-          "filterEnabled": true, "filterType": 1, "filterCutoff": 3500.0, "filterRes": 0.3,
-          "volume": 0.3, "level": 0.5,
-        }),
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.3, "reverbSize": 0.6},
-    }
+  function preset_empty() {
+    // Trigger pull, then the striker snapping forward on nothing.
+    let trigger = _layer({"mode": NSE, "length": 0.02, "volume": 0.60, "level": 0.48},
+      [_filt(BP, 1800.0, 0.5)])
+    let striker = _layer({"mode": NSE, "length": 0.03, "volume": 0.90, "level": 0.80},
+      [_filt(BP, _rand(3800.0, 4600.0), 0.8), _echo(_rand(60.0, 80.0), 1.0)])
+    let body = _layer({"mode": SIN, "pitch": 190.0, "length": 0.03, "volume": 0.70, "level": 0.41},
+      [_echo(70.0, 1.0)])
+    return _sound([trigger, striker, body], 0.06, 0.15)
   }
 
 
-  function preset_kill() {
-    return {
-      "channels": [
-        _ch({
-          "mode": 0, "pitch": 70.0, "length": 0.5, "voice": 2, "detune": 0.04,
-          "ampAttack": 0.0, "ampDecay": 0.4, "ampSustain": 0.2, "ampRelease": 0.5,
-          "pitchEnvEnabled": true, "pitchEnv": -0.3, "pitchAttack": 0.0, "pitchDecay": 0.6,
-          "driveEnabled": true, "driveAmount": 0.7, "driveMix": 1.0,
-          "filterEnabled": true, "filterType": 0, "filterCutoff": 600.0, "filterRes": 0.3,
-          "volume": 0.55, "level": 0.95,
-        }),
-        _ch({
-          "mode": 3, "pitch": 1100.0, "length": 0.6, "voice": 1,
-          "ampAttack": 0.02, "ampDecay": 0.3, "ampSustain": 0.3, "ampRelease": 0.6,
-          "pitchEnvEnabled": true, "pitchEnv": 0.12, "pitchAttack": 0.0, "pitchDecay": 0.4,
-          "filterEnabled": true, "filterType": 2, "filterCutoff": 1100.0, "filterRes": 0.7,
-          "volume": 0.35, "level": 0.7,
-        }),
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.35, "reverbSize": 0.7},
-    }
+  function preset_reload() {
+    // Mag release click, mag sliding out, new mag clacking home (~0.3 s),
+    // slide racked (~0.5 s). Delayed layers also tick quietly at t=0,
+    // under the release click.
+    let release = _layer({"mode": NSE, "length": 0.03, "volume": 1.00, "level": 0.86},
+      [_filt(BP, 3000.0, 0.6)])
+    let slide_out = _layer({"mode": NSE, "length": 0.18, "volume": 0.60, "level": 0.65},
+      [_env(0.3, 0.7, 0.0, 0.0), _filt(BP, 1800.0, 0.3, 0.3, 0.3, 0.7)])
+    let insert = _layer({"mode": NSE, "length": 0.05, "volume": 1.00, "level": 0.86},
+      [_filt(BP, _rand(1300.0, 1700.0), 0.4), _drive(0.5), _echo(_rand(280.0, 330.0), 1.0)])
+    let rack = _layer({"mode": NSE, "length": 0.08, "volume": 1.00, "level": 0.86},
+      [_filt(BP, _rand(2600.0, 3200.0), 0.6), _pulses(25.0), _echo(_rand(470.0, 500.0), 1.0)])
+    return _sound([release, slide_out, insert, rack], 0.08, 0.2)
   }
 
 
-  function preset_click() {
-    return {
-      "channels": [
-        _ch({
-          "mode": 0, "pitch": 1600.0, "length": 0.04, "voice": 1,
-          "ampAttack": 0.0, "ampDecay": 1.0, "ampSustain": 0.0, "ampRelease": 0.0,
-          "filterEnabled": true, "filterType": 0, "filterCutoff": 4000.0, "filterRes": 0.2,
-          "volume": 0.4,
-        }),
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.0, "reverbSize": 0.2},
-    }
+  function preset_casings() {
+    // Three brass casings with inharmonic partials, each bouncing on its
+    // own rhythm so the pattern never sounds mechanical.
+    let a = _layer({"mode": SIN, "pitch": _rand(2200.0, 2500.0), "length": 0.12, "volume": 0.60, "level": 0.81},
+      [_chord(12, 18, 23, 0.7), _echo(_rand(150.0, 180.0), 0.9, 0.55)])
+    let b = _layer({"mode": SIN, "pitch": _rand(2900.0, 3200.0), "length": 0.09, "volume": 0.60, "level": 0.65},
+      [_chord(12, 17, 24, 0.7), _echo(_rand(210.0, 250.0), 0.9, 0.5)])
+    let c = _layer({"mode": SIN, "pitch": _rand(3600.0, 4000.0), "length": 0.1, "volume": 0.60, "level": 0.57},
+      [_chord(7, 10, 15, 0.7), _echo(_rand(110.0, 130.0), 0.8, 0.45)])
+    let tick = _layer({"mode": NSE, "length": 0.015, "volume": 0.60, "level": 0.40},
+      [_filt(HP, 5000.0, 0.2), _echo(160.0, 0.8, 0.5)])
+    return _sound([a, b, c, tick], 0.15, 0.3)
   }
-  return { preset_gunshot, preset_heavy_gun, preset_burst, preset_dash, preset_confirm, preset_headshot, preset_shield, preset_kill, preset_click };
+
+
+  function preset_ricochet() {
+    let hit = _layer({"mode": NSE, "length": 0.04, "volume": 1.00, "level": 0.71},
+      [_filt(BP, 1400.0, 0.3), _drive(0.5)])
+    // Whine: a tumbling slug falling in pitch as it flies off.
+    let whine = _layer({"mode": SIN, "pitch": _rand(2600.0, 3400.0), "length": _rand(0.5, 0.7), "volume": 0.60, "level": 0.89},
+      [_env(0.0, 1.0, 0.0, 0.0), _bend(0.4, 0.0, 1.0), _vib(0.03, 28.0)])
+    let air = _layer({"mode": NSE, "length": 0.5, "volume": 0.60, "level": 0.36},
+      [_filt(BP, 3000.0, 0.6, 0.4, 0.0, 1.0)])
+    return _sound([hit, whine, air], 0.25, 0.6)
+  }
+
+
+  function preset_flyby() {
+    // Near miss: the supersonic snap arrives first, then the whiz of the
+    // slug passing, falling in pitch (Doppler).
+    let snap = _layer({"mode": NSE, "length": 0.015, "volume": 0.90, "level": 0.37},
+      [_filt(HP, 3000.0, 0.1)])
+    let whiz = _layer({"mode": NSE, "length": 0.32, "volume": 0.90, "level": 0.53},
+      [_env(0.45, 0.55, 0.0, 0.0), _filt(BP, 2400.0, 0.6, 0.5, 0.45, 0.55)])
+    let tone = _layer({"mode": SIN, "pitch": _rand(1300.0, 1700.0), "length": 0.32, "volume": 0.50, "level": 0.24},
+      [_env(0.45, 0.55, 0.0, 0.0), _bend(0.3, 0.0, 1.0)])
+    return _sound([snap, whiz, tone], 0.1, 0.3)
+  }
+
+
+  function preset_grenade() {
+    let crack = _layer({"mode": NSE, "length": 0.05, "volume": 1.00, "level": 0.36},
+      [_filt(HP, 1200.0, 0.1), _drive(0.8)])
+    let boom = _layer({"mode": SIN, "pitch": _rand(34.0, 42.0), "length": 0.7, "volume": 1.00, "level": 0.40},
+      [_bend(0.9, 0.0, 0.25), _drive(0.9), _filt(LP, 300.0, 0.1)])
+    // Fireball: noise that starts wide open and darkens.
+    let blast = _layer({"mode": PNK, "length": 1.6, "volume": 1.00, "level": 0.36},
+      [_filt(LP, 300.0, 0.1, 1.0, 0.0, 0.2), _drive(0.5)])
+    // Debris raining down: sparse, irregular clicks that fade in after.
+    let debris = _layer({"mode": SQR, "pitch": 6.0, "voice": 4, "detune": 0.2, "length": 1.4, "volume": 1.00, "level": 0.24},
+      [_env(0.15, 0.85, 0.0, 0.0), _vib(0.5, 1.3), _filt(BP, 1800.0, 0.3)])
+    return _sound([crack, boom, blast, debris], 0.3, 0.7)
+  }
+
+
+  function preset_distant() {
+    // Far-off explosion or artillery: highs gone, a long rolling rumble.
+    let thump = _layer({"mode": SIN, "pitch": _rand(32.0, 38.0), "length": 0.9, "volume": 1.00, "level": 0.50},
+      [_env(0.02, 0.98, 0.0, 0.0), _bend(0.5, 0.0, 0.4), _drive(0.4), _filt(LP, 150.0, 0.1)])
+    let rumble = _layer({"mode": PNK, "length": 2.2, "volume": 1.00, "level": 0.50},
+      [_env(0.03, 0.97, 0.0, 0.0), _filt(LP, 160.0, 0.2, 0.6, 0.05, 0.4)])
+    // Terrain echoes rolling back in.
+    let roll = _layer({"mode": PNK, "length": 0.8, "volume": 0.90, "level": 0.35},
+      [_filt(LP, 250.0, 0.1), _echo(_rand(400.0, 480.0), 0.8, 0.45)])
+    return _sound([thump, rumble, roll], 0.4, 0.75)
+  }
+
+
+  function preset_pin_pull() {
+    // Pin dragged out of the fuse, then the spoon flying off with a ping.
+    let scrape = _layer({"mode": NSE, "length": 0.1, "volume": 0.82, "level": 0.60},
+      [_env(0.4, 0.6, 0.0, 0.0), _filt(BP, 4200.0, 0.6, 0.2, 0.5, 0.5)])
+    let pull = _layer({"mode": NSE, "length": 0.025, "volume": 1.00, "level": 0.60},
+      [_filt(BP, 2600.0, 0.6), _echo(110.0, 1.0)])
+    let ping = _layer({"mode": SIN, "pitch": _rand(2800.0, 3300.0), "length": 0.35, "volume": 0.70, "level": 0.60},
+      [_chord(6, 13, 19, 0.6), _vib(0.01, 20.0), _echo(_rand(260.0, 320.0), 1.0)])
+    return _sound([scrape, pull, ping], 0.12, 0.3)
+  }
+  return { preset_pistol, preset_rifle, preset_shotgun, preset_sniper, preset_smg, preset_suppressed, preset_empty, preset_reload, preset_casings, preset_ricochet, preset_flyby, preset_grenade, preset_distant, preset_pin_pull };
 })();
 
-// ── ARCADE (presets_arcade.gd) ────────────────────
-GROUPS["ARCADE"] = (() => {
+// ── MELEE (presets_melee.gd) ────────────────────
+GROUPS["MELEE"] = (() => {
 
-  // Classic single-channel arcade SFX. All "patch" presets — they mutate the
-  // active channel's params, respecting the user's lock map.
+  // Blades, blunt hits and bows. Whooshes are bandpassed noise whose filter
+  // and level swell and fall together, the way air noise peaks as a blade
+  // passes the ear. Metal rings use chord-stacked sines at inharmonic
+  // intervals so they sound struck rather than played.
 
 
-  function preset_jump() {
-    let body = _ch({
-      "mode": _pick([0, 1]),
-      "pitch": _rand(200.0, 500.0),
-      "length": _rand(0.15, 0.35),
-      "voice": 1, "detune": 0.0,
-      "volume": 0.6, "level": 0.85,
-    })
-    Object.assign(body, ENV_DECAY_ONLY)
-    Object.assign(body, _pitch_env_rise(_rand(0.3, 0.6), _rand(0.5, 1.0)))
-    return {
-      "channels": [
-        _hp_noise_transient(0.02, 2500.0, 0.1, 0.4, 0.5),
-        body,
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.05, "reverbSize": 0.15},
-    }
+  function preset_swing() {
+    let air = _layer({"mode": NSE, "length": _rand(0.28, 0.36), "volume": 1.00, "level": 1.00},
+      [_env(0.45, 0.55, 0.0, 0.0), _filt(BP, _rand(420.0, 560.0), 0.45, 0.55, 0.45, 0.55)])
+    // The blade's edge whistling.
+    let edge = _layer({"mode": NSE, "length": 0.32, "volume": 0.70, "level": 0.66},
+      [_env(0.5, 0.5, 0.0, 0.0), _filt(BP, 2400.0, 0.7, 0.3, 0.5, 0.5)])
+    let hum = _layer({"mode": TRI, "pitch": _rand(160.0, 200.0), "length": 0.32, "volume": 0.50, "level": 0.46},
+      [_env(0.45, 0.55, 0.0, 0.0), _bend(0.25, 0.45, 0.55)])
+    return _sound([air, edge, hum], 0.08, 0.25)
   }
 
 
-  function preset_shoot() {
-    let beam = _ch({
-      "mode": _pick([1, 3]),
-      "pitch": _rand(600.0, 1200.0),
-      "length": _rand(0.1, 0.25),
-      "voice": _rand_int(1, 2), "detune": _rand(0.0, 0.05),
-      "volume": 0.5, "level": 0.85,
-    })
-    Object.assign(beam, ENV_DECAY_ONLY)
-    Object.assign(beam, _pitch_env_decay(_rand(0.4, 0.8), _rand(0.6, 1.0)))
-    return {
-      "channels": [
-        _hp_noise_transient(0.025, 3500.0, 0.12, 0.5, 0.6),
-        beam,
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.05, "reverbSize": 0.15},
-    }
+  function preset_slash() {
+    let whoosh = _layer({"mode": NSE, "length": 0.2, "volume": 0.90, "level": 0.47},
+      [_env(0.6, 0.4, 0.0, 0.0), _filt(BP, 700.0, 0.45, 0.6, 0.6, 0.4)])
+    // The cut lands at 0.13 s, as the whoosh peaks.
+    let cut = _layer({"mode": NSE, "length": 0.6, "volume": 1.00, "level": 0.59},
+      [_at(0.13, 0.6, 0.1), _filt(BP, _rand(1500.0, 2100.0), 0.3), _drive(0.4)])
+    let thump = _layer({"mode": SIN, "pitch": _rand(100.0, 125.0), "length": 0.6, "volume": 1.00, "level": 0.47},
+      [_at(0.13, 0.6, 0.09), _bend(0.3, 0.2, 0.2)])
+    let tear = _layer({"mode": NSE, "length": 0.6, "volume": 0.80, "level": 0.29},
+      [_at(0.13, 0.6, 0.13), _filt(HP, 2800.0, 0.2)])
+    return _sound([whoosh, cut, thump, tear], 0.1, 0.3)
   }
 
 
-  function preset_hit() {
-    let body = _tonal_body(
-      _pick([0, 1]), _rand(100.0, 200.0), _rand(0.08, 0.2),
-      1, 0.0, 0.3, 600.0, 0.5, 0.75)
-    Object.assign(body, _pitch_env_decay(_rand(-0.15, -0.05), 0.5))
-    return {
-      "channels": [
-        _hp_noise_transient(0.03, _rand(2000.0, 3000.0), 0.15, 0.55, 0.7),
-        body,
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.05, "reverbSize": 0.1},
-    }
+  function preset_clash() {
+    // Two steel blades: an impact crack plus two inharmonic, slightly
+    // beating rings. Upper partials (chord copies) die first.
+    let hit = _layer({"mode": NSE, "length": 0.04, "volume": 1.00, "level": 0.41},
+      [_filt(HP, 2000.0, 0.2), _drive(0.5)])
+    let ring1 = _layer({"mode": SIN, "pitch": _rand(1750.0, 1950.0), "voice": 2, "detune": 0.008, "length": 1.2, "volume": 0.60, "level": 0.51},
+      [_chord(7, 16, 23, 0.6)])
+    let ring2 = _layer({"mode": SIN, "pitch": _rand(2850.0, 3100.0), "length": 0.9, "volume": 0.50, "level": 0.36},
+      [_chord(5, 14, 20, 0.5)])
+    // Blades grinding apart.
+    let scrape = _layer({"mode": NSE, "length": 0.15, "volume": 0.70, "level": 0.23},
+      [_filt(BP, 5000.0, 0.6, -0.3, 0.0, 1.0)])
+    return _sound([hit, ring1, ring2, scrape], 0.25, 0.5)
   }
 
 
-  function preset_coin() {
-    let chime = _ch({
-      "mode": 0,
-      "pitch": _rand(800.0, 1100.0),
-      "length": _rand(0.15, 0.25),
-      "voice": 1,
-      "arpEnabled": true,
-      "arpRate": _rand(15.0, 25.0),
-      "arpStep1": _pick([5, 7]), "arpStep2": _pick([5, 7]), "arpStep3": _pick([5, 7]),
-      "ampAttack": 0.0, "ampDecay": 0.5, "ampSustain": 0.2, "ampRelease": 0.3,
-      "volume": 0.5, "level": 0.85,
-    })
-    let shimmer = _ch({
-      "mode": 3,
-      "pitch": _rand(1600.0, 2200.0),
-      "length": 0.12,
-      "voice": 2, "detune": 0.06,
-      "ampAttack": 0.0, "ampDecay": 0.4, "ampSustain": 0.0, "ampRelease": 0.3,
-      "volume": 0.3, "level": 0.5,
-    })
-    return {
-      "channels": [chime, shimmer],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.15, "reverbSize": 0.25},
-    }
+  function preset_draw() {
+    // Steel scraping out of the scabbard, rising, then ringing free.
+    let scrape = _layer({"mode": NSE, "length": _rand(0.32, 0.38), "volume": 0.8},
+      [_env(0.6, 0.4, 0.0, 0.0), _filt(BP, 3000.0, 0.7, 0.35, 0.85, 0.15)])
+    let grind = _layer({"mode": SAW, "pitch": _rand(220.0, 260.0), "length": 0.35, "volume": 0.4, "level": 0.3},
+      [_env(0.6, 0.4, 0.0, 0.0), _vib(0.04, 23.0, NSE), _filt(BP, 2500.0, 0.6), _bend(0.4, 1.0, 0.0)])
+    let ring = _layer({"mode": SIN, "pitch": _rand(2500.0, 2800.0), "voice": 2, "detune": 0.006, "length": 1.5, "volume": 0.6, "level": 0.7},
+      [_at(0.35, 1.5, 0.33), _chord(7, 15, 22, 0.5)])
+    return _sound([scrape, grind, ring], 0.25, 0.45)
   }
 
 
-  function preset_explode() {
-    let body = _ch({
-      "mode": 4, "pitch": _rand(60.0, 120.0), "length": _rand(0.6, 1.0),
-      "voice": 3, "detune": 0.1,
-      "ampAttack": 0.0, "ampDecay": 0.8, "ampSustain": 0.1, "ampRelease": 0.2,
-      "driveEnabled": true, "driveAmount": 0.7, "driveMix": 1.0,
-      "filterEnabled": true, "filterType": 0, "filterCutoff": 400.0, "filterRes": 0.3,
-      "filterEnv": 0.5, "filterAttack": 0.0, "filterDecay": 0.7,
-      "volume": 0.6, "level": 0.9,
-    })
-    Object.assign(body, _pitch_env_decay(0.4, 0.9))
-    return {
-      "channels": [
-        _hp_noise_transient(0.06, 1800.0, 0.15, 0.7, 0.8),
-        body,
-        _lp_noise_tail(0.8, 300.0, 0.4, 0.6, 0.8, 0.5, 0.7),
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.25, "reverbSize": 0.6},
-    }
+  function preset_punch() {
+    let thud = _layer({"mode": SIN, "pitch": _rand(80.0, 100.0), "length": 0.15, "volume": 1.00, "level": 0.45},
+      [_bend(0.5, 0.0, 0.3), _drive(0.4)])
+    let slap = _layer({"mode": NSE, "length": 0.05, "volume": 0.90, "level": 0.31},
+      [_filt(BP, _rand(1000.0, 1400.0), 0.2)])
+    let body = _layer({"mode": PNK, "length": 0.12, "volume": 1.00, "level": 0.31},
+      [_filt(LP, 500.0, 0.2, 0.5, 0.0, 0.3)])
+    // Clothing and knuckles crunching on contact.
+    let crunch = _layer({"mode": NSE, "length": 0.05, "volume": 0.60, "level": 0.16},
+      [_filt(HP, 3000.0, 0.1)])
+    return _sound([thud, slap, body, crunch], 0.06, 0.2)
   }
 
 
-  function preset_powerup() {
-    let body = _ch({
-      "mode": _pick([0, 1]),
-      "pitch": _rand(300.0, 500.0),
-      "length": _rand(0.4, 0.7),
-      "voice": 1,
-      "ampAttack": 0.15, "ampDecay": 0.2, "ampSustain": 0.7, "ampRelease": 0.4,
-      "arpEnabled": true,
-      "arpRate": _rand(12.0, 20.0),
-      "arpStep1": 4, "arpStep2": 7, "arpStep3": 12,
-      "volume": 0.55, "level": 0.85,
-    })
-    let sweep = _resonant_sweep(
-      0.5, _rand(2500.0, 4000.0), 0.35, 0.5, 0.6, 0.3, 0.5)
-    return {
-      "channels": [body, sweep],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.12, "reverbSize": 0.3},
-    }
+  function preset_bowshot() {
+    // Bowstring release: a low, damped "thwum" with a wobble.
+    let bowstring = _layer({"mode": SAW, "pitch": _rand(85.0, 105.0), "length": 0.35, "volume": 0.80, "level": 0.86},
+      [_filt(LP, 900.0, 0.3, -0.4, 0.0, 0.6), _bend(0.15, 0.0, 0.2), _vib(0.04, 14.0)])
+    let snap = _layer({"mode": NSE, "length": 0.02, "volume": 0.90, "level": 0.52},
+      [_filt(HP, 2000.0, 0.2)])
+    // Arrow leaving: air noise falling away.
+    let arrow = _layer({"mode": NSE, "length": 0.4, "volume": 0.70, "level": 0.47},
+      [_env(0.1, 0.9, 0.0, 0.0), _filt(BP, 1800.0, 0.5, -0.4, 0.0, 1.0)])
+    return _sound([bowstring, snap, arrow], 0.1, 0.3)
   }
 
 
-  function preset_blip(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": _pick([0, 3]),
-      "pitch": _rand(800.0, 1500.0),
-      "length": _rand(0.05, 0.1),
-      "voice": 1, "detune": 0.0,
-      "volume": 0.4,
-    }))
+  function preset_arrow_hit() {
+    let thunk = _layer({"mode": SIN, "pitch": _rand(150.0, 175.0), "length": 0.08, "volume": 1.00, "level": 0.73},
+      [_bend(0.4, 0.0, 0.2)])
+    let crack = _layer({"mode": NSE, "length": 0.05, "volume": 0.90, "level": 0.59},
+      [_filt(BP, 900.0, 0.3), _drive(0.3)])
+    // The shaft left quivering in the target.
+    let quiver = _layer({"mode": SAW, "pitch": _rand(50.0, 60.0), "length": 0.6, "volume": 0.60, "level": 0.37},
+      [_trem(0.8, _rand(20.0, 24.0)), _filt(LP, 900.0, 0.3)])
+    return _sound([thunk, crack, quiver], 0.1, 0.3)
   }
 
 
-  function preset_laser() {
-    let beam = _ch({
-      "mode": _pick([1, 3]), "pitch": _rand(900.0, 1400.0), "length": 0.25,
-      "voice": 1, "detune": 0.0,
-      "ampAttack": 0.0, "ampDecay": 0.6, "ampSustain": 0.0, "ampRelease": 0.3,
-      "delayEnabled": true,
-      "delayTime": _rand(60.0, 100.0), "delayFeedback": 0.4, "delayMix": 0.35,
-      "volume": 0.5, "level": 0.85,
-    })
-    Object.assign(beam, _pitch_env_decay(_rand(-0.9, -0.5), 0.9))
-    return {
-      "channels": [
-        _hp_noise_transient(0.03, 3000.0, 0.1, 0.5, 0.6),
-        beam,
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.08, "reverbSize": 0.2},
-    }
+  function preset_block() {
+    // Wooden shield with an iron rim taking a hit.
+    let thud = _layer({"mode": SIN, "pitch": _rand(110.0, 130.0), "length": 0.15, "volume": 1.00, "level": 0.46},
+      [_bend(0.4, 0.0, 0.3), _drive(0.4)])
+    let wood = _layer({"mode": NSE, "length": 0.1, "volume": 0.90, "level": 0.37},
+      [_filt(BP, _rand(550.0, 700.0), 0.5)])
+    let hit = _layer({"mode": NSE, "length": 0.03, "volume": 0.90, "level": 0.28},
+      [_filt(HP, 1500.0, 0.2)])
+    let rim = _layer({"mode": SIN, "pitch": _rand(1250.0, 1450.0), "length": 0.5, "volume": 0.50, "level": 0.18},
+      [_chord(5, 14, 21, 0.5)])
+    return _sound([thud, wood, hit, rim], 0.12, 0.3)
   }
 
 
-  // Alarm: tremolo on a sustained tone — alarms don't decay, they nag.
-  function preset_alarm(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": 0,
-      "pitch": _rand(600.0, 900.0),
-      "length": _rand(0.7, 1.2),
-      "voice": 1, "detune": 0.0,
-      "ampAttack": 0.05, "ampDecay": 0.1, "ampSustain": 0.9, "ampRelease": 0.15,
-      "tremEnabled": true,
-      "tremDepth": _rand(0.7, 1.0), "tremShape": _pick([0, 3]), "tremRate": _rand(4.0, 8.0),
-      "tremAttack": 0.0, "tremDecay": 1.0,
-      "volume": 0.45,
-    }))
+  function preset_chop() {
+    // Axe biting into a log.
+    let crack = _layer({"mode": NSE, "length": 0.06, "volume": 1.00, "level": 0.57},
+      [_filt(BP, _rand(1600.0, 2000.0), 0.3), _drive(0.5)])
+    let thunk = _layer({"mode": SIN, "pitch": _rand(130.0, 150.0), "length": 0.12, "volume": 1.00, "level": 0.52},
+      [_bend(0.4, 0.0, 0.25)])
+    // Short hollow ring of the log itself.
+    let log_ring = _layer({"mode": TRI, "pitch": _rand(320.0, 380.0), "length": 0.2, "volume": 0.60, "level": 0.29},
+      [_chord(7, 12, 19, 0.4), _filt(LP, 1500.0, 0.2)])
+    let splinter = _layer({"mode": NSE, "length": 0.1, "volume": 0.70, "level": 0.26},
+      [_filt(HP, 3000.0, 0.2), _pulses(28.0)])
+    return _sound([crack, thunk, log_ring, splinter], 0.12, 0.35)
   }
 
 
-  function preset_chirp(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": 3,
-      "pitch": _rand(800.0, 1200.0),
-      "length": _rand(0.1, 0.2),
-      "voice": 1, "detune": 0.0,
-      "pitchEnvEnabled": true,
-      "pitchEnv": _rand(0.3, 0.5), "pitchAttack": 0.0, "pitchDecay": _rand(0.2, 0.4),
-      "volume": 0.5,
-    }))
+  function preset_whip() {
+    // The lash swells through the air, then the tip breaks the sound
+    // barrier with a sharp crack at ~0.2 s.
+    let air = _layer({"mode": NSE, "length": 0.22, "volume": 0.80, "level": 0.27},
+      [_env(0.9, 0.1, 0.0, 0.0), _filt(BP, 600.0, 0.4, 0.5, 0.9, 0.1)])
+    let crack = _layer({"mode": NSE, "length": 0.9, "volume": 1.00, "level": 0.45},
+      [_at(0.2, 0.9, 0.025), _filt(HP, _rand(1400.0, 1800.0), 0.1), _drive(0.9)])
+    let pop = _layer({"mode": SIN, "pitch": 180.0, "length": 0.9, "volume": 0.80, "level": 0.22},
+      [_at(0.2, 0.9, 0.03), _drive(0.5)])
+    return _sound([air, crack, pop], 0.2, 0.4)
   }
-
-
-  function preset_thud(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": 4,
-      "pitch": _rand(60.0, 150.0),
-      "length": _rand(0.1, 0.2),
-      "voice": 1, "detune": 0.0,
-      "pitchEnvEnabled": true,
-      "pitchEnv": _rand(-0.1, 0.0), "pitchAttack": 0.0, "pitchDecay": _rand(0.3, 0.6),
-      "volume": 0.6,
-    }))
-  }
-
-
-  function preset_boing(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": _pick([2, 3]),
-      "pitch": _rand(200.0, 400.0),
-      "length": _rand(0.4, 0.6),
-      "voice": 1, "detune": 0.0,
-      "ampAttack": 0.01, "ampDecay": 0.3, "ampSustain": 0.4, "ampRelease": 0.55,
-      "pitchEnvEnabled": true,
-      "pitchEnv": _rand(0.2, 0.4), "pitchAttack": 0.0, "pitchDecay": _rand(0.7, 1.0),
-      "vibEnabled": true,
-      "pitchMod": _rand(0.15, 0.3), "modShape": 3, "modRate": _rand(15.0, 25.0),
-      "modAttack": 0.0, "modDecay": _rand(0.7, 1.0),
-      "volume": 0.5,
-    }))
-  }
-
-
-  function preset_step(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": 4,
-      "pitch": _rand(100.0, 300.0),
-      "length": _rand(0.05, 0.1),
-      "voice": 1, "detune": 0.0,
-      "volume": _rand(0.3, 0.5),
-    }))
-  }
-
-
-  function preset_zap() {
-    let buzz = _ch({
-      "mode": 1,
-      "pitch": _rand(1000.0, 2000.0),
-      "length": _rand(0.15, 0.3),
-      "voice": 1,
-      "vibEnabled": true,
-      "pitchMod": _rand(0.2, 0.4), "modShape": _pick([0, 1]), "modRate": _rand(20.0, 30.0),
-      "modAttack": 0.0, "modDecay": 1.0,
-      "crushEnabled": true,
-      "crushBits": _rand_int(4, 8), "crushRate": 1,
-      "volume": 0.5, "level": 0.85,
-    })
-    Object.assign(buzz, ENV_DECAY_ONLY)
-    Object.assign(buzz, _pitch_env_decay(_rand(-0.6, -0.3), _rand(0.6, 1.0)))
-    return {
-      "channels": [
-        _hp_noise_transient(0.02, 4000.0, 0.1, 0.4, 0.5),
-        buzz,
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.05, "reverbSize": 0.1},
-    }
-  }
-
-
-  function preset_bubble(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": 3,
-      "pitch": _rand(200.0, 400.0),
-      "length": _rand(0.15, 0.25),
-      "voice": 1, "detune": 0.0,
-      "ampAttack": 0.05, "ampDecay": 0.4, "ampSustain": 0.3, "ampRelease": 0.5,
-      "pitchEnvEnabled": true,
-      "pitchEnv": _rand(0.5, 0.8), "pitchAttack": _rand(0.5, 0.8), "pitchDecay": 0.0,
-      "volume": 0.45,
-    }))
-  }
-
-
-  function preset_whoosh() {
-    let sweep = _ch({
-      "mode": 4, "pitch": 1000.0,
-      "length": _rand(0.3, 0.5), "voice": 1,
-      "ampAttack": 0.02, "ampDecay": 0.5, "ampSustain": 0.3, "ampRelease": 0.5,
-      "filterEnabled": true,
-      "filterType": 0, "filterCutoff": _rand(150.0, 250.0), "filterRes": _rand(0.3, 0.5),
-      "filterEnv": _rand(0.6, 0.85), "filterAttack": 0.0, "filterDecay": _rand(0.7, 0.9),
-      "volume": 0.45, "level": 0.85,
-    })
-    let sub = _tonal_body(
-      3, _rand(80.0, 120.0), _rand(0.2, 0.35),
-      1, 0.0, 0.0, 300.0, 0.35, 0.5)
-    return {
-      "channels": [sweep, sub],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.1, "reverbSize": 0.2},
-    }
-  }
-
-
-  function preset_wub(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": 0,
-      "pitch": _rand(80.0, 130.0),
-      "length": _rand(0.35, 0.5),
-      "voice": 1, "detune": 0.0,
-      "ampAttack": 0.0, "ampDecay": 0.1, "ampSustain": 0.7, "ampRelease": 0.3,
-      "filterEnabled": true,
-      "filterType": 0, "filterCutoff": _rand(180.0, 240.0), "filterRes": _rand(0.75, 0.9),
-      "filterEnv": _rand(0.4, 0.6), "filterAttack": _rand(0.25, 0.4), "filterDecay": _rand(0.5, 0.7),
-      "volume": 0.5,
-    }))
-  }
-
-
-  function preset_growl() {
-    let body = _ch({
-      "mode": 1,
-      "pitch": _rand(90.0, 130.0),
-      "length": _rand(0.4, 0.6),
-      "voice": _rand_int(2, 3), "detune": _rand(0.04, 0.08),
-      "ampAttack": 0.01, "ampDecay": 0.2, "ampSustain": 0.6, "ampRelease": 0.4,
-      "driveEnabled": true,
-      "driveAmount": _rand(0.5, 0.8), "driveMix": 1.0,
-      "filterEnabled": true,
-      "filterType": 0, "filterCutoff": _rand(800.0, 1500.0), "filterRes": _rand(0.2, 0.4),
-      "filterEnv": _rand(-0.3, 0.0), "filterAttack": 0.0, "filterDecay": _rand(0.6, 1.0),
-      "volume": 0.45, "level": 0.85,
-    })
-    return {
-      "channels": [
-        _lp_noise_tail(0.3, 500.0, 0.35, -0.2, 0.5, 0.35, 0.5),
-        body,
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.08, "reverbSize": 0.2},
-    }
-  }
-  return { preset_jump, preset_shoot, preset_hit, preset_coin, preset_explode, preset_powerup, preset_blip, preset_laser, preset_alarm, preset_chirp, preset_thud, preset_boing, preset_step, preset_zap, preset_bubble, preset_whoosh, preset_wub, preset_growl };
+  return { preset_swing, preset_slash, preset_clash, preset_draw, preset_punch, preset_bowshot, preset_arrow_hit, preset_block, preset_chop, preset_whip };
 })();
 
-// ── UI (presets_ui.gd) ────────────────────
-GROUPS["UI"] = (() => {
+// ── FOLEY (presets_foley.gd) ────────────────────
+GROUPS["FOLEY"] = (() => {
 
-  // Subtle interface feedback. Most are very short (<100 ms) and use modest
-  // volume so they layer over a game's existing audio without competing.
+  // Everyday foley: footsteps, doors, cloth and small objects. Footsteps are
+  // heel + toe (an echo ~60 ms behind the heel) over a surface texture.
+  // Crunchy textures (gravel, snow, splinters) come from a few detuned,
+  // very low square waves through a bandpass: every edge becomes a click,
+  // and the detuned voices drift in and out of step, so the clicks land
+  // irregularly.
 
 
-  // Hover: very brief sine tip — non-intrusive cursor feedback.
-  function preset_hover(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": 3,
-      "pitch": _rand(1500.0, 2200.0),
-      "length": _rand(0.025, 0.05),
-      "voice": 1, "detune": 0.0,
-      "volume": _rand(0.25, 0.35),
-    }))
+  function preset_step_wood() {
+    let toe = _rand(55.0, 75.0)
+    let heel = _layer({"mode": SIN, "pitch": _rand(110.0, 135.0), "length": 0.06, "volume": 1.00, "level": 0.75},
+      [_bend(0.3, 0.0, 0.3), _echo(toe, 0.6)])
+    let board = _layer({"mode": NSE, "length": 0.08, "volume": 0.90, "level": 0.60},
+      [_filt(BP, _rand(400.0, 520.0), 0.5), _echo(toe, 0.6)])
+    let scuff = _layer({"mode": NSE, "length": 0.04, "volume": 0.60, "level": 0.26},
+      [_filt(HP, 3000.0, 0.1), _echo(toe, 0.6)])
+    // Old floorboard squeaking under the weight.
+    let squeak = _layer({"mode": SAW, "pitch": _rand(330.0, 420.0), "length": 0.16, "volume": 0.50, "level": 0.15},
+      [_env(0.3, 0.7, 0.0, 0.0), _vib(0.06, 9.0), _filt(BP, 1200.0, 0.7)])
+    return _sound([heel, board, scuff, squeak], 0.12, 0.25)
   }
 
 
-  // Press: short click with a tiny pitch dip — the "physical" button feel.
-  function preset_press(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": _pick([0, 1]),
-      "pitch": _rand(800.0, 1200.0),
-      "length": _rand(0.04, 0.08),
-      "voice": 1, "detune": 0.0,
-      "pitchEnvEnabled": true,
-      "pitchEnv": _rand(-0.15, -0.05), "pitchAttack": 0.0, "pitchDecay": _rand(0.4, 0.6),
-      "volume": 0.4,
-    }))
+  function preset_step_gravel() {
+    let toe = _rand(60.0, 85.0)
+    let crunch = _layer({"mode": SQR, "pitch": _rand(26.0, 34.0), "voice": 4, "detune": 0.2, "length": 0.2, "volume": 1.0},
+      [_env(0.08, 0.92, 0.0, 0.0), _vib(0.6, 2.3), _filt(BP, 3000.0, 0.2), _echo(toe, 0.7)])
+    let grind = _layer({"mode": NSE, "length": 0.16, "volume": 0.7, "level": 0.6},
+      [_env(0.1, 0.9, 0.0, 0.0), _filt(BP, 1800.0, 0.2), _pulses(_rand(24.0, 30.0), 0.7), _echo(toe, 0.7)])
+    let thump = _layer({"mode": SIN, "pitch": 90.0, "length": 0.05, "volume": 0.8, "level": 0.6},
+      [_bend(0.3, 0.0, 0.4)])
+    return _sound([crunch, grind, thump], 0.06, 0.2)
   }
 
 
-  // Toggle-on / Toggle-off: paired rising / falling chirps — the mental
-  // model is "switch flips up" vs. "switch flips down".
-  function preset_toggle_on(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": _pick([0, 3]),
-      "pitch": _rand(500.0, 700.0),
-      "length": _rand(0.08, 0.12),
-      "voice": 1, "detune": 0.0,
-      "pitchEnvEnabled": true,
-      "pitchEnv": _rand(0.4, 0.6), "pitchAttack": _rand(0.4, 0.7), "pitchDecay": 0.0,
-      "volume": 0.4,
-    }))
+  function preset_step_grate() {
+    // Boot on a steel grate: thump, a hollow ring and a loose rattle.
+    let toe = _rand(55.0, 70.0)
+    let thump = _layer({"mode": SIN, "pitch": _rand(95.0, 115.0), "length": 0.07, "volume": 1.00, "level": 0.65},
+      [_bend(0.3, 0.0, 0.3), _echo(toe, 0.55)])
+    let ring = _layer({"mode": SIN, "pitch": _rand(480.0, 560.0), "voice": 2, "detune": 0.01, "length": 0.4, "volume": 0.60, "level": 0.39},
+      [_chord(6, 13, 19, 0.6), _echo(toe, 0.55)])
+    let rattle = _layer({"mode": NSE, "length": 0.14, "volume": 0.80, "level": 0.32},
+      [_filt(BP, 2500.0, 0.4), _pulses(_rand(25.0, 30.0))])
+    let clank = _layer({"mode": NSE, "length": 0.03, "volume": 0.90, "level": 0.32},
+      [_filt(BP, 3500.0, 0.6), _echo(toe, 0.55)])
+    return _sound([thump, ring, rattle, clank], 0.2, 0.4)
   }
 
 
-  function preset_toggle_off(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": _pick([0, 3]),
-      "pitch": _rand(700.0, 900.0),
-      "length": _rand(0.08, 0.12),
-      "voice": 1, "detune": 0.0,
-      "pitchEnvEnabled": true,
-      "pitchEnv": _rand(-0.5, -0.3), "pitchAttack": 0.0, "pitchDecay": _rand(0.5, 0.8),
-      "volume": 0.4,
-    }))
+  function preset_step_snow() {
+    // Packed snow squeaks and crunches as it compresses.
+    let crunch = _layer({"mode": NSE, "length": _rand(0.2, 0.26), "volume": 1.00, "level": 1.00},
+      [_env(0.15, 0.85, 0.0, 0.0), _filt(LP, 1800.0, 0.3), _pulses(_rand(22.0, 28.0), 0.7)])
+    let squeak = _layer({"mode": SQR, "pitch": _rand(36.0, 44.0), "voice": 4, "detune": 0.2, "length": 0.22, "volume": 1.00, "level": 0.69},
+      [_env(0.15, 0.85, 0.0, 0.0), _vib(0.5, 3.1), _filt(BP, 1200.0, 0.5)])
+    let thump = _layer({"mode": SIN, "pitch": 80.0, "length": 0.08, "volume": 0.60, "level": 0.57},
+      [_bend(0.2, 0.0, 0.5)])
+    return _sound([crunch, squeak, thump], 0.04, 0.2)
   }
 
 
-  // Menu: chunkier than press — the "I committed to opening this" feel.
-  function preset_menu(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": _pick([0, 1]),
-      "pitch": _rand(400.0, 600.0),
-      "length": _rand(0.12, 0.18),
-      "voice": 1, "detune": 0.0,
-      "pitchEnvEnabled": true,
-      "pitchEnv": _rand(0.1, 0.2), "pitchAttack": _rand(0.2, 0.4), "pitchDecay": 0.0,
-      "volume": 0.45,
-    }))
+  function preset_puddle() {
+    let splash = _layer({"mode": NSE, "length": _rand(0.2, 0.26), "volume": 0.90, "level": 0.83},
+      [_filt(BP, _rand(1300.0, 1700.0), 0.3, 0.3, 0.1, 0.9)])
+    let slap = _layer({"mode": SIN, "pitch": 150.0, "length": 0.05, "volume": 0.80, "level": 0.50},
+      [_bend(0.4, 0.0, 0.3)])
+    // Droplets: short upward "plips", scattered by the delay.
+    let drops = _layer({"mode": SIN, "pitch": _rand(1200.0, 1600.0), "length": 0.035, "volume": 0.60, "level": 0.42},
+      [_bend(0.4, 1.0, 0.0), _echo(_rand(60.0, 80.0), 0.7, 0.5)])
+    let drops2 = _layer({"mode": SIN, "pitch": _rand(1900.0, 2400.0), "length": 0.03, "volume": 0.50, "level": 0.33},
+      [_bend(0.4, 1.0, 0.0), _echo(_rand(95.0, 120.0), 0.7, 0.45)])
+    return _sound([splash, slap, drops, drops2], 0.1, 0.25)
   }
 
 
-  // Cancel: descending counterpart to MENU.
-  function preset_cancel(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": _pick([0, 1]),
-      "pitch": _rand(700.0, 900.0),
-      "length": _rand(0.12, 0.18),
-      "voice": 1, "detune": 0.0,
-      "pitchEnvEnabled": true,
-      "pitchEnv": _rand(-0.4, -0.2), "pitchAttack": 0.0, "pitchDecay": _rand(0.6, 0.8),
-      "volume": 0.4,
-    }))
+  function preset_creak() {
+    // Stick-slip friction: a slow pulse train exciting the door's
+    // resonances. The pulse rate wanders as the hinge drags.
+    let hinge = _layer({"mode": SAW, "pitch": _rand(24.0, 32.0), "length": _rand(1.0, 1.4), "volume": 0.90, "level": 0.70},
+      [_env(0.1, 0.3, 0.6, 0.3), _vib(0.35, _rand(1.2, 1.8)), _bend(0.3, 1.0, 0.0), _filt(BP, _rand(800.0, 1000.0), 0.85)])
+    let groan = _layer({"mode": SAW, "pitch": _rand(38.0, 46.0), "length": 1.2, "volume": 0.70, "level": 0.42},
+      [_env(0.15, 0.3, 0.5, 0.3), _vib(0.25, 0.9), _filt(BP, 1700.0, 0.8)])
+    let body = _layer({"mode": SAW, "pitch": 30.0, "length": 1.2, "volume": 0.60, "level": 0.28},
+      [_env(0.1, 0.3, 0.6, 0.3), _vib(0.3, 1.5), _filt(BP, 300.0, 0.7)])
+    return _sound([hinge, groan, body], 0.2, 0.45)
   }
 
 
-  // Error: low driven buzz — short, impossible to miss, doesn't startle.
-  function preset_error(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": _pick([1, 4]),
-      "pitch": _rand(100.0, 180.0),
-      "length": _rand(0.18, 0.28),
-      "voice": 1, "detune": 0.0,
-      "ampAttack": 0.0, "ampDecay": 0.5, "ampSustain": 0.3, "ampRelease": 0.4,
-      "driveEnabled": true, "driveAmount": _rand(0.3, 0.5), "driveMix": 1.0,
-      "volume": 0.5,
-    }))
+  function preset_slam() {
+    let thud = _layer({"mode": SIN, "pitch": _rand(62.0, 75.0), "length": 0.25, "volume": 1.00, "level": 0.46},
+      [_bend(0.5, 0.0, 0.2), _drive(0.5)])
+    let panel = _layer({"mode": NSE, "length": 0.2, "volume": 1.00, "level": 0.37},
+      [_filt(BP, _rand(260.0, 340.0), 0.4)])
+    let latch = _layer({"mode": NSE, "length": 0.02, "volume": 0.90, "level": 0.27},
+      [_filt(BP, 3000.0, 0.6), _echo(25.0, 0.7)])
+    // The frame and hinges rattling after the hit.
+    let rattle = _layer({"mode": NSE, "length": 0.2, "volume": 0.60, "level": 0.16},
+      [_filt(BP, 1200.0, 0.4), _pulses(28.0)])
+    return _sound([thud, panel, latch, rattle], 0.35, 0.5)
   }
 
 
-  // Notify: two-tone pulse via the arpeggio (alternating fifth) — the
-  // generic "you got mail" / quest-objective beep.
-  function preset_notify(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": 3,
-      "pitch": _rand(700.0, 900.0),
-      "length": _rand(0.2, 0.3),
-      "voice": 1, "detune": 0.0,
-      "arpEnabled": true,
-      "arpRate": _rand(10.0, 14.0),
-      "arpStep1": 5, "arpStep2": 0, "arpStep3": 5,
-      "ampAttack": 0.0, "ampDecay": 0.4, "ampSustain": 0.4, "ampRelease": 0.5,
-      "volume": 0.45,
-    }))
+  function preset_knock() {
+    // Knuckles on a wooden door, two or three times.
+    let gap = _rand(170.0, 230.0)
+    let fb = _pick([0.0, 0.7])
+    let knuckle = _layer({"mode": SIN, "pitch": _rand(200.0, 240.0), "length": 0.06, "volume": 1.00, "level": 0.72},
+      [_bend(0.3, 0.0, 0.3), _echo(gap, 0.66, fb)])
+    let wood = _layer({"mode": NSE, "length": 0.04, "volume": 0.80, "level": 0.51},
+      [_filt(BP, 1000.0, 0.5), _echo(gap, 0.66, fb)])
+    let panel = _layer({"mode": SIN, "pitch": 110.0, "length": 0.1, "volume": 0.70, "level": 0.43},
+      [_echo(gap, 0.66, fb)])
+    return _sound([knuckle, wood, panel], 0.18, 0.3)
   }
 
 
-  // Type: HP-filtered square stub — a single typewriter / mechanical-key click.
-  function preset_typing(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": 0,
-      "pitch": _rand(300.0, 450.0),
-      "length": _rand(0.02, 0.04),
-      "voice": 1, "detune": 0.0,
-      "filterEnabled": true,
-      "filterType": 1, "filterCutoff": _rand(700.0, 1100.0), "filterRes": 0.2,
-      "filterEnv": 0.0, "filterAttack": 0.0, "filterDecay": 0.5,
-      "volume": _rand(0.25, 0.35),
-    }))
+  function preset_latch() {
+    // Key in, tumblers clicking, then the bolt clacking open at 0.3 s.
+    let key = _layer({"mode": NSE, "length": 0.15, "volume": 0.60, "level": 0.48},
+      [_env(0.3, 0.7, 0.0, 0.0), _filt(BP, 4000.0, 0.5)])
+    let tumblers = _layer({"mode": NSE, "length": 0.2, "volume": 0.80, "level": 0.48},
+      [_filt(BP, 3000.0, 0.7), _pulses(_rand(14.0, 18.0))])
+    let bolt = _layer({"mode": NSE, "length": 1.2, "volume": 1.00, "level": 0.94},
+      [_at(0.3, 1.2, 0.05), _filt(BP, _rand(1300.0, 1700.0), 0.5), _drive(0.5)])
+    let thunk = _layer({"mode": SIN, "pitch": 300.0, "length": 1.2, "volume": 0.80, "level": 0.48},
+      [_at(0.3, 1.2, 0.04)])
+    return _sound([key, tumblers, bolt, thunk], 0.12, 0.25)
   }
 
 
-  // Open / Close: paired LP-filtered noise sweeps. Open BRIGHTENS over time
-  // (filter env opens up); Close DARKENS (filter env closes down).
-  function preset_open(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": 4,
-      "pitch": 1000.0,
-      "length": _rand(0.18, 0.28),
-      "voice": 1, "detune": 0.0,
-      "ampAttack": _rand(0.05, 0.1), "ampDecay": 0.3, "ampSustain": 0.3, "ampRelease": 0.5,
-      "filterEnabled": true,
-      "filterType": 0, "filterCutoff": _rand(300.0, 500.0), "filterRes": _rand(0.3, 0.5),
-      "filterEnv": _rand(0.6, 0.8), "filterAttack": _rand(0.1, 0.3), "filterDecay": _rand(0.5, 0.7),
-      "volume": 0.4,
-    }))
+  function preset_zipper() {
+    // Teeth clicking past the slider: a buzz whose rate speeds up.
+    let teeth = _layer({"mode": SQR, "pitch": _rand(150.0, 200.0), "length": _rand(0.4, 0.55), "volume": 0.80, "level": 0.49},
+      [_env(0.08, 0.2, 0.7, 0.2), _bend(0.35, 1.0, 0.0), _filt(HP, 2500.0, 0.3), _vib(0.1, 7.0, NSE)])
+    let hiss = _layer({"mode": NSE, "length": 0.5, "volume": 0.60, "level": 0.24},
+      [_env(0.08, 0.2, 0.7, 0.2), _filt(BP, 5000.0, 0.3)])
+    let fabric = _layer({"mode": PNK, "length": 0.5, "volume": 0.60, "level": 0.20},
+      [_env(0.1, 0.2, 0.6, 0.2), _filt(BP, 1200.0, 0.2), _trem(0.6, 11.0)])
+    return _sound([teeth, hiss, fabric], 0.05, 0.2)
   }
 
 
-  function preset_close(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": 4,
-      "pitch": 1000.0,
-      "length": _rand(0.18, 0.28),
-      "voice": 1, "detune": 0.0,
-      "ampAttack": _rand(0.0, 0.05), "ampDecay": 0.3, "ampSustain": 0.3, "ampRelease": 0.5,
-      "filterEnabled": true,
-      "filterType": 0, "filterCutoff": _rand(800.0, 1200.0), "filterRes": _rand(0.3, 0.5),
-      "filterEnv": _rand(-0.6, -0.4), "filterAttack": 0.0, "filterDecay": _rand(0.6, 0.8),
-      "volume": 0.4,
-    }))
+  function preset_cloth() {
+    // Jacket rustle: two noise bands with uneven, fluttering levels.
+    let rustle = _layer({"mode": PNK, "length": _rand(0.45, 0.6), "volume": 0.90, "level": 0.79},
+      [_env(0.3, 0.7, 0.0, 0.0), _filt(BP, _rand(2200.0, 2800.0), 0.2), _trem(0.6, _rand(11.0, 15.0))])
+    let swish = _layer({"mode": NSE, "length": 0.5, "volume": 0.70, "level": 0.39},
+      [_env(0.35, 0.65, 0.0, 0.0), _filt(HP, 4000.0, 0.1), _trem(0.7, _rand(6.5, 8.5), TRI)])
+    let body = _layer({"mode": PNK, "length": 0.4, "volume": 0.60, "level": 0.31},
+      [_env(0.3, 0.7, 0.0, 0.0), _filt(LP, 600.0, 0.2)])
+    return _sound([rustle, swish, body], 0.05, 0.2)
   }
-  return { preset_hover, preset_press, preset_toggle_on, preset_toggle_off, preset_menu, preset_cancel, preset_error, preset_notify, preset_typing, preset_open, preset_close };
+
+
+  function preset_page() {
+    // Page lifted and flipped, landing with a soft slap at 0.3 s.
+    let flutter = _layer({"mode": NSE, "length": 0.32, "volume": 0.80, "level": 0.75},
+      [_env(0.5, 0.5, 0.0, 0.0), _filt(BP, _rand(2600.0, 3400.0), 0.3), _pulses(_rand(22.0, 28.0), 0.5)])
+    let air = _layer({"mode": PNK, "length": 0.32, "volume": 0.70, "level": 0.38},
+      [_env(0.5, 0.5, 0.0, 0.0), _filt(LP, 1500.0, 0.2)])
+    let land = _layer({"mode": NSE, "length": 1.2, "volume": 0.90, "level": 0.52},
+      [_at(0.3, 1.2, 0.04), _filt(HP, 2500.0, 0.1)])
+    return _sound([flutter, air, land], 0.06, 0.2)
+  }
+
+
+  function preset_keys() {
+    // A bunch of keys shaken: small steel rings, re-struck in time with
+    // the shake.
+    let shake = _rand(8.0, 11.0)
+    let a = _layer({"mode": SIN, "pitch": _rand(3600.0, 4000.0), "length": 1.4, "volume": 0.60, "level": 0.48},
+      [_env(0.0, 0.45, 0.0, 0.0), _chord(6, 11, 17, 0.6), _pulses(shake)])
+    let b = _layer({"mode": SIN, "pitch": _rand(2600.0, 2900.0), "length": 1.4, "volume": 0.50, "level": 0.38},
+      [_env(0.0, 0.45, 0.0, 0.0), _chord(12, 17, 24, 0.6), _pulses(shake * 2.0, 0.8)])
+    let c = _layer({"mode": SIN, "pitch": _rand(2900.0, 3300.0), "length": 1.4, "volume": 0.50, "level": 0.33},
+      [_env(0.0, 0.45, 0.0, 0.0), _chord(7, 10, 16, 0.5), _pulses(shake)])
+    let clatter = _layer({"mode": NSE, "length": 1.4, "volume": 0.60, "level": 0.23},
+      [_env(0.0, 0.45, 0.0, 0.0), _filt(HP, 4500.0, 0.3), _pulses(shake * 2.0)])
+    return _sound([a, b, c, clatter], 0.1, 0.25)
+  }
+
+
+  function preset_bodyfall() {
+    let thud = _layer({"mode": SIN, "pitch": _rand(55.0, 65.0), "length": 0.3, "volume": 1.00, "level": 0.47},
+      [_bend(0.5, 0.0, 0.25), _drive(0.5), _echo(_rand(80.0, 110.0), 0.5)])
+    let weight = _layer({"mode": PNK, "length": 0.3, "volume": 1.00, "level": 0.38},
+      [_filt(LP, 400.0, 0.2, 0.4, 0.0, 0.3)])
+    let cloth = _layer({"mode": NSE, "length": 0.08, "volume": 0.80, "level": 0.24},
+      [_filt(BP, 1500.0, 0.2), _echo(95.0, 0.5)])
+    // Gear and limbs settling a beat later.
+    let settle = _layer({"mode": NSE, "length": 1.0, "volume": 0.70, "level": 0.19},
+      [_at(0.22, 1.0, 0.12), _filt(BP, 900.0, 0.3)])
+    return _sound([thud, weight, cloth, settle], 0.15, 0.35)
+  }
+
+
+  function preset_clink() {
+    // Two wine glasses touching: thin, long, slightly beating rings.
+    let tick = _layer({"mode": NSE, "length": 0.01, "volume": 0.70, "level": 0.33},
+      [_filt(HP, 5000.0, 0.2)])
+    let glass1 = _layer({"mode": SIN, "pitch": _rand(2300.0, 2500.0), "voice": 2, "detune": 0.004, "length": 1.4, "volume": 0.60, "level": 0.67},
+      [_chord(17, 21, 0, 0.4)])
+    let glass2 = _layer({"mode": SIN, "pitch": _rand(2600.0, 2800.0), "voice": 2, "detune": 0.003, "length": 1.1, "volume": 0.50, "level": 0.53},
+      [_chord(16, 22, 0, 0.4)])
+    return _sound([tick, glass1, glass2], 0.15, 0.35)
+  }
+  return { preset_step_wood, preset_step_gravel, preset_step_grate, preset_step_snow, preset_puddle, preset_creak, preset_slam, preset_knock, preset_latch, preset_zipper, preset_cloth, preset_page, preset_keys, preset_bodyfall, preset_clink };
+})();
+
+// ── IMPACT (presets_impact.gd) ────────────────────
+GROUPS["IMPACT"] = (() => {
+
+  // Breaks, crashes and collapses. Each one stacks the hit itself, the
+  // material's ring or body, and the debris that follows — irregular
+  // clicks (detuned sub-audio squares through a bandpass) tuned to the
+  // size of the pieces.
+
+
+  function preset_smash() {
+    // Window shattering.
+    let hit = _layer({"mode": NSE, "length": 0.05, "volume": 1.00, "level": 0.46},
+      [_filt(HP, 3000.0, 0.2), _drive(0.6)])
+    let pane = _layer({"mode": SIN, "pitch": _rand(1600.0, 2000.0), "length": 0.3, "volume": 0.60, "level": 0.28},
+      [_chord(5, 11, 17, 0.6)])
+    // Shards: resonant pings at two sizes, scattering over a second.
+    let shards = _layer({"mode": SQR, "pitch": _rand(12.0, 16.0), "voice": 4, "detune": 0.2, "length": 1.2, "volume": 1.00, "level": 0.46},
+      [_vib(0.5, 1.7), _filt(BP, _rand(4000.0, 4600.0), 0.75)])
+    let slivers = _layer({"mode": SQR, "pitch": _rand(18.0, 24.0), "voice": 4, "detune": 0.2, "length": 0.9, "volume": 1.00, "level": 0.37},
+      [_vib(0.5, 2.3), _filt(BP, _rand(6500.0, 7500.0), 0.75)])
+    return _sound([hit, pane, shards, slivers], 0.2, 0.4)
+  }
+
+
+  function preset_splinter() {
+    // A plank snapping: crack, fibres tearing, the halves groaning.
+    let crack = _layer({"mode": NSE, "length": 0.06, "volume": 1.0},
+      [_filt(BP, _rand(1000.0, 1400.0), 0.3), _drive(0.7)])
+    let fibres = _layer({"mode": SQR, "pitch": _rand(30.0, 40.0), "voice": 4, "detune": 0.2, "length": 0.4, "volume": 1.0, "level": 0.8},
+      [_env(0.0, 0.8, 0.0, 0.0), _vib(0.5, 3.0), _filt(BP, 2500.0, 0.3)])
+    let groan = _layer({"mode": SAW, "pitch": _rand(60.0, 80.0), "length": 0.3, "volume": 0.6, "level": 0.5},
+      [_vib(0.3, 7.0, NSE), _filt(BP, 400.0, 0.5)])
+    let thump = _layer({"mode": SIN, "pitch": 110.0, "length": 0.1, "volume": 0.9, "level": 0.7},
+      [_bend(0.4, 0.0, 0.3)])
+    return _sound([crack, fibres, groan, thump], 0.15, 0.35)
+  }
+
+
+  function preset_clang() {
+    // Steel pipe struck: inharmonic partials (a free bar's modes sit far
+    // from the harmonic series) with a slow beat between them.
+    let hit = _layer({"mode": NSE, "length": 0.03, "volume": 1.00, "level": 0.52},
+      [_filt(HP, 1500.0, 0.2)])
+    let low = _layer({"mode": SIN, "pitch": _rand(560.0, 680.0), "voice": 2, "detune": 0.005, "length": 2.0, "volume": 0.70, "level": 0.74},
+      [_chord(10, 17, 24, 0.6)])
+    let high = _layer({"mode": SIN, "pitch": _rand(1900.0, 2200.0), "voice": 2, "detune": 0.004, "length": 1.2, "volume": 0.50, "level": 0.45},
+      [_chord(6, 13, 0, 0.5)])
+    let thud = _layer({"mode": SIN, "pitch": 140.0, "length": 0.08, "volume": 0.80, "level": 0.45},
+      [_bend(0.3, 0.0, 0.3)])
+    return _sound([hit, low, high, thud], 0.3, 0.55)
+  }
+
+
+  function preset_crash() {
+    // Heavy metal-on-metal collision: car wreck territory.
+    let boom = _layer({"mode": SIN, "pitch": _rand(50.0, 60.0), "length": 0.5, "volume": 1.00, "level": 0.51},
+      [_bend(0.6, 0.0, 0.25), _drive(0.7)])
+    // Sheet metal crumpling.
+    let crumple = _layer({"mode": NSE, "length": 0.6, "volume": 1.00, "level": 0.46},
+      [_env(0.0, 0.7, 0.0, 0.0), _filt(BP, 1400.0, 0.3), _drive(0.6), _pulses(_rand(22.0, 28.0), 0.8)])
+    let clang = _layer({"mode": SIN, "pitch": _rand(340.0, 420.0), "voice": 2, "detune": 0.01, "length": 1.4, "volume": 0.60, "level": 0.30},
+      [_chord(7, 17, 22, 0.6)])
+    let glass = _layer({"mode": SQR, "pitch": 14.0, "voice": 4, "detune": 0.2, "length": 1.0, "volume": 1.00, "level": 0.30},
+      [_vib(0.5, 1.9), _filt(BP, 5500.0, 0.7)])
+    return _sound([boom, crumple, clang, glass], 0.3, 0.55)
+  }
+
+
+  function preset_rubble() {
+    // Rockfall / collapsing masonry.
+    let rumble = _layer({"mode": PNK, "length": _rand(1.4, 1.8), "volume": 1.00, "level": 0.42},
+      [_env(0.05, 0.95, 0.0, 0.0), _filt(LP, 300.0, 0.2)])
+    let rocks = _layer({"mode": SQR, "pitch": _rand(8.0, 10.0), "voice": 4, "detune": 0.2, "length": 1.4, "volume": 1.00, "level": 0.42},
+      [_env(0.02, 0.98, 0.0, 0.0), _vib(0.5, 1.1), _filt(BP, 900.0, 0.3)])
+    let stones = _layer({"mode": SQR, "pitch": _rand(15.0, 18.0), "voice": 4, "detune": 0.2, "length": 1.6, "volume": 1.00, "level": 0.30},
+      [_env(0.1, 0.9, 0.0, 0.0), _vib(0.5, 1.6), _filt(BP, 2200.0, 0.3)])
+    let thud = _layer({"mode": SIN, "pitch": 58.0, "length": 0.35, "volume": 1.00, "level": 0.42},
+      [_bend(0.4, 0.0, 0.3), _drive(0.4)])
+    return _sound([rumble, rocks, stones, thud], 0.25, 0.6)
+  }
+
+
+  function preset_plate() {
+    // Ceramic plate hitting the floor and breaking.
+    let hit = _layer({"mode": NSE, "length": 0.04, "volume": 1.00, "level": 0.40},
+      [_filt(HP, 2200.0, 0.2), _drive(0.5)])
+    // Ceramic is damped: a short, bright ring.
+    let ring = _layer({"mode": SIN, "pitch": _rand(1900.0, 2300.0), "length": 0.25, "volume": 0.70, "level": 0.28},
+      [_chord(5, 9, 14, 0.6)])
+    let shards = _layer({"mode": SQR, "pitch": _rand(16.0, 20.0), "voice": 4, "detune": 0.2, "length": 0.6, "volume": 1.00, "level": 0.36},
+      [_vib(0.5, 2.1), _filt(BP, 3500.0, 0.5)])
+    let thud = _layer({"mode": SIN, "pitch": 170.0, "length": 0.06, "volume": 0.80, "level": 0.24},
+      [_bend(0.3, 0.0, 0.3)])
+    return _sound([hit, ring, shards, thud], 0.15, 0.35)
+  }
+
+
+  function preset_box_drop() {
+    // Cardboard box landing, its contents shifting inside.
+    let thud = _layer({"mode": SIN, "pitch": _rand(85.0, 105.0), "length": 0.12, "volume": 1.00, "level": 0.64},
+      [_bend(0.4, 0.0, 0.3)])
+    let hollow = _layer({"mode": NSE, "length": 0.15, "volume": 1.00, "level": 0.51},
+      [_filt(BP, _rand(220.0, 280.0), 0.6)])
+    let flap = _layer({"mode": NSE, "length": 0.06, "volume": 0.80, "level": 0.32},
+      [_filt(BP, 1500.0, 0.2)])
+    let contents = _layer({"mode": SQR, "pitch": 40.0, "voice": 4, "detune": 0.2, "length": 0.25, "volume": 1.00, "level": 0.38},
+      [_env(0.05, 0.95, 0.0, 0.0), _vib(0.5, 4.0), _filt(BP, 1800.0, 0.4)])
+    return _sound([thud, hollow, flap, contents], 0.12, 0.3)
+  }
+  return { preset_smash, preset_splinter, preset_clang, preset_crash, preset_rubble, preset_plate, preset_box_drop };
+})();
+
+// ── WEATHER (presets_weather.gd) ────────────────────
+GROUPS["WEATHER"] = (() => {
+
+  // Weather, water and fire — mostly sustained beds and long gestures.
+  // Noise colour does most of the work: pink for body and roar, white
+  // through a resonant bandpass for whistles and fizz, and irregular click
+  // trains (detuned sub-audio squares) for drops, pops and crackles.
+
+
+  function preset_rain() {
+    let hiss = _layer({"mode": NSE, "length": 2.0, "volume": 0.70, "level": 0.75},
+      [_env(0.15, 0.0, 1.0, 0.2), _filt(LP, _rand(5000.0, 7000.0), 0.1)])
+    let patter = _layer({"mode": PNK, "length": 2.0, "volume": 0.80, "level": 0.45},
+      [_env(0.15, 0.0, 1.0, 0.2), _filt(LP, 800.0, 0.2)])
+    // Individual drops landing near the listener.
+    let drops = _layer({"mode": SQR, "pitch": _rand(35.0, 45.0), "voice": 4, "detune": 0.2, "length": 2.0, "volume": 1.00, "level": 0.45},
+      [_env(0.15, 0.0, 1.0, 0.2), _vib(0.5, 1.3), _filt(BP, _rand(3000.0, 4000.0), 0.4)])
+    let big_drops = _layer({"mode": SQR, "pitch": _rand(7.0, 9.0), "voice": 4, "detune": 0.2, "length": 2.0, "volume": 1.00, "level": 0.37},
+      [_env(0.15, 0.0, 1.0, 0.2), _vib(0.5, 0.7), _filt(BP, 1500.0, 0.6)])
+    return _sound([hiss, patter, drops, big_drops], 0.12, 0.4)
+  }
+
+
+  function preset_thunder() {
+    // Close strike: a tearing crack, the main boom, then a long roll.
+    let crack = _layer({"mode": NSE, "length": 0.35, "volume": 1.00, "level": 0.43},
+      [_env(0.0, 0.8, 0.0, 0.0), _filt(HP, 900.0, 0.2), _drive(0.7), _pulses(_rand(25.0, 30.0), 0.8)])
+    let boom = _layer({"mode": SIN, "pitch": _rand(36.0, 44.0), "length": 0.8, "volume": 1.00, "level": 0.43},
+      [_bend(0.6, 0.0, 0.3), _drive(0.6)])
+    let roll = _layer({"mode": PNK, "length": _rand(2.4, 2.8), "volume": 1.00, "level": 0.43},
+      [_env(0.02, 0.98, 0.0, 0.0), _filt(LP, 220.0, 0.2, 0.5, 0.0, 0.3), _trem(0.5, _rand(1.1, 1.6))])
+    let rumble = _layer({"mode": BRN, "length": 2.4, "volume": 0.50, "level": 0.34},
+      [_env(0.1, 0.9, 0.0, 0.0), _filt(BP, 70.0, 0.2), _trem(0.4, 0.7, TRI)])
+    return _sound([crack, boom, roll, rumble], 0.35, 0.7)
+  }
+
+
+  function preset_wind() {
+    // Gusting wind: a resonant band that sweeps up and down, a thin
+    // whistle, and a low buffeting rumble.
+    let gust = _layer({"mode": PNK, "length": 2.5, "volume": 1.00, "level": 1.00},
+      [_env(0.25, 0.0, 1.0, 0.3), _filt(BP, _rand(400.0, 550.0), 0.7, 0.6, 0.5, 0.5), _trem(0.5, _rand(0.3, 0.5))])
+    let whistle = _layer({"mode": NSE, "length": 2.5, "volume": 0.60, "level": 0.58},
+      [_env(0.3, 0.0, 1.0, 0.3), _filt(BP, _rand(1100.0, 1400.0), 0.88, 0.3, 0.6, 0.4), _trem(0.7, _rand(0.22, 0.32), TRI)])
+    let rumble = _layer({"mode": PNK, "length": 2.5, "volume": 0.80, "level": 0.70},
+      [_env(0.25, 0.0, 1.0, 0.3), _filt(LP, 250.0, 0.2), _trem(0.4, 0.6)])
+    return _sound([gust, whistle, rumble], 0.12, 0.45)
+  }
+
+
+  function preset_waves() {
+    // One ocean wave: the swell building, breaking, then the foam
+    // fizzing as it drains back.
+    let swell = _layer({"mode": PNK, "length": 2.5, "volume": 1.00, "level": 0.77},
+      [_env(0.4, 0.6, 0.0, 0.0), _filt(LP, 400.0, 0.2, 0.5, 0.4, 0.6)])
+    let crash = _layer({"mode": NSE, "length": 2.5, "volume": 0.80, "level": 0.54},
+      [_env(0.35, 0.65, 0.0, 0.0), _filt(LP, 1500.0, 0.1, 0.5, 0.4, 0.6)])
+    let foam = _layer({"mode": SQR, "pitch": 60.0, "voice": 4, "detune": 0.2, "length": 2.5, "volume": 1.00, "level": 0.39},
+      [_env(0.45, 0.55, 0.0, 0.0), _vib(0.5, 2.0), _filt(BP, 5000.0, 0.3)])
+    let drain = _layer({"mode": NSE, "length": 2.5, "volume": 0.60, "level": 0.31},
+      [_env(0.5, 0.5, 0.0, 0.0), _filt(HP, 3000.0, 0.1)])
+    return _sound([swell, crash, foam, drain], 0.18, 0.5)
+  }
+
+
+  function preset_stream() {
+    // Babbling brook: two bubbling voices whose pitch hops around (arp)
+    // and glides up on every blip (saw vibrato), out of step with each
+    // other, over a bed of water noise.
+    let r1 = _rand(12.0, 14.0)
+    let r2 = _rand(16.5, 18.5)
+    let babble1 = _layer({"mode": SIN, "pitch": _rand(650.0, 800.0), "length": 2.0, "volume": 0.50, "level": 0.46},
+      [_env(0.1, 0.0, 1.0, 0.15), _arp(r1, 7, -3, 10), _vib(0.3, r1, SAW), _trem(0.9, r1, SAW, 0.0, 1.0)])
+    let babble2 = _layer({"mode": SIN, "pitch": _rand(1000.0, 1200.0), "length": 2.0, "volume": 0.40, "level": 0.37},
+      [_env(0.1, 0.0, 1.0, 0.15), _arp(r2, -5, 4, 9), _vib(0.25, r2, SAW), _trem(0.9, r2, SAW, 0.0, 1.0)])
+    let water = _layer({"mode": PNK, "length": 2.0, "volume": 0.90, "level": 0.27},
+      [_env(0.1, 0.0, 1.0, 0.15), _filt(BP, 1500.0, 0.3), _trem(0.3, 3.0)])
+    let trickle = _layer({"mode": SQR, "pitch": 30.0, "voice": 4, "detune": 0.2, "length": 2.0, "volume": 1.00, "level": 0.18},
+      [_env(0.1, 0.0, 1.0, 0.15), _vib(0.5, 1.7), _filt(BP, 2500.0, 0.6)])
+    return _sound([babble1, babble2, water, trickle], 0.15, 0.4)
+  }
+
+
+  function preset_drip() {
+    // A single drop in a cave: the "plink" is a tiny air cavity ringing
+    // and rising in pitch as it collapses.
+    let plink = _layer({"mode": SIN, "pitch": _rand(800.0, 1100.0), "length": 0.06, "volume": 0.90, "level": 0.66},
+      [_bend(0.45, 1.0, 0.0)])
+    let tick = _layer({"mode": NSE, "length": 0.008, "volume": 0.60, "level": 0.26},
+      [_filt(HP, 4000.0, 0.2)])
+    let echo = _layer({"mode": SIN, "pitch": _rand(800.0, 1100.0), "length": 0.06, "volume": 0.50, "level": 0.33},
+      [_bend(0.45, 1.0, 0.0), _filt(LP, 2000.0, 0.1), _echo(_rand(250.0, 330.0), 0.6, 0.4)])
+    return _sound([plink, tick, echo], 0.4, 0.75)
+  }
+
+
+  function preset_splash() {
+    // Something heavy falling into water.
+    let impact = _layer({"mode": NSE, "length": _rand(0.35, 0.45), "volume": 1.00, "level": 0.44},
+      [_filt(BP, 800.0, 0.2, 0.5, 0.05, 0.6)])
+    // The cavity it leaves collapsing: a low "bloop".
+    let bloop = _layer({"mode": SIN, "pitch": _rand(170.0, 220.0), "length": 0.15, "volume": 0.90, "level": 0.35},
+      [_env(0.1, 0.9, 0.0, 0.0), _bend(0.6, 1.0, 0.0)])
+    let droplets = _layer({"mode": SIN, "pitch": _rand(1300.0, 1700.0), "length": 0.03, "volume": 0.60, "level": 0.22},
+      [_bend(0.4, 1.0, 0.0), _echo(_rand(70.0, 90.0), 0.8, 0.6)])
+    let thump = _layer({"mode": SIN, "pitch": 70.0, "length": 0.12, "volume": 1.00, "level": 0.31},
+      [_bend(0.4, 0.0, 0.3)])
+    return _sound([impact, bloop, droplets, thump], 0.2, 0.4)
+  }
+
+
+  function preset_bubbles() {
+    // Underwater bubbles: each pulse is a sine gliding upward as a bubble
+    // rises; three streams at unrelated rates.
+    let a = _layer({"mode": SIN, "pitch": _rand(350.0, 450.0), "length": 1.5, "volume": 0.70, "level": 0.39},
+      [_env(0.0, 0.0, 1.0, 0.3), _vib(0.5, 9.0, SAW), _pulses(9.0)])
+    let b = _layer({"mode": SIN, "pitch": _rand(600.0, 700.0), "length": 1.5, "volume": 0.60, "level": 0.31},
+      [_env(0.0, 0.0, 1.0, 0.3), _vib(0.45, 13.7, SAW), _pulses(13.7)])
+    let c = _layer({"mode": SIN, "pitch": _rand(240.0, 300.0), "length": 1.5, "volume": 0.70, "level": 0.31},
+      [_env(0.0, 0.0, 1.0, 0.3), _vib(0.5, 6.1, SAW), _pulses(6.1)])
+    let murk = _layer({"mode": PNK, "length": 1.5, "volume": 0.70, "level": 0.19},
+      [_env(0.1, 0.0, 1.0, 0.3), _filt(LP, 500.0, 0.3)])
+    return _sound([a, b, c, murk], 0.25, 0.5)
+  }
+
+
+  function preset_campfire() {
+    // Crackling wood fire: sparse pops, finer crackle and a soft roar.
+    let pops = _layer({"mode": SQR, "pitch": _rand(3.5, 4.5), "voice": 4, "detune": 0.2, "length": 2.0, "volume": 1.00, "level": 0.99},
+      [_env(0.1, 0.0, 1.0, 0.2), _vib(0.6, 0.9), _filt(BP, _rand(2200.0, 2800.0), 0.4)])
+    let crackle = _layer({"mode": SQR, "pitch": _rand(7.0, 9.0), "voice": 4, "detune": 0.2, "length": 2.0, "volume": 1.00, "level": 0.60},
+      [_env(0.1, 0.0, 1.0, 0.2), _vib(0.6, 1.4), _filt(BP, 5000.0, 0.4)])
+    let roar = _layer({"mode": PNK, "length": 2.0, "volume": 1.00, "level": 0.70},
+      [_env(0.1, 0.0, 1.0, 0.2), _filt(LP, 500.0, 0.2), _trem(0.4, 0.5)])
+    let hiss = _layer({"mode": NSE, "length": 2.0, "volume": 0.50, "level": 0.29},
+      [_env(0.1, 0.0, 1.0, 0.2), _filt(BP, 3500.0, 0.2), _trem(0.5, 0.8, TRI)])
+    return _sound([pops, crackle, roar, hiss], 0.1, 0.3)
+  }
+
+
+  function preset_ignite() {
+    // Torch or gas burner catching: a whoosh that settles into a roar.
+    let whoosh = _layer({"mode": PNK, "length": 1.6, "volume": 1.00, "level": 0.44},
+      [_env(0.08, 0.3, 0.5, 0.3), _filt(LP, 300.0, 0.3, 0.7, 0.1, 0.3), _drive(0.4)])
+    let flare = _layer({"mode": NSE, "length": 0.5, "volume": 0.80, "level": 0.26},
+      [_env(0.2, 0.8, 0.0, 0.0), _filt(BP, 1500.0, 0.3, 0.5, 0.2, 0.8)])
+    let flutter = _layer({"mode": PNK, "length": 1.6, "volume": 0.80, "level": 0.26},
+      [_env(0.15, 0.2, 0.6, 0.3), _filt(BP, 900.0, 0.3), _trem(0.6, _rand(9.0, 13.0), NSE)])
+    let crackle = _layer({"mode": SQR, "pitch": 6.0, "voice": 4, "detune": 0.2, "length": 1.6, "volume": 1.00, "level": 0.18},
+      [_env(0.2, 0.2, 0.6, 0.3), _vib(0.6, 1.2), _filt(BP, 3000.0, 0.4)])
+    return _sound([whoosh, flare, flutter, crackle], 0.15, 0.4)
+  }
+
+
+  function preset_rustle() {
+    // Brushing through a leafy bush: crisp, irregular and bright.
+    let leaves = _layer({"mode": SQR, "pitch": _rand(45.0, 55.0), "voice": 4, "detune": 0.2, "length": _rand(0.7, 0.9), "volume": 1.00, "level": 0.60},
+      [_env(0.25, 0.75, 0.0, 0.0), _vib(0.6, 3.3), _filt(BP, 4500.0, 0.2)])
+    let brush = _layer({"mode": NSE, "length": 0.8, "volume": 1.00, "level": 1.00},
+      [_env(0.3, 0.7, 0.0, 0.0), _filt(BP, 2000.0, 0.2), _trem(0.6, _rand(8.0, 10.0))])
+    let twigs = _layer({"mode": SQR, "pitch": 9.0, "voice": 4, "detune": 0.2, "length": 0.8, "volume": 1.00, "level": 0.53},
+      [_env(0.3, 0.7, 0.0, 0.0), _vib(0.5, 1.9), _filt(BP, 1800.0, 0.5)])
+    return _sound([leaves, brush, twigs], 0.08, 0.3)
+  }
+  return { preset_rain, preset_thunder, preset_wind, preset_waves, preset_stream, preset_drip, preset_splash, preset_bubbles, preset_campfire, preset_ignite, preset_rustle };
+})();
+
+// ── ANIMAL (presets_animal.gd) ────────────────────
+GROUPS["ANIMAL"] = (() => {
+
+  // Real animals. Voices are a buzzy source (saw or a slow pulse train)
+  // through bandpass "formants" that move with the call, plus a breath
+  // layer. Birds and insects are fast patterns: saw vibrato makes each
+  // pulse a chirp, and two detuned voices beat against each other to
+  // chop a tone into insect-wing pulses.
+
+
+  function preset_birds() {
+    // A songbird phrase: every chirp sweeps up, and the arp moves each
+    // one to a new pitch.
+    let r1 = _rand(10.0, 12.0)
+    let song = _layer({"mode": SIN, "pitch": _rand(3000.0, 3600.0), "length": _rand(1.0, 1.3), "volume": 0.70, "level": 0.53},
+      [_env(0.0, 0.0, 1.0, 0.15), _arp(r1, 3, -2, 5), _vib(0.22, r1, SAW), _pulses(r1)])
+    // A second bird answering with slower up-down calls.
+    let r2 = _rand(5.5, 7.0)
+    let answer = _layer({"mode": SIN, "pitch": _rand(3500.0, 4000.0), "length": 1.2, "volume": 0.50, "level": 0.32},
+      [_env(0.0, 0.0, 1.0, 0.2), _arp(r2, -4, 2, -7), _vib(0.15, r2, TRI), _pulses(r2)])
+    // A trill: fast warble on a held note.
+    let trill = _layer({"mode": SIN, "pitch": _rand(3400.0, 3800.0), "length": 0.5, "volume": 0.50, "level": 0.27},
+      [_env(0.2, 0.5, 0.3, 0.3), _vib(0.06, 28.0), _trem(0.8, 28.0)])
+    return _sound([song, answer, trill], 0.15, 0.5)
+  }
+
+
+  function preset_crow() {
+    // Two harsh, nasal "caw"s.
+    let gap = _rand(330.0, 420.0)
+    let caw = _layer({"mode": SAW, "pitch": _rand(480.0, 560.0), "length": 0.28, "volume": 0.9},
+      [_env(0.05, 0.3, 0.5, 0.3), _bend(0.15, 0.1, 0.9), _vib(0.04, 30.0, NSE), _drive(0.5), _filt(BP, 1400.0, 0.6), _echo(gap, 0.66)])
+    let formant = _layer({"mode": SAW, "pitch": _rand(480.0, 560.0), "length": 0.28, "volume": 0.7, "level": 0.6},
+      [_env(0.05, 0.3, 0.5, 0.3), _bend(0.15, 0.1, 0.9), _filt(BP, 2600.0, 0.5), _echo(gap, 0.66)])
+    let breath = _layer({"mode": NSE, "length": 0.28, "volume": 0.6, "level": 0.35},
+      [_env(0.05, 0.3, 0.5, 0.3), _filt(BP, 2000.0, 0.3), _echo(gap, 0.66)])
+    return _sound([caw, formant, breath], 0.2, 0.5)
+  }
+
+
+  function preset_owl() {
+    // Soft "hoo — hoo-hoo" in a forest.
+    let gap = _rand(320.0, 380.0)
+    let hoot = _layer({"mode": SIN, "pitch": _rand(360.0, 400.0), "length": 0.3, "volume": 0.90, "level": 0.73},
+      [_env(0.25, 0.35, 0.4, 0.4), _bend(0.06, 0.3, 0.7), _vib(0.01, 6.0), _echo(gap, 0.6, 0.35)])
+    let hollow = _layer({"mode": TRI, "pitch": _rand(360.0, 400.0), "length": 0.3, "volume": 0.50, "level": 0.29},
+      [_env(0.25, 0.35, 0.4, 0.4), _filt(LP, 700.0, 0.2), _echo(gap, 0.6, 0.35)])
+    let breath = _layer({"mode": PNK, "length": 0.3, "volume": 0.60, "level": 0.18},
+      [_env(0.25, 0.35, 0.4, 0.4), _filt(BP, 400.0, 0.4), _echo(gap, 0.6, 0.35)])
+    return _sound([hoot, hollow, breath], 0.3, 0.6)
+  }
+
+
+  function preset_crickets() {
+    // Each cricket is four sines a few Hz apart. Equally spaced voices
+    // beat into a sharp pulse train at that spacing — steady chirps for
+    // the whole bed, unlike tremolo, whose depth fades. A fast saw
+    // tremolo adds the wing-stroke texture inside each chirp.
+    let a = _layer({"mode": SIN, "pitch": 3900.0, "voice": 4, "detune": _rand(0.0021, 0.0025), "length": 2.0, "volume": 0.60, "level": 0.42},
+      [_env(0.05, 0.0, 1.0, 0.1), _trem(0.7, 30.0, SAW)])
+    let b = _layer({"mode": SIN, "pitch": 3500.0, "voice": 4, "detune": _rand(0.0031, 0.0037), "length": 2.0, "volume": 0.50, "level": 0.30},
+      [_env(0.05, 0.0, 1.0, 0.1), _trem(0.7, 28.0, SAW)])
+    let c = _layer({"mode": SIN, "pitch": 3200.0, "voice": 4, "detune": _rand(0.0019, 0.0022), "length": 2.0, "volume": 0.40, "level": 0.21},
+      [_env(0.05, 0.0, 1.0, 0.1), _trem(0.6, 26.0, SAW)])
+    let night = _layer({"mode": PNK, "length": 2.0, "volume": 0.40, "level": 0.11},
+      [_env(0.1, 0.0, 1.0, 0.1), _filt(LP, 600.0, 0.1)])
+    return _sound([a, b, c, night], 0.2, 0.6)
+  }
+
+
+  function preset_frog() {
+    // "Rib-bit": a slow glottal pulse train ringing a throat resonance,
+    // split into two bursts.
+    let croak = _layer({"mode": SAW, "pitch": _rand(26.0, 32.0), "length": 0.3, "volume": 1.00, "level": 0.64},
+      [_env(0.0, 0.0, 1.0, 0.15), _pulses(_rand(6.5, 7.5)), _bend(0.15, 1.0, 0.0), _filt(BP, _rand(600.0, 750.0), 0.85)])
+    let nasal = _layer({"mode": SAW, "pitch": _rand(26.0, 32.0), "length": 0.3, "volume": 0.80, "level": 0.38},
+      [_env(0.0, 0.0, 1.0, 0.15), _pulses(7.0), _filt(BP, 1500.0, 0.75)])
+    let throat = _layer({"mode": SIN, "pitch": 140.0, "length": 0.3, "volume": 0.60, "level": 0.26},
+      [_env(0.0, 0.0, 1.0, 0.15), _pulses(7.0)])
+    return _sound([croak, nasal, throat], 0.25, 0.55)
+  }
+
+
+  function preset_buzz() {
+    // A fly circling past: wavering wing buzz, swelling as it nears.
+    let wings = _layer({"mode": SAW, "pitch": _rand(200.0, 240.0), "voice": 2, "detune": 0.02, "length": 2.0, "volume": 0.80, "level": 0.79},
+      [_env(0.3, 0.0, 1.0, 0.4), _vib(0.06, _rand(2.5, 3.5)), _trem(0.6, _rand(1.5, 2.2)), _filt(BP, 1200.0, 0.3), _flange(0.4, 0.5, 0.3, 0.4)])
+    let hum = _layer({"mode": SAW, "pitch": _rand(200.0, 240.0), "length": 2.0, "volume": 0.60, "level": 0.39},
+      [_env(0.3, 0.0, 1.0, 0.4), _vib(0.05, 3.0), _filt(LP, 600.0, 0.3)])
+    return _sound([wings, hum], 0.05, 0.3)
+  }
+
+
+  function preset_dog() {
+    // Medium dog, two barks: the pitch kicks up then drops, the mouth
+    // opens (filter swells) — "wuh-OOF".
+    let gap = _rand(240.0, 300.0)
+    let bark = _layer({"mode": SAW, "pitch": _rand(290.0, 350.0), "length": 0.18, "volume": 1.00, "level": 1.00},
+      [_env(0.03, 0.4, 0.3, 0.4), _bend(0.25, 0.2, 0.8), _drive(0.6), _filt(BP, 800.0, 0.5, 0.5, 0.2, 0.8), _echo(gap, 0.66)])
+    let chest = _layer({"mode": SAW, "pitch": _rand(150.0, 170.0), "length": 0.18, "volume": 0.80, "level": 0.76},
+      [_env(0.03, 0.4, 0.3, 0.4), _bend(0.25, 0.2, 0.8), _filt(LP, 500.0, 0.3), _echo(gap, 0.66)])
+    let breath = _layer({"mode": NSE, "length": 0.18, "volume": 0.80, "level": 0.58},
+      [_env(0.03, 0.4, 0.3, 0.4), _filt(BP, 1600.0, 0.3, 0.4, 0.2, 0.8), _echo(gap, 0.66)])
+    return _sound([bark, chest, breath], 0.15, 0.4)
+  }
+
+
+  function preset_cat() {
+    // "Mi-aaa-ow": pitch rises and falls while the formants open from a
+    // closed "mm/ee" to "aa" and close to "ow".
+    let dur = _rand(0.6, 0.8)
+    let voice = _layer({"mode": SAW, "pitch": _rand(480.0, 560.0), "length": dur, "volume": 0.90, "level": 0.69},
+      [_env(0.15, 0.3, 0.6, 0.4), _bend(0.35, 0.3, 0.7), _vib(0.02, 6.0), _filt(BP, 900.0, 0.6, 0.6, 0.4, 0.6)])
+    let upper = _layer({"mode": SAW, "pitch": _rand(480.0, 560.0), "length": dur, "volume": 0.70, "level": 0.35},
+      [_env(0.15, 0.3, 0.6, 0.4), _bend(0.35, 0.3, 0.7), _filt(BP, 2700.0, 0.6, 0.4, 0.4, 0.6)])
+    let breath = _layer({"mode": NSE, "length": dur, "volume": 0.50, "level": 0.14},
+      [_env(0.15, 0.3, 0.6, 0.4), _filt(BP, 3000.0, 0.3)])
+    return _sound([voice, upper, breath], 0.15, 0.4)
+  }
+
+
+  function preset_wolf() {
+    // A long howl gliding up and slowly sinking, vibrato arriving late.
+    let howl = _layer({"mode": SIN, "pitch": _rand(400.0, 450.0), "length": _rand(1.8, 2.1), "volume": 0.80, "level": 0.45},
+      [_env(0.2, 0.2, 0.7, 0.4), _bend(0.3, 0.25, 0.75), _vib(0.015, 5.0, SIN, 0.4, 0.6)])
+    let overtone = _layer({"mode": TRI, "pitch": _rand(800.0, 900.0), "length": 2.0, "volume": 0.50, "level": 0.15},
+      [_env(0.2, 0.2, 0.7, 0.4), _bend(0.3, 0.25, 0.75), _filt(BP, 1200.0, 0.4)])
+    let breath = _layer({"mode": PNK, "length": 2.0, "volume": 0.50, "level": 0.09},
+      [_env(0.2, 0.2, 0.6, 0.4), _filt(BP, 1000.0, 0.4)])
+    return _sound([howl, overtone, breath], 0.35, 0.7)
+  }
+
+
+  function preset_cow() {
+    // "Mmm-ooo": a low buzzy voice with the mouth slowly opening.
+    let voice = _layer({"mode": SAW, "pitch": _rand(100.0, 120.0), "length": _rand(1.2, 1.5), "volume": 1.00, "level": 0.75},
+      [_env(0.15, 0.2, 0.7, 0.3), _bend(0.12, 0.3, 0.7), _vib(0.01, 5.0), _filt(BP, 400.0, 0.6, 0.5, 0.5, 0.5)])
+    let formant = _layer({"mode": SAW, "pitch": _rand(100.0, 120.0), "length": 1.4, "volume": 0.80, "level": 0.38},
+      [_env(0.2, 0.2, 0.6, 0.3), _bend(0.12, 0.3, 0.7), _filt(BP, 900.0, 0.5, 0.4, 0.5, 0.5)])
+    let breath = _layer({"mode": PNK, "length": 1.4, "volume": 0.60, "level": 0.19},
+      [_env(0.15, 0.2, 0.6, 0.3), _filt(BP, 700.0, 0.3)])
+    return _sound([voice, formant, breath], 0.2, 0.5)
+  }
+
+
+  function preset_rattler() {
+    // Rattlesnake: two click trains ~50 a second (one click per saw
+    // cycle, ringing a bright bandpass), slightly out of step so the
+    // rattle never settles into a tone, over a pulsing hiss.
+    let rate = _rand(45.0, 55.0)
+    let rattle = _layer({"mode": SAW, "pitch": rate, "length": 1.6, "volume": 0.60, "level": 0.75},
+      [_env(0.1, 0.0, 1.0, 0.2), _vib(0.08, 6.0, NSE), _filt(BP, _rand(4500.0, 5500.0), 0.6)])
+    let segments = _layer({"mode": SAW, "pitch": rate * 1.07, "length": 1.6, "volume": 0.50, "level": 0.52},
+      [_env(0.1, 0.0, 1.0, 0.2), _vib(0.08, 4.5, NSE), _filt(BP, 7500.0, 0.6)])
+    let hiss = _layer({"mode": NSE, "length": 1.6, "volume": 0.80, "level": 0.60},
+      [_env(0.15, 0.0, 1.0, 0.2), _filt(BP, 4500.0, 0.3), _pulses(25.0, 0.6)])
+    return _sound([rattle, segments, hiss], 0.08, 0.3)
+  }
+
+
+  function preset_gull() {
+    // Seagull "kee-ah" calls, three in a falling run.
+    let gap = _rand(230.0, 280.0)
+    let cry = _layer({"mode": SAW, "pitch": _rand(850.0, 1000.0), "length": 0.22, "volume": 0.8},
+      [_env(0.05, 0.3, 0.5, 0.3), _bend(0.3, 0.2, 0.8), _drive(0.3), _filt(BP, 2200.0, 0.6), _echo(gap, 0.66, 0.45)])
+    let nasal = _layer({"mode": SAW, "pitch": _rand(850.0, 1000.0), "length": 0.22, "volume": 0.6, "level": 0.5},
+      [_env(0.05, 0.3, 0.5, 0.3), _bend(0.3, 0.2, 0.8), _filt(BP, 3800.0, 0.5), _echo(gap, 0.66, 0.45)])
+    let surf = _layer({"mode": PNK, "length": 1.4, "volume": 0.5, "level": 0.25},
+      [_env(0.2, 0.0, 1.0, 0.3), _filt(LP, 900.0, 0.1)])
+    return _sound([cry, nasal, surf], 0.2, 0.6)
+  }
+  return { preset_birds, preset_crow, preset_owl, preset_crickets, preset_frog, preset_buzz, preset_dog, preset_cat, preset_wolf, preset_cow, preset_rattler, preset_gull };
 })();
 
 // ── MAGIC (presets_magic.gd) ────────────────────
 GROUPS["MAGIC"] = (() => {
 
-  // Fantasy-style spell sounds. These layer arpeggios, vibrato, and pitch
-  // envelopes more aggressively than ARCADE one-shots so each spell has a
-  // recognisable "shape".
+  // Spells. Each one pairs a physical element (fire roar, ice crackle,
+  // electric arcing, air) with a musical one (chords, arpeggiated
+  // sparkles, choirs) so it reads as both a force and a piece of magic.
 
 
-  // Cast: 3ch — noise shimmer + arpeggiated sine body + HP sparkle tail.
-  function preset_cast() {
-    let body = _ch({
-      "mode": 3, "pitch": _rand(400.0, 600.0), "length": 0.5, "voice": 1,
-      "arpEnabled": true,
-      "arpRate": _rand(14.0, 20.0),
-      "arpStep1": 4, "arpStep2": 7, "arpStep3": 12,
-      "ampAttack": 0.08, "ampDecay": 0.2, "ampSustain": 0.6, "ampRelease": 0.4,
-      "volume": 0.45, "level": 0.85,
-    })
-    return {
-      "channels": [
-        _resonant_sweep(0.15, _rand(2000.0, 3500.0), 0.4, -0.5, 0.4, 0.35, 0.6),
-        body,
-        _hp_noise_transient(0.3, _rand(3000.0, 5000.0), 0.3, 0.3, 0.45),
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.2, "reverbSize": 0.4},
-    }
+  function preset_fireball() {
+    let whoosh = _layer({"mode": PNK, "length": 1.2, "volume": 1.00, "level": 0.46},
+      [_env(0.25, 0.75, 0.0, 0.0), _filt(LP, 300.0, 0.3, 0.8, 0.25, 0.75)])
+    // The flames: driven noise with an uneven flutter.
+    let roar = _layer({"mode": PNK, "length": 1.2, "volume": 1.00, "level": 0.37},
+      [_env(0.15, 0.85, 0.0, 0.0), _filt(BP, _rand(600.0, 800.0), 0.3), _drive(0.6), _trem(0.6, _rand(10.0, 14.0), NSE)])
+    let crackle = _layer({"mode": SQR, "pitch": 7.0, "voice": 4, "detune": 0.2, "length": 1.2, "volume": 1.00, "level": 0.23},
+      [_env(0.1, 0.9, 0.0, 0.0), _vib(0.6, 1.5), _filt(BP, 3000.0, 0.4)])
+    let launch = _layer({"mode": SIN, "pitch": _rand(70.0, 85.0), "length": 0.4, "volume": 1.00, "level": 0.37},
+      [_env(0.1, 0.9, 0.0, 0.0), _bend(0.5, 0.1, 0.9), _drive(0.5)])
+    return _sound([whoosh, roar, crackle, launch], 0.25, 0.5)
   }
 
 
-  function preset_sparkle() {
-    let shimmer = _ch({
-      "mode": 3, "pitch": _rand(1800.0, 2400.0), "length": 0.2,
-      "voice": 2, "detune": 0.08,
-      "ampAttack": 0.0, "ampDecay": 0.3, "ampSustain": 0.3, "ampRelease": 0.5,
-      "vibEnabled": true,
-      "pitchMod": 0.2, "modShape": 3, "modRate": 30.0,
-      "modAttack": 0.0, "modDecay": 0.8,
-      "volume": 0.4, "level": 0.8,
-    })
-    let body = _ch({
-      "mode": 2, "pitch": _rand(900.0, 1200.0), "length": 0.15,
-      "voice": 1,
-      "ampAttack": 0.0, "ampDecay": 0.5, "ampSustain": 0.0, "ampRelease": 0.3,
-      "volume": 0.35, "level": 0.7,
-    })
-    Object.assign(body, _pitch_env_rise(0.3, 0.6))
-    return {
-      "channels": [shimmer, body],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.3, "reverbSize": 0.4},
-    }
+  function preset_frost() {
+    // Ice forming: crystalline arpeggio, crackling growth, a cold wind,
+    // and a final crack as it locks solid at 0.55 s.
+    let crystal = _layer({"mode": SIN, "pitch": _rand(2600.0, 3000.0), "length": 1.0, "volume": 0.60, "level": 0.57},
+      [_env(0.05, 0.95, 0.0, 0.0), _arp(24.0, 5, 12, 7), _pulses(24.0, 0.7), _chord(7, 12, 19, 0.4)])
+    let growth = _layer({"mode": SQR, "pitch": 18.0, "voice": 4, "detune": 0.2, "length": 1.0, "volume": 1.00, "level": 0.34},
+      [_env(0.2, 0.8, 0.0, 0.0), _vib(0.5, 2.0), _filt(BP, 6000.0, 0.7)])
+    let chill = _layer({"mode": NSE, "length": 1.0, "volume": 0.70, "level": 0.28},
+      [_env(0.3, 0.7, 0.0, 0.0), _filt(BP, 4000.0, 0.6, 0.3, 0.4, 0.6)])
+    let lock = _layer({"mode": NSE, "length": 2.2, "volume": 1.00, "level": 0.45},
+      [_at(0.55, 2.2, 0.08), _filt(HP, 2500.0, 0.3), _drive(0.5)])
+    return _sound([crystal, growth, chill, lock], 0.35, 0.7)
+  }
+
+
+  function preset_bolt() {
+    // Lightning from the hands: arcing buzz, ripping crack, thunder.
+    let arc = _layer({"mode": SAW, "pitch": _rand(100.0, 140.0), "length": 0.7, "volume": 0.90, "level": 0.36},
+      [_env(0.0, 0.8, 0.0, 0.0), _vib(0.5, 30.0, NSE), _drive(0.7), _filt(BP, 2500.0, 0.4, 0.4, 0.0, 0.6)])
+    let crack = _layer({"mode": NSE, "length": 0.4, "volume": 1.00, "level": 0.36},
+      [_env(0.0, 0.7, 0.0, 0.0), _filt(HP, 1500.0, 0.2), _drive(0.8), _pulses(_rand(24.0, 30.0), 0.8)])
+    let boom = _layer({"mode": SIN, "pitch": _rand(42.0, 50.0), "length": 0.6, "volume": 1.00, "level": 0.29},
+      [_bend(0.6, 0.0, 0.3), _drive(0.5)])
+    let sizzle = _layer({"mode": NSE, "length": 1.0, "volume": 0.60, "level": 0.14},
+      [_env(0.05, 0.95, 0.0, 0.0), _filt(HP, 5000.0, 0.2), _trem(0.8, 20.0, NSE)])
+    return _sound([arc, crack, boom, sizzle], 0.3, 0.6)
   }
 
 
   function preset_heal() {
-    let body = _ch({
-      "mode": 0,
-      "pitch": _rand(350.0, 500.0),
-      "length": _rand(0.5, 0.7),
-      "voice": _rand_int(2, 3), "detune": _rand(0.04, 0.07),
-      "ampAttack": _rand(0.08, 0.15), "ampDecay": 0.2, "ampSustain": 0.7, "ampRelease": 0.5,
-      "volume": 0.45, "level": 0.85,
-    })
-    Object.assign(body, _pitch_env_rise(_rand(0.15, 0.25), _rand(0.4, 0.6)))
-    let shimmer = _resonant_sweep(
-      0.4, _rand(3000.0, 4500.0), 0.3, 0.4, 0.5, 0.25, 0.45)
-    return {
-      "channels": [body, shimmer],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.25, "reverbSize": 0.45},
-    }
+    // Warm major chord swelling up, sparkles rising through it.
+    let root = _pick([392.0, 440.0, 523.0])
+    let pad = _layer({"mode": SIN, "pitch": root, "voice": 2, "detune": 0.006, "length": 1.6, "volume": 0.6},
+      [_env(0.3, 0.2, 0.6, 0.4), _chord(4, 7, 12, 0.6)])
+    let sparkle = _layer({"mode": SIN, "pitch": root * 4.0, "length": 1.4, "volume": 0.5, "level": 0.5},
+      [_env(0.2, 0.3, 0.5, 0.4), _arp(12.0, 4, 7, 12), _pulses(12.0, 0.8)])
+    let air = _layer({"mode": PNK, "length": 1.6, "volume": 0.6, "level": 0.3},
+      [_env(0.4, 0.6, 0.0, 0.0), _filt(BP, 1500.0, 0.4, 0.4, 0.5, 0.5)])
+    let glow = _layer({"mode": TRI, "pitch": root * 0.5, "length": 1.6, "volume": 0.5, "level": 0.5},
+      [_env(0.4, 0.2, 0.5, 0.4)])
+    return _sound([pad, sparkle, air, glow], 0.45, 0.7)
   }
 
 
-  function preset_buff() {
-    let body = _ch({
-      "mode": 3,
-      "pitch": _rand(300.0, 450.0),
-      "length": _rand(0.5, 0.7),
-      "voice": 1,
-      "arpEnabled": true,
-      "arpRate": _rand(12.0, 18.0),
-      "arpStep1": 4, "arpStep2": 7, "arpStep3": 12,
-      "ampAttack": _rand(0.08, 0.15), "ampDecay": 0.15, "ampSustain": 0.8, "ampRelease": 0.4,
-      "volume": 0.4, "level": 0.85,
-    })
-    let sparkle = _ch({
-      "mode": 3,
-      "pitch": _rand(1800.0, 2400.0),
-      "length": 0.15, "voice": 2, "detune": 0.06,
-      "ampAttack": 0.0, "ampDecay": 0.3, "ampSustain": 0.0, "ampRelease": 0.3,
-      "vibEnabled": true,
-      "pitchMod": 0.15, "modShape": 3, "modRate": 25.0,
-      "modAttack": 0.0, "modDecay": 0.8,
-      "volume": 0.3, "level": 0.5,
-    })
-    return {
-      "channels": [body, sparkle],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.2, "reverbSize": 0.4},
-    }
+  function preset_holy() {
+    // A choir "aah": detuned saws through two vowel formants, with a
+    // bell to mark the moment.
+    let choir = _layer({"mode": SAW, "pitch": _pick([220.0, 247.0, 262.0]), "voice": 4, "detune": 0.012, "length": 1.8, "volume": 1.00, "level": 1.00},
+      [_env(0.3, 0.2, 0.7, 0.4), _chord(4, 7, 12, 0.6), _filt(BP, 800.0, 0.5), _vib(0.008, 5.0, SIN, 0.3, 0.7)])
+    let vowel = _layer({"mode": SAW, "pitch": 262.0, "voice": 4, "detune": 0.01, "length": 1.8, "volume": 0.60, "level": 0.93},
+      [_env(0.3, 0.2, 0.7, 0.4), _chord(4, 7, 12, 0.6), _filt(BP, 1200.0, 0.6)])
+    let bell = _layer({"mode": SIN, "pitch": 1047.0, "length": 1.6, "volume": 0.50, "level": 0.93},
+      [_chord(12, 19, 24, 0.5)])
+    let shimmer = _layer({"mode": SIN, "pitch": 2093.0, "voice": 3, "detune": 0.01, "length": 1.6, "volume": 0.40, "level": 0.56},
+      [_env(0.4, 0.2, 0.5, 0.4), _trem(0.5, 7.0)])
+    return _sound([choir, vowel, bell, shimmer], 0.5, 0.7)
   }
 
 
-  function preset_debuff() {
-    let body = _ch({
-      "mode": _pick([0, 1]),
-      "pitch": _rand(200.0, 300.0),
-      "length": _rand(0.5, 0.7),
-      "voice": 1,
-      "arpEnabled": true,
-      "arpRate": _rand(10.0, 14.0),
-      "arpStep1": -3, "arpStep2": -7, "arpStep3": -12,
-      "driveEnabled": true, "driveAmount": _rand(0.25, 0.4), "driveMix": 0.8,
-      "ampAttack": 0.0, "ampDecay": 0.3, "ampSustain": 0.5, "ampRelease": 0.5,
-      "volume": 0.45, "level": 0.85,
-    })
-    let hiss = _lp_noise_tail(
-      0.4, 600.0, 0.3, -0.4, 0.6, 0.3, 0.45)
-    return {
-      "channels": [body, hiss],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.15, "reverbSize": 0.35},
-    }
+  function preset_curse() {
+    // Dark magic: a dissonant low drone (tritone and minor second)
+    // swelling in, whispers, and a sinking tone.
+    let drone = _layer({"mode": SAW, "pitch": _rand(50.0, 60.0), "voice": 3, "detune": 0.03, "length": 1.6, "volume": 0.90, "level": 0.63},
+      [_env(0.5, 0.2, 0.5, 0.3), _chord(1, 6, 13, 0.6), _filt(LP, 300.0, 0.4, 0.5, 0.5, 0.5)])
+    let whisper = _layer({"mode": NSE, "length": 1.6, "volume": 0.70, "level": 0.26},
+      [_env(0.4, 0.3, 0.4, 0.3), _filt(BP, 3000.0, 0.6, -0.3, 0.3, 0.7), _trem(0.8, 9.0, NSE)])
+    let sink = _layer({"mode": SIN, "pitch": _rand(150.0, 180.0), "length": 1.6, "volume": 0.60, "level": 0.38},
+      [_env(0.3, 0.7, 0.0, 0.0), _bend(1.0, 0.0, 1.0), _vib(0.03, 5.0)])
+    let sub = _layer({"mode": SIN, "pitch": 41.0, "length": 1.6, "volume": 0.80, "level": 0.38},
+      [_env(0.5, 0.5, 0.0, 0.0), _trem(0.5, 3.0)])
+    return _sound([drone, whisper, sink, sub], 0.4, 0.7)
   }
 
 
-  // Teleport: 3ch — HP noise phase-in + filtered sweep body + delay tail.
-  function preset_teleport() {
-    let body = _ch({
-      "mode": 1, "pitch": _rand(800.0, 1200.0), "length": 0.4, "voice": 1,
-      "ampAttack": 0.08, "ampDecay": 0.4, "ampSustain": 0.3, "ampRelease": 0.5,
-      "filterEnabled": true, "filterType": 0,
-      "filterCutoff": _rand(400.0, 700.0), "filterRes": _rand(0.4, 0.6),
-      "filterEnv": _rand(0.6, 0.85), "filterAttack": 0.15, "filterDecay": 0.5,
-      "volume": 0.45, "level": 0.8,
-    })
-    let tail = _ch({
-      "mode": 4, "pitch": 1000.0, "length": 0.5, "voice": 1,
-      "filterEnabled": true, "filterType": 0,
-      "filterCutoff": 500.0, "filterRes": 0.3,
-      "filterEnv": -0.3, "filterAttack": 0.0, "filterDecay": 0.6,
-      "delayEnabled": true,
-      "delayTime": _rand(80.0, 150.0), "delayFeedback": _rand(0.3, 0.5), "delayMix": 0.5,
-      "volume": 0.35, "level": 0.55,
-    })
-    Object.assign(tail, ENV_DECAY_ONLY)
-    return {
-      "channels": [
-        _hp_noise_transient(0.08, _rand(2000.0, 3000.0), 0.35, 0.45, 0.7),
-        body,
-        tail,
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.25, "reverbSize": 0.5},
-    }
+  function preset_portal() {
+    // A swirling vortex tearing open.
+    let vortex = _layer({"mode": PNK, "length": 2.0, "volume": 1.00, "level": 0.86},
+      [_env(0.3, 0.2, 0.6, 0.3), _filt(BP, 600.0, 0.6, 0.5, 0.5, 0.5), _flange(0.8, 0.4, 0.6, 0.6)])
+    let rise = _layer({"mode": SAW, "pitch": _rand(75.0, 90.0), "voice": 3, "detune": 0.02, "length": 2.0, "volume": 0.60, "level": 0.52},
+      [_env(0.3, 0.2, 0.6, 0.3), _bend(0.6, 0.6, 0.4), _chord(7, 12, 0, 0.5), _filt(LP, 900.0, 0.4), _vib(0.03, 6.0)])
+    let hum = _layer({"mode": SIN, "pitch": 45.0, "length": 2.0, "volume": 0.90, "level": 0.52},
+      [_env(0.3, 0.2, 0.7, 0.3), _trem(0.5, 8.0)])
+    let sparks = _layer({"mode": SIN, "pitch": _rand(3000.0, 3500.0), "length": 2.0, "volume": 0.40, "level": 0.26},
+      [_env(0.4, 0.2, 0.5, 0.3), _arp(15.0, 7, 3, 12), _pulses(15.0, 0.8)])
+    return _sound([vortex, rise, hum, sparks], 0.35, 0.65)
   }
 
 
-  function preset_freeze() {
-    let crystal = _ch({
-      "mode": 3,
-      "pitch": _rand(1800.0, 2400.0),
-      "length": _rand(0.25, 0.4),
-      "voice": 1,
-      "vibEnabled": true,
-      "pitchMod": _rand(0.2, 0.4), "modShape": 3, "modRate": _rand(40.0, 60.0),
-      "modAttack": 0.0, "modDecay": _rand(0.5, 0.8),
-      "filterEnabled": true,
-      "filterType": 1, "filterCutoff": _rand(1500.0, 2200.0), "filterRes": 0.3,
-      "delayEnabled": true,
-      "delayTime": _rand(40.0, 80.0), "delayFeedback": _rand(0.25, 0.4), "delayMix": 0.3,
-      "ampAttack": 0.0, "ampDecay": 0.4, "ampSustain": 0.3, "ampRelease": 0.5,
-      "volume": 0.4, "level": 0.85,
-    })
-    let crack = _hp_noise_transient(0.04, _rand(3000.0, 5000.0), 0.25, 0.4, 0.55)
-    return {
-      "channels": [crack, crystal],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.2, "reverbSize": 0.4},
-    }
+  function preset_blink() {
+    // Teleport: a fast upward zip, then a pop where you reappear.
+    let zip = _layer({"mode": SIN, "pitch": _rand(250.0, 320.0), "length": 0.25, "volume": 0.80, "level": 0.66},
+      [_env(0.2, 0.8, 0.0, 0.0), _bend(0.8, 0.9, 0.1)])
+    let swoosh = _layer({"mode": NSE, "length": 0.25, "volume": 0.80, "level": 0.40},
+      [_env(0.6, 0.4, 0.0, 0.0), _filt(HP, 800.0, 0.3, 0.6, 0.9, 0.1)])
+    let pop = _layer({"mode": SIN, "pitch": _rand(800.0, 1000.0), "length": 1.2, "volume": 1.00, "level": 0.53},
+      [_at(0.25, 1.2, 0.08), _bend(0.4, 0.0, 0.06)])
+    let shimmer = _layer({"mode": SIN, "pitch": 2400.0, "length": 1.2, "volume": 0.50, "level": 0.26},
+      [_at(0.25, 1.2, 0.2), _chord(7, 12, 19, 0.5), _echo(90.0, 0.5, 0.4)])
+    return _sound([zip, swoosh, pop, shimmer], 0.3, 0.5)
   }
 
 
-  // Fire whoosh: 3ch — HP noise ignition + driven noise roar + LP crackle tail.
-  function preset_fire_whoosh() {
-    let roar = _ch({
-      "mode": 4, "pitch": 1000.0, "length": 0.5, "voice": 1,
-      "ampAttack": 0.1, "ampDecay": 0.5, "ampSustain": 0.3, "ampRelease": 0.5,
-      "driveEnabled": true, "driveAmount": _rand(0.3, 0.5), "driveMix": 1.0,
-      "filterEnabled": true, "filterType": 0,
-      "filterCutoff": _rand(180.0, 300.0), "filterRes": _rand(0.3, 0.5),
-      "filterEnv": _rand(0.6, 0.85), "filterAttack": 0.2, "filterDecay": 0.5,
-      "volume": 0.45, "level": 0.85,
-    })
-    return {
-      "channels": [
-        _hp_noise_transient(0.06, _rand(2500.0, 4000.0), 0.3, 0.5, 0.7),
-        roar,
-        _lp_noise_tail(0.6, 350.0, 0.4, -0.3, 0.7, 0.35, 0.5),
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.15, "reverbSize": 0.3},
-    }
-  }
-
-
-  function preset_shield_break() {
-    let burst = _ch({
-      "mode": 4, "pitch": 1000.0,
-      "length": _rand(0.25, 0.4), "voice": 1,
-      "filterEnabled": true,
-      "filterType": 1, "filterCutoff": _rand(1800.0, 2800.0), "filterRes": _rand(0.3, 0.5),
-      "delayEnabled": true,
-      "delayTime": _rand(50.0, 90.0), "delayFeedback": _rand(0.4, 0.6), "delayMix": 0.5,
-      "volume": 0.5, "level": 0.85,
-    })
-    Object.assign(burst, ENV_DECAY_ONLY)
-    let ring = _pitched_transient(
-      _pick([2, 3]), _rand(1200.0, 1800.0), 0.08, 0.4, 0.55)
-    return {
-      "channels": [burst, ring],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.2, "reverbSize": 0.35},
-    }
-  }
-
-
-  // Summon: 3ch — sub rumble body + driven saw swell + noise shimmer.
   function preset_summon() {
-    let sub = _ch({
-      "mode": 3, "pitch": _rand(40.0, 65.0), "length": 0.8, "voice": 1,
-      "ampAttack": 0.2, "ampDecay": 0.3, "ampSustain": 0.6, "ampRelease": 0.4,
-      "filterEnabled": true, "filterType": 0,
-      "filterCutoff": 200.0, "filterRes": 0.3,
-      "volume": 0.5, "level": 0.7,
-    })
-    let swell = _ch({
-      "mode": 1, "pitch": _rand(60.0, 100.0), "length": 0.9,
-      "voice": _rand_int(2, 3), "detune": _rand(0.05, 0.08),
-      "ampAttack": 0.2, "ampDecay": 0.3, "ampSustain": 0.6, "ampRelease": 0.4,
-      "driveEnabled": true, "driveAmount": _rand(0.4, 0.6), "driveMix": 1.0,
-      "filterEnabled": true, "filterType": 0,
-      "filterCutoff": _rand(600.0, 1000.0), "filterRes": _rand(0.2, 0.4),
-      "filterEnv": _rand(0.3, 0.5), "filterAttack": 0.4, "filterDecay": 0.5,
-      "volume": 0.45, "level": 0.85,
-    })
-    Object.assign(swell, _pitch_env_rise(0.3, 0.6))
-    return {
-      "channels": [
-        sub,
-        swell,
-        _resonant_sweep(0.7, _rand(2000.0, 3500.0), 0.35, 0.4, 0.6, 0.3, 0.5),
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.25, "reverbSize": 0.55},
-    }
+    // Rumbling build, a rising choir, and the creature arriving with a
+    // boom at 0.7 s.
+    let build = _layer({"mode": PNK, "length": 0.8, "volume": 1.00, "level": 0.35},
+      [_env(0.9, 0.1, 0.0, 0.0), _filt(LP, 200.0, 0.3, 0.6, 0.9, 0.1)])
+    let choir = _layer({"mode": SAW, "pitch": _rand(130.0, 150.0), "voice": 4, "detune": 0.015, "length": 2.0, "volume": 0.60, "level": 0.21},
+      [_env(0.3, 0.2, 0.5, 0.5), _bend(0.25, 1.0, 0.0), _chord(7, 12, 15, 0.5), _filt(BP, 900.0, 0.5)])
+    let boom = _layer({"mode": SIN, "pitch": _rand(40.0, 48.0), "length": 2.4, "volume": 1.00, "level": 0.35},
+      [_at(0.7, 2.4, 0.6), _drive(0.7)])
+    let blast = _layer({"mode": NSE, "length": 2.4, "volume": 1.00, "level": 0.25},
+      [_at(0.7, 2.4, 0.4), _filt(LP, 400.0, 0.2)])
+    return _sound([build, choir, boom, blast], 0.4, 0.7)
   }
-  return { preset_cast, preset_sparkle, preset_heal, preset_buff, preset_debuff, preset_teleport, preset_freeze, preset_fire_whoosh, preset_shield_break, preset_summon };
+
+
+  function preset_potion() {
+    // Three glugs, then a magical "ting" as it takes effect.
+    let glug = _layer({"mode": SIN, "pitch": _rand(260.0, 320.0), "length": 0.5, "volume": 0.90, "level": 0.51},
+      [_env(0.0, 0.0, 1.0, 0.1), _vib(0.4, 6.0, SAW), _pulses(6.0), _filt(LP, 900.0, 0.3)])
+    let liquid = _layer({"mode": PNK, "length": 0.5, "volume": 0.70, "level": 0.25},
+      [_env(0.0, 0.0, 1.0, 0.1), _filt(BP, 700.0, 0.5), _pulses(6.0)])
+    let ting = _layer({"mode": SIN, "pitch": _rand(1500.0, 1800.0), "length": 2.2, "volume": 0.60, "level": 0.30},
+      [_at(0.55, 2.2, 0.5), _chord(7, 12, 16, 0.5)])
+    let sparkle = _layer({"mode": SIN, "pitch": 3500.0, "length": 2.2, "volume": 0.40, "level": 0.20},
+      [_at(0.55, 2.2, 0.5), _arp(16.0, 4, 7, 12)])
+    return _sound([glug, liquid, ting, sparkle], 0.3, 0.5)
+  }
+
+
+  function preset_charge() {
+    // Power building: everything rises and brightens; vibrato intensifies.
+    let tone = _layer({"mode": SAW, "pitch": _rand(100.0, 120.0), "voice": 3, "detune": 0.02, "length": 1.5, "volume": 0.70, "level": 0.65},
+      [_env(0.8, 0.0, 1.0, 0.1), _bend(0.6, 1.0, 0.0), _vib(0.03, 9.0, SIN, 1.0, 0.0), _filt(LP, 300.0, 0.6, 0.7, 1.0, 0.0)])
+    let air = _layer({"mode": NSE, "length": 1.5, "volume": 0.70, "level": 0.32},
+      [_env(0.9, 0.0, 1.0, 0.1), _filt(BP, 800.0, 0.6, 0.6, 1.0, 0.0)])
+    let sparks = _layer({"mode": SIN, "pitch": _rand(1800.0, 2200.0), "length": 1.5, "volume": 0.50, "level": 0.26},
+      [_env(0.9, 0.0, 1.0, 0.1), _arp(20.0, 7, 12, 5), _pulses(20.0, 0.7), _bend(0.4, 1.0, 0.0)])
+    let sub = _layer({"mode": SIN, "pitch": 50.0, "length": 1.5, "volume": 0.70, "level": 0.32},
+      [_env(0.9, 0.0, 1.0, 0.1), _bend(0.3, 1.0, 0.0)])
+    return _sound([tone, air, sparks, sub], 0.25, 0.5)
+  }
+
+
+  function preset_fizzle() {
+    // The spell fails: a sputtering, sagging, crunchy collapse.
+    let sag = _layer({"mode": SAW, "pitch": _rand(150.0, 190.0), "length": 0.6, "volume": 0.70, "level": 0.76},
+      [_bend(0.6, 0.0, 1.0), _crush(4, 6), _filt(LP, 1200.0, 0.3, -0.4, 0.0, 1.0)])
+    let sputter = _layer({"mode": NSE, "length": 0.6, "volume": 0.90, "level": 0.53},
+      [_filt(BP, 2000.0, 0.4), _pulses(_rand(16.0, 20.0), 0.9)])
+    let womp = _layer({"mode": SIN, "pitch": 110.0, "length": 0.3, "volume": 0.80, "level": 0.46},
+      [_bend(0.5, 0.0, 1.0)])
+    return _sound([sag, sputter, womp], 0.12, 0.3)
+  }
+
+
+  function preset_enchant() {
+    // Twinkling sparkles at two speeds over a shimmering chord.
+    let twinkle1 = _layer({"mode": SIN, "pitch": _rand(3200.0, 3700.0), "length": 1.4, "volume": 0.5},
+      [_env(0.05, 0.3, 0.5, 0.4), _arp(18.0, 7, 12, 19), _pulses(18.0)])
+    let twinkle2 = _layer({"mode": SIN, "pitch": _rand(3500.0, 4000.0), "length": 1.4, "volume": 0.4, "level": 0.7},
+      [_env(0.15, 0.3, 0.4, 0.4), _arp(13.3, 5, 12, 17), _pulses(13.3)])
+    let pad = _layer({"mode": SIN, "pitch": 1760.0, "voice": 2, "detune": 0.005, "length": 1.4, "volume": 0.5, "level": 0.5},
+      [_env(0.2, 0.2, 0.5, 0.4), _chord(7, 12, 19, 0.5), _trem(0.4, 6.0)])
+    let ting = _layer({"mode": SIN, "pitch": 2637.0, "length": 1.2, "volume": 0.6, "level": 0.5},
+      [_chord(12, 19, 0, 0.4)])
+    return _sound([twinkle1, twinkle2, pad, ting], 0.4, 0.7)
+  }
+
+
+  function preset_barrier() {
+    // A magic shield snapping up: whoosh in, humming field, bright ring.
+    let whoosh = _layer({"mode": NSE, "length": 0.3, "volume": 0.80, "level": 0.72},
+      [_env(0.7, 0.3, 0.0, 0.0), _filt(BP, 700.0, 0.5, 0.6, 0.7, 0.3)])
+    let field = _layer({"mode": SAW, "pitch": _rand(100.0, 120.0), "voice": 3, "detune": 0.02, "length": 1.6, "volume": 0.72, "level": 1.00},
+      [_env(0.15, 0.2, 0.6, 0.4), _chord(7, 12, 0, 0.5), _filt(BP, 800.0, 0.6), _trem(0.5, 9.0)])
+    let ring = _layer({"mode": SIN, "pitch": _rand(1400.0, 1600.0), "length": 1.2, "volume": 0.60, "level": 0.72},
+      [_at(0.25, 1.2, 0.25), _chord(12, 19, 24, 0.5)])
+    let sub = _layer({"mode": SIN, "pitch": 55.0, "length": 1.6, "volume": 0.80, "level": 0.60},
+      [_env(0.15, 0.2, 0.5, 0.4)])
+    return _sound([whoosh, field, ring, sub], 0.35, 0.6)
+  }
+  return { preset_fireball, preset_frost, preset_bolt, preset_heal, preset_holy, preset_curse, preset_portal, preset_blink, preset_summon, preset_potion, preset_charge, preset_fizzle, preset_enchant, preset_barrier };
 })();
 
-// ── CREATURE (presets_creature.gd) ────────────────────
-GROUPS["CREATURE"] = (() => {
+// ── MONSTER (presets_monster.gd) ────────────────────
+GROUPS["MONSTER"] = (() => {
 
-  // Animal / monster vocalisations. Most use voice + detune for body, plus
-  // vibrato or arp for character. Pitch sits in the mid range and the LP
-  // filter tames noise modes into something more "throaty".
+  // Creatures that don't exist. The raw material is a detuned, driven saw
+  // made rough with noise vibrato (a torn, irregular voice) or chopped by
+  // a fast saw tremolo (vocal fry), shaped by moving formant filters, and
+  // backed by breath noise and a sub layer for size.
 
 
-  function preset_yelp() {
-    let cry = _ch({
-      "mode": _pick([2, 3]),
-      "pitch": _rand(700.0, 1100.0),
-      "length": _rand(0.1, 0.18),
-      "voice": 1,
-      "vibEnabled": true,
-      "pitchMod": _rand(0.05, 0.12), "modShape": 3, "modRate": _rand(20.0, 35.0),
-      "modAttack": 0.0, "modDecay": 1.0,
-      "volume": 0.5, "level": 0.85,
-    })
-    Object.assign(cry, ENV_DECAY_ONLY)
-    Object.assign(cry, _pitch_env_rise(_rand(0.4, 0.7), _rand(0.15, 0.3)))
-    return {
-      "channels": [
-        _hp_noise_transient(0.015, 3000.0, 0.1, 0.35, 0.45),
-        cry,
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.05, "reverbSize": 0.15},
-    }
+  function preset_roar() {
+    let throat = _layer({"mode": SAW, "pitch": _rand(80.0, 100.0), "voice": 3, "detune": 0.04, "length": _rand(1.4, 1.8), "volume": 1.00, "level": 0.82},
+      [_env(0.1, 0.3, 0.5, 0.4), _bend(0.2, 0.2, 0.8), _vib(0.05, 25.0, NSE), _drive(0.8), _filt(BP, 600.0, 0.4, 0.5, 0.3, 0.7)])
+    let upper = _layer({"mode": SAW, "pitch": 90.0, "voice": 2, "detune": 0.03, "length": 1.6, "volume": 0.70, "level": 0.41},
+      [_env(0.1, 0.3, 0.5, 0.4), _bend(0.2, 0.2, 0.8), _filt(BP, 1600.0, 0.5, 0.3, 0.3, 0.7)])
+    let breath = _layer({"mode": PNK, "length": 1.6, "volume": 1.00, "level": 0.49},
+      [_env(0.1, 0.3, 0.5, 0.4), _filt(BP, 800.0, 0.3), _drive(0.5), _trem(0.6, 30.0, SAW)])
+    let sub = _layer({"mode": SIN, "pitch": 50.0, "length": 1.6, "volume": 0.80, "level": 0.49},
+      [_env(0.1, 0.3, 0.5, 0.4), _drive(0.4)])
+    return _sound([throat, upper, breath, sub], 0.3, 0.6)
+  }
+
+
+  function preset_growl() {
+    // Low, close and threatening: slow swell, heavy vocal fry.
+    let fry = _rand(22.0, 28.0)
+    let voice = _layer({"mode": SAW, "pitch": _rand(50.0, 60.0), "voice": 2, "detune": 0.03, "length": _rand(1.3, 1.7), "volume": 1.0},
+      [_env(0.25, 0.2, 0.6, 0.3), _trem(0.7, fry, SAW), _vib(0.04, 20.0, NSE), _filt(LP, 500.0, 0.4, 0.3, 0.4, 0.6)])
+    let rasp = _layer({"mode": NSE, "length": 1.5, "volume": 0.8, "level": 0.5},
+      [_env(0.25, 0.2, 0.6, 0.3), _filt(BP, 700.0, 0.5), _trem(0.8, fry, SAW)])
+    let chest = _layer({"mode": BRN, "length": 1.5, "volume": 0.4, "level": 0.7},
+      [_env(0.25, 0.2, 0.6, 0.3), _filt(BP, 150.0, 0.4), _trem(0.6, fry, SAW)])
+    return _sound([voice, rasp, chest], 0.15, 0.4)
+  }
+
+
+  function preset_dragon() {
+    // Huge roar with a gout of fire breath underneath.
+    let roar = _layer({"mode": SAW, "pitch": _rand(60.0, 75.0), "voice": 3, "detune": 0.05, "length": 1.8, "volume": 1.00, "level": 0.53},
+      [_env(0.1, 0.3, 0.5, 0.4), _bend(0.25, 0.15, 0.85), _vib(0.06, 25.0, NSE), _drive(0.9), _filt(BP, 500.0, 0.4, 0.6, 0.2, 0.8)])
+    let formant = _layer({"mode": SAW, "pitch": 68.0, "voice": 2, "detune": 0.04, "length": 1.8, "volume": 0.70, "level": 0.27},
+      [_env(0.1, 0.3, 0.5, 0.4), _bend(0.25, 0.15, 0.85), _filt(BP, 1300.0, 0.5, 0.4, 0.2, 0.8)])
+    let breath = _layer({"mode": PNK, "length": 1.8, "volume": 1.00, "level": 0.37},
+      [_env(0.3, 0.2, 0.5, 0.4), _filt(LP, 1000.0, 0.2, 0.4, 0.3, 0.7), _drive(0.6), _trem(0.5, 12.0, NSE)])
+    let sub = _layer({"mode": SIN, "pitch": 38.0, "length": 1.8, "volume": 1.00, "level": 0.32},
+      [_env(0.1, 0.3, 0.5, 0.4), _drive(0.5)])
+    return _sound([roar, formant, breath, sub], 0.35, 0.65)
+  }
+
+
+  function preset_ghost() {
+    // A hollow "oooOOooo" wail with an unsettling fifth above it.
+    let wail = _layer({"mode": SIN, "pitch": _rand(450.0, 550.0), "length": 1.8, "volume": 0.80, "level": 0.44},
+      [_env(0.3, 0.2, 0.6, 0.4), _bend(0.25, 0.4, 0.6), _vib(0.05, 4.0), _flange(0.5, 0.3, 0.5, 0.4)])
+    let fifth = _layer({"mode": TRI, "pitch": 750.0, "length": 1.8, "volume": 0.50, "level": 0.17},
+      [_env(0.4, 0.2, 0.5, 0.4), _bend(0.25, 0.4, 0.6), _vib(0.06, 3.3)])
+    let breath = _layer({"mode": NSE, "length": 1.8, "volume": 0.60, "level": 0.17},
+      [_env(0.3, 0.2, 0.5, 0.4), _filt(BP, 1200.0, 0.8, 0.4, 0.4, 0.6)])
+    return _sound([wail, fifth, breath], 0.45, 0.7)
+  }
+
+
+  function preset_zombie() {
+    // Wet, creaky groan: "uuuhhh" with a gurgle in the throat.
+    let groan = _layer({"mode": SAW, "pitch": _rand(75.0, 95.0), "voice": 2, "detune": 0.03, "length": _rand(1.2, 1.5), "volume": 1.00, "level": 1.00},
+      [_env(0.2, 0.2, 0.6, 0.3), _vib(0.08, 15.0, NSE), _trem(0.6, 18.0, SAW), _filt(BP, 500.0, 0.5, 0.4, 0.4, 0.6), _bend(0.1, 0.4, 0.6)])
+    let gurgle = _layer({"mode": SIN, "pitch": _rand(180.0, 220.0), "length": 1.4, "volume": 0.60, "level": 0.96},
+      [_env(0.2, 0.2, 0.6, 0.3), _vib(0.5, 7.0, SAW), _pulses(7.0)])
+    let breath = _layer({"mode": PNK, "length": 1.4, "volume": 0.70, "level": 0.96},
+      [_env(0.2, 0.2, 0.6, 0.3), _filt(BP, 900.0, 0.4)])
+    return _sound([groan, gurgle, breath], 0.2, 0.45)
+  }
+
+
+  function preset_slime() {
+    // Squelching, bubbling ooze.
+    let squelch = _layer({"mode": SIN, "pitch": _rand(260.0, 340.0), "length": 0.7, "volume": 0.90, "level": 0.72},
+      [_env(0.05, 0.95, 0.0, 0.0), _vib(0.6, 13.0, SAW), _pulses(13.0), _filt(LP, 1200.0, 0.4)])
+    let wet = _layer({"mode": NSE, "length": 0.5, "volume": 0.80, "level": 0.43},
+      [_filt(BP, 900.0, 0.5, -0.4, 0.0, 1.0), _pulses(9.0, 0.7)])
+    let plop = _layer({"mode": SIN, "pitch": _rand(110.0, 130.0), "length": 0.15, "volume": 0.90, "level": 0.50},
+      [_bend(0.5, 1.0, 0.0)])
+    return _sound([squelch, wet, plop], 0.15, 0.35)
+  }
+
+
+  function preset_goblin() {
+    // Nasty little cackle: "heh-heh-heh-heh", falling.
+    let rate = _rand(6.5, 8.0)
+    let cackle = _layer({"mode": SAW, "pitch": _rand(360.0, 420.0), "length": 0.6, "volume": 0.80, "level": 0.83},
+      [_env(0.0, 0.0, 1.0, 0.2), _pulses(rate), _arp(rate, -2, -4, -6), _vib(0.04, 25.0, NSE), _filt(BP, 1500.0, 0.6)])
+    let nasal = _layer({"mode": SAW, "pitch": 390.0, "length": 0.6, "volume": 0.60, "level": 0.42},
+      [_env(0.0, 0.0, 1.0, 0.2), _pulses(rate), _arp(rate, -2, -4, -6), _filt(BP, 2800.0, 0.6)])
+    let huff = _layer({"mode": NSE, "length": 0.6, "volume": 0.70, "level": 0.42},
+      [_env(0.0, 0.0, 1.0, 0.2), _filt(BP, 2500.0, 0.3), _pulses(rate)])
+    return _sound([cackle, nasal, huff], 0.15, 0.35)
+  }
+
+
+  function preset_swarm() {
+    // Bats or insects: dense high chittering over fluttering wings.
+    let chitter1 = _layer({"mode": SIN, "pitch": _rand(3000.0, 3500.0), "voice": 4, "detune": 0.08, "length": 1.6, "volume": 0.87, "level": 1.00},
+      [_env(0.2, 0.0, 1.0, 0.3), _vib(0.2, 23.0, SAW), _pulses(23.0), _chord(12, 0, 0, 0.5)])
+    let chitter2 = _layer({"mode": SIN, "pitch": _rand(3500.0, 4000.0), "voice": 4, "detune": 0.08, "length": 1.6, "volume": 0.49, "level": 1.00},
+      [_env(0.3, 0.0, 1.0, 0.3), _vib(0.2, 29.0, SAW), _pulses(29.0), _chord(12, 0, 0, 0.5)])
+    let wings = _layer({"mode": NSE, "length": 1.6, "volume": 0.84, "level": 1.00},
+      [_env(0.2, 0.0, 1.0, 0.3), _filt(BP, 1500.0, 0.3), _trem(0.7, 30.0), _flange(0.6, 0.7, 0.4, 0.5)])
+    return _sound([chitter1, chitter2, wings], 0.25, 0.5)
+  }
+  return { preset_roar, preset_growl, preset_dragon, preset_ghost, preset_zombie, preset_slime, preset_goblin, preset_swarm };
+})();
+
+// ── SCIFI (presets_scifi.gd) ────────────────────
+GROUPS["SCIFI"] = (() => {
+
+  // Science-fiction weapons and ship systems. The classic blaster "pew" is
+  // a fast, steep downward pitch sweep (a struck, tensioned wire); beams
+  // and fields are detuned saws with fast modulation; ship systems lean
+  // on hum, servo whine and pneumatics.
+
+
+  function preset_blaster() {
+    let pew = _layer({"mode": SIN, "pitch": _rand(600.0, 800.0), "length": 0.3, "volume": 0.90, "level": 0.46},
+      [_bend(1.0, 0.0, 0.4), _drive(0.3)])
+    // Spring-like dispersive zing trailing off.
+    let zing = _layer({"mode": SAW, "pitch": _rand(800.0, 1000.0), "length": 0.3, "volume": 0.60, "level": 0.23},
+      [_bend(0.8, 0.0, 0.6), _filt(BP, 2000.0, 0.5, 0.5, 0.0, 0.5), _echo(45.0, 0.4, 0.4)])
+    let crack = _layer({"mode": NSE, "length": 0.03, "volume": 0.90, "level": 0.27},
+      [_filt(HP, 2500.0, 0.2)])
+    let body = _layer({"mode": SIN, "pitch": 120.0, "length": 0.1, "volume": 0.80, "level": 0.23},
+      [_bend(0.6, 0.0, 0.5)])
+    return _sound([pew, zing, crack, body], 0.15, 0.35)
+  }
+
+
+  function preset_laser() {
+    // A sustained beam: buzzing core, piercing whine, ionised sizzle.
+    let core = _layer({"mode": SAW, "pitch": _rand(200.0, 240.0), "voice": 3, "detune": 0.03, "length": 0.7, "volume": 0.92, "level": 1.00},
+      [_env(0.03, 0.2, 0.7, 0.2), _vib(0.02, 30.0), _trem(0.4, 30.0), _filt(BP, 1500.0, 0.5, 0.4, 0.0, 0.5)])
+    let whine = _layer({"mode": SIN, "pitch": _rand(3200.0, 3800.0), "length": 0.7, "volume": 0.50, "level": 0.66},
+      [_env(0.03, 0.2, 0.7, 0.2), _vib(0.01, 13.0)])
+    let sizzle = _layer({"mode": NSE, "length": 0.7, "volume": 0.60, "level": 0.53},
+      [_env(0.03, 0.2, 0.7, 0.2), _filt(HP, 5000.0, 0.2), _trem(0.8, 25.0, NSE)])
+    let ignite = _layer({"mode": SIN, "pitch": 900.0, "length": 0.12, "volume": 0.70, "level": 0.66},
+      [_bend(0.6, 0.0, 0.6)])
+    return _sound([core, whine, sizzle, ignite], 0.15, 0.35)
+  }
+
+
+  function preset_plasma() {
+    // Heavy plasma bolt: a thick "thoom", crackle and falling whine.
+    let thoom = _layer({"mode": SIN, "pitch": _rand(70.0, 90.0), "length": 0.45, "volume": 1.00, "level": 0.36},
+      [_bend(0.8, 0.0, 0.3), _drive(0.7)])
+    let blast = _layer({"mode": NSE, "length": 0.3, "volume": 0.90, "level": 0.26},
+      [_filt(LP, 1200.0, 0.4, 0.6, 0.0, 0.4), _drive(0.5)])
+    let whine = _layer({"mode": SAW, "pitch": _rand(700.0, 900.0), "voice": 2, "detune": 0.03, "length": 0.5, "volume": 0.50, "level": 0.18},
+      [_bend(0.7, 0.0, 1.0), _filt(LP, 2500.0, 0.4)])
+    let sizzle = _layer({"mode": NSE, "length": 0.6, "volume": 0.60, "level": 0.14},
+      [_filt(HP, 4000.0, 0.3), _pulses(_rand(24.0, 30.0), 0.7)])
+    return _sound([thoom, blast, whine, sizzle], 0.2, 0.45)
+  }
+
+
+  function preset_railgun() {
+    // Capacitors whining up, then the slug leaving with a crack at 0.6 s.
+    let charge = _layer({"mode": SIN, "pitch": _rand(300.0, 400.0), "voice": 2, "detune": 0.01, "length": 0.6, "volume": 0.60, "level": 0.40},
+      [_env(0.9, 0.1, 0.0, 0.0), _bend(0.8, 1.0, 0.0), _trem(0.4, 30.0)])
+    let crack = _layer({"mode": NSE, "length": 2.2, "volume": 1.00, "level": 0.40},
+      [_at(0.6, 2.2, 0.12), _filt(HP, 1500.0, 0.2), _drive(0.9)])
+    let boom = _layer({"mode": SIN, "pitch": 55.0, "length": 2.2, "volume": 1.00, "level": 0.32},
+      [_at(0.6, 2.2, 0.4), _drive(0.6)])
+    let ring = _layer({"mode": SIN, "pitch": _rand(1100.0, 1300.0), "length": 2.2, "volume": 0.50, "level": 0.16},
+      [_at(0.6, 2.2, 0.55), _chord(7, 17, 22, 0.5)])
+    return _sound([charge, crack, boom, ring], 0.3, 0.6)
+  }
+
+
+  function preset_forcefield() {
+    // Humming energy barrier with stray discharges.
+    let hum = _layer({"mode": SAW, "pitch": _rand(55.0, 65.0), "voice": 3, "detune": 0.01, "length": 1.6, "volume": 1.00, "level": 1.00},
+      [_env(0.15, 0.0, 1.0, 0.25), _chord(12, 19, 0, 0.5), _filt(BP, 400.0, 0.5), _trem(0.3, 7.0)])
+    let shimmer = _layer({"mode": SIN, "pitch": _rand(1800.0, 2200.0), "voice": 4, "detune": 0.02, "length": 1.6, "volume": 0.40, "level": 0.64},
+      [_env(0.2, 0.0, 1.0, 0.25), _trem(0.5, 11.0)])
+    let discharge = _layer({"mode": SQR, "pitch": 5.0, "voice": 4, "detune": 0.2, "length": 1.6, "volume": 1.00, "level": 0.80},
+      [_env(0.15, 0.0, 1.0, 0.25), _vib(0.6, 1.1), _filt(HP, 3000.0, 0.5)])
+    return _sound([hum, shimmer, discharge], 0.2, 0.5)
+  }
+
+
+  function preset_scanner() {
+    // Sweeping scan beam plus data chirps.
+    let sweep = _layer({"mode": SIN, "pitch": _rand(1000.0, 1300.0), "length": 1.6, "volume": 0.60, "level": 0.72},
+      [_env(0.1, 0.0, 1.0, 0.15), _vib(0.3, _rand(1.2, 1.8), TRI), _trem(0.3, 24.0)])
+    let beam = _layer({"mode": SAW, "pitch": 160.0, "voice": 2, "detune": 0.01, "length": 1.6, "volume": 0.50, "level": 0.36},
+      [_env(0.1, 0.0, 1.0, 0.15), _filt(BP, 900.0, 0.7, 0.5, 0.5, 0.5)])
+    let data = _layer({"mode": SQR, "pitch": _rand(2000.0, 2400.0), "length": 1.6, "volume": 0.30, "level": 0.29},
+      [_env(0.1, 0.0, 1.0, 0.15), _arp(14.0, 7, -5, 12), _pulses(14.0, 0.8), _filt(LP, 4000.0, 0.2)])
+    return _sound([sweep, beam, data], 0.2, 0.45)
+  }
+
+
+  function preset_power_down() {
+    // Relay clunk, then everything sags and dies.
+    let clunk = _layer({"mode": NSE, "length": 0.05, "volume": 1.00, "level": 0.57},
+      [_filt(BP, 1200.0, 0.4), _drive(0.5)])
+    let whine = _layer({"mode": SAW, "pitch": _rand(380.0, 440.0), "voice": 2, "detune": 0.01, "length": _rand(1.4, 1.8), "volume": 0.70, "level": 0.81},
+      [_env(0.0, 0.3, 0.6, 0.7), _bend(1.0, 0.0, 1.0), _filt(LP, 900.0, 0.4, 1.0, 0.0, 1.0)])
+    let hum = _layer({"mode": SAW, "pitch": 60.0, "voice": 2, "detune": 0.01, "length": 1.6, "volume": 0.70, "level": 0.49},
+      [_bend(0.5, 0.0, 1.0), _filt(LP, 400.0, 0.3)])
+    let sub = _layer({"mode": SIN, "pitch": 45.0, "length": 1.0, "volume": 0.80, "level": 0.41},
+      [_bend(0.5, 0.0, 1.0)])
+    return _sound([clunk, whine, hum, sub], 0.25, 0.55)
+  }
+
+
+  function preset_warp() {
+    // Hyperspace jump: a long rising roar, then the jump at 1 s.
+    let roar = _layer({"mode": PNK, "length": 1.0, "volume": 1.00, "level": 0.46},
+      [_env(0.9, 0.1, 0.0, 0.0), _filt(LP, 200.0, 0.4, 0.9, 1.0, 0.0), _flange(0.7, 1.5, 0.6, 0.5)])
+    let rise = _layer({"mode": SAW, "pitch": _rand(55.0, 70.0), "voice": 3, "detune": 0.03, "length": 1.0, "volume": 0.60, "level": 0.27},
+      [_env(0.9, 0.1, 0.0, 0.0), _bend(1.0, 1.0, 0.0), _filt(LP, 400.0, 0.4, 0.8, 1.0, 0.0)])
+    let jump = _layer({"mode": SIN, "pitch": 50.0, "length": 3.0, "volume": 1.00, "level": 0.46},
+      [_at(1.0, 3.0, 0.8), _drive(0.7)])
+    let trail = _layer({"mode": NSE, "length": 3.0, "volume": 0.90, "level": 0.27},
+      [_at(1.0, 3.0, 0.9), _filt(BP, 1500.0, 0.5, -0.2, 0.25, 0.25)])
+    return _sound([roar, rise, jump, trail], 0.3, 0.6)
+  }
+
+
+  function preset_airlock() {
+    // Seal unlatching, a long pneumatic hiss, servos dragging the door.
+    let latch = _layer({"mode": NSE, "length": 0.05, "volume": 1.00, "level": 0.51},
+      [_filt(BP, 900.0, 0.5), _drive(0.4)])
+    let thunk = _layer({"mode": SIN, "pitch": 110.0, "length": 0.12, "volume": 0.90, "level": 0.51},
+      [_bend(0.3, 0.0, 0.4)])
+    let hiss = _layer({"mode": NSE, "length": _rand(1.1, 1.4), "volume": 0.90, "level": 0.73},
+      [_env(0.02, 0.3, 0.5, 0.5), _filt(HP, 2500.0, 0.3, -0.3, 0.0, 1.0)])
+    let servo = _layer({"mode": SAW, "pitch": _rand(160.0, 200.0), "voice": 2, "detune": 0.01, "length": 1.2, "volume": 0.50, "level": 0.29},
+      [_env(0.2, 0.2, 0.6, 0.2), _bend(0.3, 0.3, 0.7), _filt(BP, 1200.0, 0.5)])
+    return _sound([latch, thunk, hiss, servo], 0.3, 0.55)
+  }
+
+
+  function preset_servo() {
+    // Robot joint moving: motor whine up and back down, gear chatter,
+    // then a stop click at 0.4 s.
+    let motor = _layer({"mode": SAW, "pitch": _rand(350.0, 450.0), "voice": 2, "detune": 0.01, "length": 0.4, "volume": 0.7},
+      [_env(0.1, 0.0, 1.0, 0.1), _bend(0.3, 0.4, 0.6), _filt(BP, 1500.0, 0.5)])
+    // Gear teeth: one click per saw cycle.
+    let gears = _layer({"mode": SAW, "pitch": _rand(70.0, 90.0), "length": 0.4, "volume": 0.6, "level": 0.5},
+      [_env(0.1, 0.0, 1.0, 0.1), _filt(BP, 3000.0, 0.4)])
+    let stop = _layer({"mode": NSE, "length": 1.6, "volume": 0.9, "level": 0.6},
+      [_at(0.4, 1.6, 0.03), _filt(BP, 2200.0, 0.6)])
+    return _sound([motor, gears, stop], 0.15, 0.3)
+  }
+
+
+  function preset_computer() {
+    // Mainframe chatter: two streams of data blips over a low hum.
+    let r1 = _rand(10.0, 13.0)
+    let r2 = _rand(7.5, 9.5)
+    let blips = _layer({"mode": SQR, "pitch": _rand(1000.0, 1300.0), "length": 1.6, "volume": 0.40, "level": 0.82},
+      [_env(0.02, 0.0, 1.0, 0.1), _arp(r1, 7, -5, 12), _pulses(r1, 0.8), _filt(LP, 3000.0, 0.2)])
+    let tones = _layer({"mode": SIN, "pitch": _rand(1800.0, 2200.0), "length": 1.6, "volume": 0.50, "level": 0.49},
+      [_env(0.02, 0.0, 1.0, 0.1), _arp(r2, -3, 4, 9), _pulses(r2, 0.9)])
+    let hum = _layer({"mode": SAW, "pitch": 60.0, "length": 1.6, "volume": 0.50, "level": 0.25},
+      [_env(0.1, 0.0, 1.0, 0.1), _filt(LP, 300.0, 0.2)])
+    return _sound([blips, tones, hum], 0.12, 0.3)
+  }
+
+
+  function preset_klaxon() {
+    // Red alert: a whooping siren echoing down steel corridors.
+    let rate = _rand(1.4, 1.8)
+    let whoop = _layer({"mode": SAW, "pitch": _rand(450.0, 520.0), "voice": 2, "detune": 0.01, "length": 2.0, "volume": 0.60, "level": 0.83},
+      [_env(0.02, 0.0, 1.0, 0.1), _vib(0.3, rate, SAW), _drive(0.4), _filt(BP, 1200.0, 0.4)])
+    let horn = _layer({"mode": SQR, "pitch": 250.0, "length": 2.0, "volume": 0.40, "level": 0.41},
+      [_env(0.02, 0.0, 1.0, 0.1), _vib(0.3, rate, SAW), _filt(LP, 1500.0, 0.3)])
+    return _sound([whoop, horn], 0.4, 0.65)
+  }
+  return { preset_blaster, preset_laser, preset_plasma, preset_railgun, preset_forcefield, preset_scanner, preset_power_down, preset_warp, preset_airlock, preset_servo, preset_computer, preset_klaxon };
+})();
+
+// ── MACHINE (presets_machine.gd) ────────────────────
+GROUPS["MACHINE"] = (() => {
+
+  // Real machines and devices. Rotating machinery is a pulse train at the
+  // firing / blade rate (a sub-audio saw: one sharp edge per cycle) plus the
+  // resonances it excites; small mechanisms are tuned clicks.
+
+
+  function preset_engine() {
+    // Four-cylinder idling: ~27 firings a second, a rough exhaust and a
+    // ticking valve train.
+    let fire = _rand(24.0, 30.0)
+    let block = _layer({"mode": SAW, "pitch": fire, "length": 1.6, "volume": 1.00, "level": 0.28},
+      [_env(0.1, 0.0, 1.0, 0.1), _vib(0.05, 8.0, NSE), _filt(LP, 400.0, 0.3), _drive(0.5)])
+    let exhaust = _layer({"mode": BRN, "length": 1.6, "volume": 0.50, "level": 0.23},
+      [_env(0.1, 0.0, 1.0, 0.1), _filt(BP, 150.0, 0.3), _trem(0.6, fire, SAW)])
+    let valves = _layer({"mode": NSE, "length": 1.6, "volume": 0.60, "level": 0.08},
+      [_env(0.1, 0.0, 1.0, 0.1), _filt(BP, 3000.0, 0.4), _trem(0.6, fire * 0.5, SAW)])
+    return _sound([block, exhaust, valves], 0.08, 0.3)
+  }
+
+
+  function preset_rev_up() {
+    // Throttle blipped: revs climb, the intake roars, then fall back.
+    let fire = _rand(24.0, 30.0)
+    let block = _layer({"mode": SAW, "pitch": fire, "length": 1.8, "volume": 1.00, "level": 0.34},
+      [_env(0.05, 0.0, 1.0, 0.15), _bend(0.9, 0.35, 0.65), _vib(0.04, 8.0, NSE), _filt(LP, 500.0, 0.3, 0.5, 0.35, 0.65), _drive(0.6)])
+    let intake = _layer({"mode": PNK, "length": 1.8, "volume": 0.90, "level": 0.20},
+      [_env(0.05, 0.0, 1.0, 0.15), _filt(BP, 600.0, 0.4, 0.6, 0.35, 0.65)])
+    let whine = _layer({"mode": SIN, "pitch": fire * 20.0, "length": 1.8, "volume": 0.40, "level": 0.10},
+      [_env(0.05, 0.0, 1.0, 0.15), _bend(0.9, 0.35, 0.65)])
+    return _sound([block, intake, whine], 0.1, 0.35)
+  }
+
+
+  function preset_heli() {
+    // Helicopter overhead: blade slaps, tail rotor buzz, turbine whine.
+    let slaps = _layer({"mode": SAW, "pitch": _rand(5.0, 6.0), "length": 2.0, "volume": 1.00, "level": 0.76},
+      [_env(0.15, 0.0, 1.0, 0.2), _filt(BP, 120.0, 0.5), _drive(0.6)])
+    let wash = _layer({"mode": PNK, "length": 2.0, "volume": 1.00, "level": 0.46},
+      [_env(0.15, 0.0, 1.0, 0.2), _filt(LP, 700.0, 0.2), _trem(0.6, 5.5, SAW)])
+    let tail = _layer({"mode": SAW, "pitch": _rand(55.0, 65.0), "length": 2.0, "volume": 0.60, "level": 0.31},
+      [_env(0.15, 0.0, 1.0, 0.2), _filt(BP, 600.0, 0.5)])
+    let turbine = _layer({"mode": SIN, "pitch": _rand(2800.0, 3300.0), "voice": 2, "detune": 0.004, "length": 2.0, "volume": 0.30, "level": 0.23},
+      [_env(0.15, 0.0, 1.0, 0.2)])
+    return _sound([slaps, wash, tail, turbine], 0.15, 0.5)
+  }
+
+
+  function preset_clock() {
+    // Tick-tock: a 1 Hz square clicks twice a cycle (tick, tock); a 1 Hz
+    // saw adds a lower knock on every other one so they alternate.
+    let ticks = _layer({"mode": SQR, "pitch": 1.0, "length": 2.2, "volume": 1.00, "level": 0.45},
+      [_env(0.0, 0.0, 1.0, 0.05), _filt(BP, _rand(3200.0, 3800.0), 0.85)])
+    let tocks = _layer({"mode": SAW, "pitch": 1.0, "length": 2.2, "volume": 1.00, "level": 0.36},
+      [_env(0.0, 0.0, 1.0, 0.05), _filt(BP, _rand(1500.0, 1800.0), 0.85)])
+    let housing = _layer({"mode": SQR, "pitch": 1.0, "length": 2.2, "volume": 1.00, "level": 0.23},
+      [_env(0.0, 0.0, 1.0, 0.05), _filt(BP, 600.0, 0.7)])
+    return _sound([ticks, tocks, housing], 0.15, 0.3)
+  }
+
+
+  function preset_phone() {
+    // Old bell telephone: a hammer rattling between two gongs at ~20 Hz.
+    // Each gong is two voices 20 Hz apart, so it beats at the hammer rate.
+    let gong1 = _layer({"mode": SIN, "pitch": 1100.0, "voice": 2, "detune": 0.018, "length": 1.5, "volume": 0.60, "level": 0.87},
+      [_env(0.0, 0.0, 1.0, 0.12), _chord(7, 16, 0, 0.4)])
+    let gong2 = _layer({"mode": SIN, "pitch": 1400.0, "voice": 2, "detune": 0.0143, "length": 1.5, "volume": 0.50, "level": 0.70},
+      [_env(0.0, 0.0, 1.0, 0.12), _chord(6, 15, 0, 0.4)])
+    let hammer = _layer({"mode": NSE, "length": 1.5, "volume": 0.60, "level": 0.35},
+      [_env(0.0, 0.0, 1.0, 0.12), _filt(BP, 3000.0, 0.5), _pulses(20.0)])
+    return _sound([gong1, gong2, hammer], 0.2, 0.4)
+  }
+
+
+  function preset_ding() {
+    // Elevator arrival chime: a soft vibraphone-like note.
+    let note = _pick([1175.0, 1319.0, 1397.0])
+    let bar = _layer({"mode": SIN, "pitch": note, "length": 1.6, "volume": 0.70, "level": 0.74},
+      [_trem(0.3, 5.0), _chord(12, 0, 0, 0.3)])
+    let body = _layer({"mode": TRI, "pitch": note * 0.5, "length": 1.2, "volume": 0.50, "level": 0.37},
+      [_trem(0.3, 5.0)])
+    let mallet = _layer({"mode": NSE, "length": 0.01, "volume": 0.50, "level": 0.22},
+      [_filt(BP, 3000.0, 0.3)])
+    return _sound([bar, body, mallet], 0.3, 0.5)
+  }
+
+
+  function preset_shutter() {
+    // SLR camera: mirror slap and shutter, "ka-chk", then the film
+    // advance whirr.
+    let slap = _layer({"mode": NSE, "length": 0.02, "volume": 1.00, "level": 1.00},
+      [_filt(BP, _rand(2200.0, 2800.0), 0.5), _echo(_rand(40.0, 55.0), 0.8)])
+    let body = _layer({"mode": SIN, "pitch": 300.0, "length": 0.03, "volume": 0.80, "level": 0.92},
+      [_echo(48.0, 0.8)])
+    let spring = _layer({"mode": SIN, "pitch": _rand(3500.0, 4000.0), "length": 0.08, "volume": 0.40, "level": 0.45},
+      [_chord(5, 11, 0, 0.5)])
+    let winder = _layer({"mode": SAW, "pitch": 180.0, "length": 1.2, "volume": 0.60, "level": 0.60},
+      [_at(0.15, 1.2, 0.14), _filt(BP, 2000.0, 0.5), _vib(0.05, 30.0, NSE)])
+    return _sound([slap, body, spring, winder], 0.06, 0.2)
+  }
+
+
+  function preset_switch() {
+    // Wall light switch: plastic snap with a spring ping.
+    let snap = _layer({"mode": NSE, "length": 0.015, "volume": 1.00, "level": 0.66},
+      [_filt(BP, _rand(1900.0, 2500.0), 0.6)])
+    let click = _layer({"mode": SIN, "pitch": 1600.0, "length": 0.01, "volume": 0.70, "level": 0.40})
+    let body = _layer({"mode": SIN, "pitch": 180.0, "length": 0.025, "volume": 0.80, "level": 0.40})
+    let ping = _layer({"mode": SIN, "pitch": _rand(3500.0, 4000.0), "length": 0.08, "volume": 0.40, "level": 0.16},
+      [_chord(6, 13, 0, 0.5)])
+    return _sound([snap, click, body, ping], 0.08, 0.15)
+  }
+
+
+  function preset_drill() {
+    // Cordless drill: spins up, whines, gears chattering.
+    let motor = _layer({"mode": SAW, "pitch": _rand(260.0, 300.0), "voice": 2, "detune": 0.008, "length": 1.6, "volume": 0.70, "level": 0.85},
+      [_env(0.03, 0.0, 1.0, 0.15), _bend(-0.6, 0.0, 0.25), _filt(BP, 1800.0, 0.4)])
+    // Gear teeth: one click per saw cycle, spinning up with the motor.
+    let gears = _layer({"mode": SAW, "pitch": 140.0, "length": 1.6, "volume": 0.60, "level": 0.42},
+      [_env(0.03, 0.0, 1.0, 0.15), _bend(-0.6, 0.0, 0.25), _filt(BP, 3500.0, 0.4)])
+    let brushes = _layer({"mode": NSE, "length": 1.6, "volume": 0.50, "level": 0.25},
+      [_env(0.03, 0.0, 1.0, 0.15), _filt(HP, 6000.0, 0.2)])
+    let body = _layer({"mode": SQR, "pitch": _rand(130.0, 150.0), "length": 1.6, "volume": 0.40, "level": 0.34},
+      [_env(0.03, 0.0, 1.0, 0.15), _bend(-0.6, 0.0, 0.25), _filt(LP, 500.0, 0.3)])
+    return _sound([motor, gears, brushes, body], 0.1, 0.3)
+  }
+
+
+  function preset_steam() {
+    // A valve venting steam: hard hiss, rumbling pipe, a thin whistle.
+    let hiss = _layer({"mode": NSE, "length": _rand(1.3, 1.7), "volume": 1.00, "level": 0.68},
+      [_env(0.02, 0.2, 0.6, 0.5), _filt(HP, 2000.0, 0.3, -0.2, 0.0, 1.0), _trem(0.3, 15.0, NSE)])
+    let rumble = _layer({"mode": PNK, "length": 1.5, "volume": 0.80, "level": 0.41},
+      [_env(0.02, 0.2, 0.6, 0.5), _filt(BP, 700.0, 0.3)])
+    let whistle = _layer({"mode": SIN, "pitch": _rand(2400.0, 2900.0), "length": 1.5, "volume": 0.40, "level": 0.21},
+      [_env(0.05, 0.2, 0.5, 0.5), _vib(0.01, 7.0)])
+    return _sound([hiss, rumble, whistle], 0.2, 0.45)
+  }
+  return { preset_engine, preset_rev_up, preset_heli, preset_clock, preset_phone, preset_ding, preset_shutter, preset_switch, preset_drill, preset_steam };
+})();
+
+// ── UI (presets_ui.gd) ────────────────────
+GROUPS["UI"] = (() => {
+
+  // Interface sounds: short, clean and quiet enough to repeat all day. Each
+  // pairs a tonal element with a tiny noise transient so it feels tactile
+  // rather than purely electronic. Two-note chimes use the arp: with the
+  // length set to about two arp steps, it plays one note, then holds the
+  // next (later steps repeat it).
+
+
+  function preset_click() {
+    let tone = _layer({"mode": SIN, "pitch": _rand(2000.0, 2400.0), "length": 0.012, "volume": 0.80, "level": 0.48})
+    let tick = _layer({"mode": NSE, "length": 0.006, "volume": 0.60, "level": 0.29},
+      [_filt(HP, 4000.0, 0.2)])
+    let body = _layer({"mode": SIN, "pitch": 600.0, "length": 0.02, "volume": 0.60, "level": 0.19})
+    return _sound([tone, tick, body], 0.0, 0.2)
+  }
+
+
+  function preset_hover() {
+    let tone = _layer({"mode": SIN, "pitch": _rand(1700.0, 1900.0), "length": 0.03, "volume": 0.50, "level": 0.71},
+      [_env(0.3, 0.7, 0.0, 0.0)])
+    let air = _layer({"mode": TRI, "pitch": 3600.0, "length": 0.02, "volume": 0.40, "level": 0.21},
+      [_env(0.3, 0.7, 0.0, 0.0)])
+    return _sound([tone, air], 0.0, 0.2)
+  }
+
+
+  function preset_confirm() {
+    let root = _pick([784.0, 880.0, 988.0])
+    let chime = _layer({"mode": SIN, "pitch": root, "length": 0.25, "volume": 0.70, "level": 0.37},
+      [_env(0.0, 0.2, 0.6, 0.6), _arp(12.0, 7, 7, 7), _chord(12, 0, 0, 0.2)])
+    let under = _layer({"mode": TRI, "pitch": root * 0.5, "length": 0.25, "volume": 0.50, "level": 0.15},
+      [_env(0.0, 0.2, 0.6, 0.6), _arp(12.0, 7, 7, 7)])
+    let tick = _layer({"mode": NSE, "length": 0.008, "volume": 0.50, "level": 0.19},
+      [_filt(HP, 3000.0, 0.2)])
+    return _sound([chime, under, tick], 0.12, 0.3)
+  }
+
+
+  function preset_back() {
+    let root = _pick([784.0, 880.0])
+    let chime = _layer({"mode": SIN, "pitch": root, "length": 0.22, "volume": 0.70, "level": 0.37},
+      [_env(0.0, 0.2, 0.5, 0.6), _arp(12.0, -5, -5, -5)])
+    let under = _layer({"mode": TRI, "pitch": root * 0.5, "length": 0.22, "volume": 0.50, "level": 0.15},
+      [_env(0.0, 0.2, 0.5, 0.6), _arp(12.0, -5, -5, -5)])
+    let tick = _layer({"mode": NSE, "length": 0.008, "volume": 0.50, "level": 0.15},
+      [_filt(HP, 3000.0, 0.2)])
+    return _sound([chime, under, tick], 0.1, 0.3)
+  }
+
+
+  function preset_error() {
+    // Two low, dissonant buzzes: "bonk-bonk".
+    let buzz = _layer({"mode": SQR, "pitch": _rand(170.0, 190.0), "voice": 2, "detune": 0.06, "length": 0.28, "volume": 0.60, "level": 0.42},
+      [_pulses(7.2), _filt(LP, 1200.0, 0.3)])
+    let nasal = _layer({"mode": SAW, "pitch": 190.0, "length": 0.28, "volume": 0.50, "level": 0.21},
+      [_pulses(7.2), _filt(BP, 600.0, 0.5)])
+    let thump = _layer({"mode": SIN, "pitch": 90.0, "length": 0.28, "volume": 0.60, "level": 0.21},
+      [_pulses(7.2)])
+    return _sound([buzz, nasal, thump], 0.05, 0.2)
+  }
+
+
+  function preset_notify() {
+    // Bright rising arpeggio with a bell ring.
+    let chime = _layer({"mode": SIN, "pitch": _pick([988.0, 1047.0, 1175.0]), "length": 0.3, "volume": 0.70, "level": 0.35},
+      [_env(0.0, 0.2, 0.5, 0.6), _arp(16.0, 4, 7, 12)])
+    let bell = _layer({"mode": SIN, "pitch": 2093.0, "length": 0.5, "volume": 0.40, "level": 0.14},
+      [_chord(7, 12, 0, 0.3), _echo(120.0, 0.3, 0.3)])
+    let tick = _layer({"mode": NSE, "length": 0.008, "volume": 0.50, "level": 0.11},
+      [_filt(HP, 3500.0, 0.2)])
+    return _sound([chime, bell, tick], 0.2, 0.35)
+  }
+
+
+  function preset_message() {
+    // Chat bubble: "bloop" then a higher "blip" at 0.09 s.
+    let bloop = _layer({"mode": SIN, "pitch": _rand(480.0, 560.0), "length": 0.07, "volume": 0.80, "level": 0.39},
+      [_bend(0.5, 1.0, 0.0)])
+    let blip = _layer({"mode": SIN, "pitch": _rand(1000.0, 1100.0), "length": 0.5, "volume": 0.70, "level": 0.31},
+      [_at(0.09, 0.5, 0.08)])
+    let tick = _layer({"mode": NSE, "length": 0.006, "volume": 0.50, "level": 0.12},
+      [_filt(HP, 3000.0, 0.2)])
+    return _sound([bloop, blip, tick], 0.08, 0.25)
+  }
+
+
+  function preset_toggle() {
+    let snap = _layer({"mode": NSE, "length": 0.015, "volume": 0.70, "level": 0.60},
+      [_filt(BP, 3000.0, 0.6)])
+    let tone = _layer({"mode": SIN, "pitch": _rand(850.0, 950.0), "length": 0.06, "volume": 0.60, "level": 0.42},
+      [_bend(0.3, 1.0, 0.0)])
+    let body = _layer({"mode": SIN, "pitch": 250.0, "length": 0.02, "volume": 0.60, "level": 0.30})
+    return _sound([snap, tone, body], 0.04, 0.2)
+  }
+
+
+  function preset_key_type() {
+    // Mechanical keyboard: switch click, bottom-out "thock", then the
+    // key's softer release.
+    let release = _rand(60.0, 90.0)
+    let click = _layer({"mode": NSE, "length": 0.01, "volume": 0.80, "level": 0.56},
+      [_filt(BP, _rand(3000.0, 4000.0), 0.6), _echo(release, 0.4)])
+    let thock = _layer({"mode": SIN, "pitch": _rand(350.0, 450.0), "length": 0.03, "volume": 0.80, "level": 0.45},
+      [_bend(0.3, 0.0, 0.5)])
+    let shell = _layer({"mode": PNK, "length": 0.04, "volume": 0.80, "level": 0.28},
+      [_filt(BP, 900.0, 0.4)])
+    return _sound([click, thock, shell], 0.04, 0.15)
+  }
+
+
+  function preset_open() {
+    // Panel sliding open: upward swish and tone.
+    let swish = _layer({"mode": NSE, "length": 0.22, "volume": 0.60, "level": 0.51},
+      [_env(0.5, 0.5, 0.0, 0.0), _filt(BP, 800.0, 0.4, 0.6, 0.6, 0.4)])
+    let tone = _layer({"mode": SIN, "pitch": _rand(380.0, 440.0), "length": 0.2, "volume": 0.60, "level": 0.35},
+      [_env(0.3, 0.7, 0.0, 0.0), _bend(0.6, 1.0, 0.0)])
+    let tick = _layer({"mode": NSE, "length": 0.008, "volume": 0.50, "level": 0.20},
+      [_filt(HP, 3000.0, 0.2)])
+    return _sound([swish, tone, tick], 0.1, 0.25)
+  }
+
+
+  function preset_close() {
+    // Panel closing: downward swish, then a soft latch at 0.18 s.
+    let swish = _layer({"mode": NSE, "length": 0.2, "volume": 0.60, "level": 0.55},
+      [_env(0.3, 0.7, 0.0, 0.0), _filt(BP, 800.0, 0.4, 0.6, 0.0, 0.8)])
+    let tone = _layer({"mode": SIN, "pitch": _rand(380.0, 440.0), "length": 0.18, "volume": 0.60, "level": 0.38},
+      [_env(0.1, 0.9, 0.0, 0.0), _bend(0.5, 0.0, 1.0)])
+    let latch = _layer({"mode": NSE, "length": 0.8, "volume": 0.60, "level": 0.33},
+      [_at(0.18, 0.8, 0.02), _filt(BP, 2500.0, 0.5)])
+    return _sound([swish, tone, latch], 0.1, 0.25)
+  }
+  return { preset_click, preset_hover, preset_confirm, preset_back, preset_error, preset_notify, preset_message, preset_toggle, preset_key_type, preset_open, preset_close };
+})();
+
+// ── GAME (presets_game.gd) ────────────────────
+GROUPS["GAME"] = (() => {
+
+  // Gameplay feedback: pickups, progression stingers and status cues.
+  // Musical, but built from real-sounding parts (struck bells, brass with
+  // a filter "bite", timpani, cymbal wash) rather than bare chip tones.
+
+
+  function preset_coin() {
+    // B6 → E7: the two-note coin chime, rung like a small bell. The
+    // length stops the arp before it wraps back to the first note.
+    let chime = _layer({"mode": SIN, "pitch": 1976.0, "length": 0.32, "volume": 0.70, "level": 0.79},
+      [_env(0.0, 0.15, 0.5, 0.5), _arp(12.5, 5, 5, 5), _chord(12, 19, 0, 0.3)])
+    let body = _layer({"mode": TRI, "pitch": 988.0, "length": 0.32, "volume": 0.50, "level": 0.24},
+      [_env(0.0, 0.15, 0.5, 0.5), _arp(12.5, 5, 5, 5)])
+    let tick = _layer({"mode": NSE, "length": 0.01, "volume": 0.60, "level": 0.31},
+      [_filt(HP, 5000.0, 0.3)])
+    return _sound([chime, body, tick], 0.2, 0.35)
+  }
+
+
+  function preset_gems() {
+    // Crystal pickup: a fast glassy run and a shimmering tail.
+    let run = _layer({"mode": SIN, "pitch": _pick([1760.0, 2093.0, 2349.0]), "length": 0.4, "volume": 0.6},
+      [_env(0.0, 0.1, 0.6, 0.5), _arp(20.0, 7, 12, 19), _pulses(20.0, 0.6)])
+    let shimmer = _layer({"mode": SIN, "pitch": 2093.0, "voice": 3, "detune": 0.006, "length": 0.8, "volume": 0.4, "level": 0.4},
+      [_env(0.1, 0.9, 0.0, 0.0), _trem(0.5, 12.0), _chord(12, 24, 0, 0.6)])
+    let glass = _layer({"mode": SIN, "pitch": 3136.0, "length": 0.4, "volume": 0.5, "level": 0.4},
+      [_chord(5, 17, 0, 0.5)])
+    let tick = _layer({"mode": NSE, "length": 0.008, "volume": 0.5, "level": 0.4},
+      [_filt(HP, 5000.0, 0.3)])
+    return _sound([run, shimmer, glass, tick], 0.25, 0.45)
+  }
+
+
+  function preset_pickup() {
+    // Grabbing an item: soft upward "bwip" with a pluck.
+    let bwip = _layer({"mode": TRI, "pitch": _rand(400.0, 480.0), "length": 0.12, "volume": 0.80, "level": 0.80},
+      [_bend(0.5, 1.0, 0.0), _chord(12, 0, 0, 0.3)])
+    let pluck = _layer({"mode": SAW, "pitch": 880.0, "length": 0.08, "volume": 0.50, "level": 0.32},
+      [_filt(LP, 2500.0, 0.3, -0.5, 0.0, 1.0)])
+    let grab = _layer({"mode": NSE, "length": 0.03, "volume": 0.50, "level": 0.32},
+      [_filt(BP, 2000.0, 0.3)])
+    return _sound([bwip, pluck, grab], 0.1, 0.25)
+  }
+
+
+  function preset_level_up() {
+    // Arpeggio up the major chord, landing on a swelling chord with a
+    // sparkle and a kick under it.
+    let root = _pick([523.0, 587.0, 659.0])
+    let arpeggio = _layer({"mode": SQR, "pitch": root, "length": 0.34, "volume": 0.50, "level": 0.46},
+      [_env(0.0, 0.0, 1.0, 0.1), _arp(12.0, 4, 7, 12), _filt(LP, 3000.0, 0.2)])
+    let chord = _layer({"mode": SAW, "pitch": root * 2.0, "voice": 3, "detune": 0.008, "length": 1.2, "volume": 0.50, "level": 0.28},
+      [_env(0.25, 0.2, 0.6, 0.4), _chord(4, 7, 12, 0.6), _filt(LP, 2000.0, 0.3, 0.4, 0.3, 0.7)])
+    let sparkle = _layer({"mode": SIN, "pitch": root * 4.0, "length": 1.0, "volume": 0.40, "level": 0.14},
+      [_env(0.3, 0.7, 0.0, 0.0), _arp(20.0, 4, 7, 12), _pulses(20.0, 0.7), _chord(12, 0, 0, 0.5)])
+    let kick = _layer({"mode": SIN, "pitch": 60.0, "length": 0.2, "volume": 0.80, "level": 0.28},
+      [_bend(0.6, 0.0, 0.3)])
+    return _sound([arpeggio, chord, sparkle, kick], 0.3, 0.5)
+  }
+
+
+  function preset_achievement() {
+    // "Ta-DA!": a brass pickup note, then the full chord a fourth up,
+    // over timpani and a cymbal.
+    let brass = _layer({"mode": SAW, "pitch": 392.0, "voice": 3, "detune": 0.008, "length": 1.0, "volume": 0.60, "level": 0.51},
+      [_env(0.02, 0.2, 0.6, 0.5), _arp(5.0, 5, 5, 5), _chord(4, 7, 12, 0.5), _filt(LP, 1200.0, 0.3, 0.5, 0.0, 0.3)])
+    let timpani = _layer({"mode": SIN, "pitch": 98.0, "length": 1.0, "volume": 0.90, "level": 0.35},
+      [_arp(5.0, 5, 5, 5), _bend(0.15, 0.0, 0.1), _pulses(5.0, 0.6)])
+    let cymbal = _layer({"mode": NSE, "length": 1.4, "volume": 0.60, "level": 0.20},
+      [_filt(HP, 6000.0, 0.2)])
+    let sparkle = _layer({"mode": SIN, "pitch": 3136.0, "length": 1.0, "volume": 0.40, "level": 0.15},
+      [_env(0.2, 0.8, 0.0, 0.0), _arp(16.0, 5, 9, 12), _pulses(16.0, 0.7)])
+    return _sound([brass, timpani, cymbal, sparkle], 0.35, 0.6)
+  }
+
+
+  function preset_quest() {
+    // Quest-complete jingle: four rising notes and a bell.
+    let root = _pick([523.0, 587.0])
+    let melody = _layer({"mode": TRI, "pitch": root, "length": 0.8, "volume": 0.70, "level": 0.65},
+      [_env(0.0, 0.1, 0.8, 0.3), _arp(5.0, 4, 7, 12), _pulses(5.0, 0.5)])
+    let harmony = _layer({"mode": SQR, "pitch": root * 0.5, "length": 0.8, "volume": 0.40, "level": 0.26},
+      [_env(0.0, 0.1, 0.8, 0.3), _arp(5.0, 4, 7, 12), _filt(LP, 1500.0, 0.2)])
+    let bell = _layer({"mode": SIN, "pitch": root * 4.0, "length": 0.8, "volume": 0.50, "level": 0.26},
+      [_env(0.0, 0.1, 0.8, 0.3), _arp(5.0, 4, 7, 12), _chord(12, 19, 0, 0.3), _pulses(5.0)])
+    return _sound([melody, harmony, bell], 0.3, 0.5)
+  }
+
+
+  function preset_game_over() {
+    // "Wah, wah, wah, waaah": a muted horn sinking a semitone at a time,
+    // the last note wobbling.
+    let horn = _layer({"mode": SAW, "pitch": _rand(300.0, 330.0), "voice": 2, "detune": 0.006, "length": 1.5, "volume": 0.89, "level": 1.00},
+      [_env(0.02, 0.1, 0.8, 0.2), _arp(2.6, -1, -2, -3), _trem(0.6, 2.6, SAW), _vib(0.03, 6.0, SIN, 1.0, 0.0), _filt(BP, 900.0, 0.6)])
+    let low = _layer({"mode": SAW, "pitch": 158.0, "length": 1.5, "volume": 0.50, "level": 0.64},
+      [_env(0.02, 0.1, 0.8, 0.2), _arp(2.6, -1, -2, -3), _trem(0.6, 2.6, SAW), _filt(LP, 600.0, 0.3)])
+    let mute = _layer({"mode": SAW, "pitch": 316.0, "length": 1.5, "volume": 0.40, "level": 0.51},
+      [_env(0.02, 0.1, 0.8, 0.2), _arp(2.6, -1, -2, -3), _filt(BP, 1800.0, 0.6)])
+    return _sound([horn, low, mute], 0.25, 0.45)
+  }
+
+
+  function preset_countdown() {
+    // Beep, beep, beep, GO — at 0, 0.5, 1.0 and 1.5 s. The second beep is
+    // the first one's echo; the third and GO are late-onset layers. Their
+    // gates leak a little before opening, so each sits two octaves down
+    // (cut by a highpass) until an arp step lifts it into place on cue.
+    let beeps = _layer({"mode": SIN, "pitch": 880.0, "length": 0.12, "volume": 0.80, "level": 0.38},
+      [_env(0.0, 0.3, 0.7, 0.3), _echo(500.0, 0.66)])
+    let third = _layer({"mode": SIN, "pitch": 220.0, "length": 2.2, "volume": 0.80, "level": 0.46},
+      [_at(1.0, 2.2, 0.12), _arp(2.0, 0, 24, 0), _filt(HP, 600.0, 0.1)])
+    let go = _layer({"mode": TRI, "pitch": 440.0, "length": 2.2, "volume": 0.80, "level": 0.69},
+      [_at(1.5, 2.2, 0.6), _arp(2.0, 0, 0, 24), _filt(HP, 1200.0, 0.1)])
+    return _sound([beeps, third, go], 0.1, 0.3)
+  }
+
+
+  function preset_heartbeat() {
+    // One "lub-dub" — loop it for a low-health warning.
+    let dub = _rand(260.0, 300.0)
+    let lub = _layer({"mode": SIN, "pitch": _rand(50.0, 58.0), "length": 0.14, "volume": 1.00, "level": 0.68},
+      [_bend(0.5, 0.0, 0.3), _drive(0.3), _echo(dub, 0.55)])
+    let thump = _layer({"mode": PNK, "length": 0.1, "volume": 1.00, "level": 0.41},
+      [_filt(LP, 150.0, 0.3), _echo(dub, 0.55)])
+    let body = _layer({"mode": SIN, "pitch": 38.0, "length": 0.18, "volume": 0.80, "level": 0.41},
+      [_echo(dub, 0.55)])
+    return _sound([lub, thump, body], 0.1, 0.3)
+  }
+
+
+  function preset_purchase() {
+    // Cash register "ka-ching": drawer clunk, then the bell.
+    let clunk = _layer({"mode": NSE, "length": 0.05, "volume": 1.0, "level": 0.8},
+      [_filt(BP, 900.0, 0.4), _drive(0.5)])
+    let drawer = _layer({"mode": SIN, "pitch": 150.0, "length": 0.08, "volume": 0.8, "level": 0.6},
+      [_bend(0.3, 0.0, 0.4)])
+    let bell = _layer({"mode": SIN, "pitch": _rand(2500.0, 2750.0), "length": 1.0, "volume": 0.8, "level": 0.8},
+      [_at(0.12, 1.0, 0.12), _chord(5, 12, 17, 0.5)])
+    let coins = _layer({"mode": SQR, "pitch": 30.0, "voice": 4, "detune": 0.2, "length": 0.3, "volume": 1.0, "level": 0.4},
+      [_vib(0.5, 4.0), _filt(BP, 5000.0, 0.6)])
+    return _sound([clunk, drawer, bell, coins], 0.3, 0.4)
+  }
+
+
+  function preset_jump() {
+    let spring = _layer({"mode": SQR, "pitch": _rand(180.0, 220.0), "length": 0.2, "volume": 0.50, "level": 0.56},
+      [_bend(0.5, 1.0, 0.0), _filt(LP, 1800.0, 0.3)])
+    let whoosh = _layer({"mode": NSE, "length": 0.15, "volume": 0.70, "level": 0.33},
+      [_env(0.2, 0.8, 0.0, 0.0), _filt(BP, 800.0, 0.4, 0.5, 0.2, 0.8)])
+    let scuff = _layer({"mode": NSE, "length": 0.03, "volume": 0.60, "level": 0.28},
+      [_filt(HP, 2500.0, 0.2)])
+    return _sound([spring, whoosh, scuff], 0.05, 0.2)
+  }
+
+
+  function preset_powerup() {
+    // Rising arpeggio that bends upward, a chord blooming behind it.
+    let root = _pick([262.0, 294.0, 330.0])
+    let rise = _layer({"mode": SAW, "pitch": root, "length": 0.7, "volume": 0.60, "level": 0.65},
+      [_env(0.0, 0.0, 1.0, 0.25), _arp(16.0, 4, 7, 12), _bend(0.5, 1.0, 0.0), _filt(LP, 2000.0, 0.3, 0.5, 1.0, 0.0)])
+    let bloom = _layer({"mode": SIN, "pitch": root * 2.0, "voice": 2, "detune": 0.006, "length": 1.0, "volume": 0.60, "level": 0.39},
+      [_env(0.5, 0.2, 0.5, 0.3), _chord(4, 7, 12, 0.6)])
+    let sparkle = _layer({"mode": SIN, "pitch": root * 12.0, "length": 1.0, "volume": 0.40, "level": 0.20},
+      [_env(0.4, 0.6, 0.0, 0.0), _arp(24.0, 7, 12, 4), _pulses(24.0, 0.7)])
+    let whoosh = _layer({"mode": NSE, "length": 0.7, "volume": 0.50, "level": 0.20},
+      [_env(0.8, 0.2, 0.0, 0.0), _filt(BP, 1000.0, 0.5, 0.6, 1.0, 0.0)])
+    return _sound([rise, bloom, sparkle, whoosh], 0.3, 0.5)
   }
 
 
   function preset_hurt() {
-    let impact = _ch({
-      "mode": 4, "pitch": 800.0, "length": 0.04,
-      "voice": 1,
-      "ampAttack": 0.0, "ampDecay": 1.0, "ampSustain": 0.0, "ampRelease": 0.0,
-      "filterEnabled": true, "filterType": 1, "filterCutoff": 2500.0, "filterRes": 0.15,
-      "volume": 0.55, "level": 0.7,
-    })
-    let grunt = _ch({
-      "mode": 1, "pitch": _rand(150.0, 220.0), "length": 0.2,
-      "voice": 2, "detune": 0.04,
-      "ampAttack": 0.0, "ampDecay": 0.4, "ampSustain": 0.3, "ampRelease": 0.4,
-      "driveEnabled": true, "driveAmount": 0.5, "driveMix": 0.9,
-      "filterEnabled": true, "filterType": 0, "filterCutoff": 1000.0, "filterRes": 0.3,
-      "filterEnv": 0.0, "filterAttack": 0.0, "filterDecay": 0.5,
-      "volume": 0.5, "level": 0.85,
-    })
-    Object.assign(grunt, _pitch_env_decay(-0.2, 0.6))
-    return {
-      "channels": [impact, grunt],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.1, "reverbSize": 0.25},
-    }
+    // Taking a hit: a body blow, a crunch and a pained grunt.
+    let thud = _layer({"mode": SIN, "pitch": _rand(80.0, 100.0), "length": 0.15, "volume": 1.00, "level": 0.32},
+      [_bend(0.5, 0.0, 0.3), _drive(0.5)])
+    let crunch = _layer({"mode": NSE, "length": 0.06, "volume": 0.90, "level": 0.19},
+      [_filt(BP, 1500.0, 0.3), _drive(0.5), _crush(5, 3)])
+    let grunt = _layer({"mode": SAW, "pitch": _rand(180.0, 220.0), "length": 0.22, "volume": 0.80, "level": 0.19},
+      [_env(0.02, 0.3, 0.4, 0.4), _bend(0.3, 0.0, 1.0), _drive(0.4), _filt(BP, 800.0, 0.5)])
+    return _sound([thud, crunch, grunt], 0.1, 0.25)
   }
-
-
-  // Death: 3ch — pitched vocal + descending saw trail + noise breath tail.
-  function preset_death() {
-    let vocal = _ch({
-      "mode": _pick([1, 2]), "pitch": _rand(200.0, 350.0), "length": 0.6,
-      "voice": _rand_int(1, 2), "detune": _rand(0.02, 0.05),
-      "ampAttack": 0.03, "ampDecay": 0.3, "ampSustain": 0.3, "ampRelease": 0.6,
-      "driveEnabled": true, "driveAmount": _rand(0.3, 0.5), "driveMix": 0.8,
-      "volume": 0.5, "level": 0.85,
-    })
-    Object.assign(vocal, _pitch_env_decay(-0.5, 0.8))
-    let trail = _ch({
-      "mode": 1, "pitch": _rand(120.0, 200.0), "length": 0.8,
-      "voice": 1, "detune": 0.0,
-      "ampAttack": 0.1, "ampDecay": 0.4, "ampSustain": 0.2, "ampRelease": 0.6,
-      "filterEnabled": true, "filterType": 0,
-      "filterCutoff": 500.0, "filterRes": 0.3,
-      "filterEnv": -0.3, "filterAttack": 0.0, "filterDecay": 0.7,
-      "volume": 0.4, "level": 0.65,
-    })
-    Object.assign(trail, _pitch_env_decay(-0.7, 1.0))
-    return {
-      "channels": [
-        vocal,
-        trail,
-        _lp_noise_tail(0.5, 400.0, 0.3, -0.2, 0.6, 0.3, 0.45),
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.2, "reverbSize": 0.4},
-    }
-  }
-
-
-  function preset_idle() {
-    let vocal = _ch({
-      "mode": _pick([1, 2]),
-      "pitch": _rand(120.0, 200.0),
-      "length": _rand(0.2, 0.35),
-      "voice": _rand_int(1, 2), "detune": _rand(0.0, 0.04),
-      "filterEnabled": true,
-      "filterType": 0, "filterCutoff": _rand(500.0, 900.0), "filterRes": _rand(0.2, 0.4),
-      "ampAttack": _rand(0.05, 0.15), "ampDecay": 0.3, "ampSustain": 0.5, "ampRelease": 0.4,
-      "volume": 0.4, "level": 0.85,
-    })
-    Object.assign(vocal, _pitch_env_rise(_rand(-0.15, 0.15), _rand(0.2, 0.5)))
-    let breath = _lp_noise_tail(
-      0.15, 400.0, 0.25, -0.2, 0.4, 0.25, 0.4)
-    return {
-      "channels": [vocal, breath],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.08, "reverbSize": 0.2},
-    }
-  }
-
-
-  // Roar: 3ch — noise breath transient + driven saw vocal body + sub rumble.
-  function preset_roar() {
-    let vocal = _ch({
-      "mode": 1, "pitch": _rand(70.0, 120.0), "length": 0.9,
-      "voice": _rand_int(2, 3), "detune": _rand(0.05, 0.1),
-      "ampAttack": 0.12, "ampDecay": 0.3, "ampSustain": 0.7, "ampRelease": 0.5,
-      "driveEnabled": true, "driveAmount": _rand(0.6, 0.85), "driveMix": 1.0,
-      "filterEnabled": true, "filterType": 0,
-      "filterCutoff": _rand(700.0, 1200.0), "filterRes": _rand(0.2, 0.4),
-      "filterEnv": 0.2, "filterAttack": 0.3, "filterDecay": 0.6,
-      "volume": 0.5, "level": 0.9,
-    })
-    Object.assign(vocal, _pitch_env_rise(0.15, 0.4))
-    let rumble = _ch({
-      "mode": 3, "pitch": _rand(35.0, 55.0), "length": 1.0, "voice": 1,
-      "ampAttack": 0.15, "ampDecay": 0.3, "ampSustain": 0.5, "ampRelease": 0.5,
-      "filterEnabled": true, "filterType": 0,
-      "filterCutoff": 180.0, "filterRes": 0.3,
-      "volume": 0.45, "level": 0.65,
-    })
-    return {
-      "channels": [
-        _lp_noise_tail(0.15, 600.0, 0.4, 0.3, 0.3, 0.45, 0.6),
-        vocal,
-        rumble,
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.15, "reverbSize": 0.35},
-    }
-  }
-
-
-  function preset_chitter() {
-    let tone = _ch({
-      "mode": _pick([0, 3]),
-      "pitch": _rand(1500.0, 2200.0),
-      "length": _rand(0.15, 0.3),
-      "voice": 1,
-      "arpEnabled": true,
-      "arpRate": _rand(30.0, 50.0),
-      "arpStep1": _pick([0, 3, 5]), "arpStep2": _pick([0, 5, 7]), "arpStep3": _pick([3, 5, 7]),
-      "ampAttack": 0.0, "ampDecay": 0.4, "ampSustain": 0.4, "ampRelease": 0.4,
-      "volume": 0.4, "level": 0.85,
-    })
-    let clicks = _hp_noise_transient(0.08, _rand(4000.0, 6000.0), 0.2, 0.3, 0.4)
-    clicks["tremEnabled"] = true
-    clicks["tremDepth"] = _rand(0.7, 0.9)
-    clicks["tremShape"] = 0
-    clicks["tremRate"] = _rand(30.0, 50.0)
-    clicks["tremAttack"] = 0.0
-    clicks["tremDecay"] = 1.0
-    return {
-      "channels": [tone, clicks],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.05, "reverbSize": 0.1},
-    }
-  }
-
-
-  function preset_squeak() {
-    let tone = _ch({
-      "mode": _pick([2, 3]),
-      "pitch": _rand(2000.0, 3000.0),
-      "length": _rand(0.06, 0.12),
-      "voice": 1,
-      "vibEnabled": true,
-      "pitchMod": _rand(0.1, 0.25), "modShape": 3, "modRate": _rand(40.0, 70.0),
-      "modAttack": 0.0, "modDecay": 1.0,
-      "volume": 0.4, "level": 0.85,
-    })
-    Object.assign(tone, ENV_DECAY_ONLY)
-    Object.assign(tone, _pitch_env_rise(_rand(0.2, 0.5), _rand(0.2, 0.4)))
-    let pop = _pitched_transient(3, _rand(3000.0, 4000.0), 0.015, 0.3, 0.4)
-    return {
-      "channels": [pop, tone],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.05, "reverbSize": 0.1},
-    }
-  }
-
-
-  function preset_flap() {
-    let wings = _ch({
-      "mode": 4, "pitch": 1000.0,
-      "length": _rand(0.4, 0.6), "voice": 1,
-      "tremEnabled": true,
-      "tremDepth": _rand(0.6, 0.9), "tremShape": _pick([0, 3]), "tremRate": _rand(8.0, 14.0),
-      "tremAttack": 0.0, "tremDecay": 1.0,
-      "filterEnabled": true,
-      "filterType": 0, "filterCutoff": _rand(400.0, 700.0), "filterRes": _rand(0.2, 0.4),
-      "ampAttack": _rand(0.03, 0.08), "ampDecay": 0.4, "ampSustain": 0.4, "ampRelease": 0.4,
-      "volume": 0.45, "level": 0.85,
-    })
-    let thump = _tonal_body(
-      3, _rand(60.0, 100.0), 0.04, 1, 0.0, 0.0, 0.0, 0.3, 0.4)
-    return {
-      "channels": [wings, thump],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.05, "reverbSize": 0.15},
-    }
-  }
-
-
-  function preset_slither() {
-    let body = _ch({
-      "mode": 4, "pitch": 1000.0,
-      "length": _rand(0.6, 1.0), "voice": 1,
-      "ampAttack": _rand(0.1, 0.2), "ampDecay": 0.4, "ampSustain": 0.5, "ampRelease": 0.5,
-      "filterEnabled": true,
-      "filterType": 0, "filterCutoff": _rand(200.0, 350.0), "filterRes": _rand(0.4, 0.6),
-      "filterEnv": _rand(0.3, 0.5), "filterAttack": _rand(0.2, 0.5), "filterDecay": _rand(0.5, 0.8),
-      "tremEnabled": true,
-      "tremDepth": _rand(0.3, 0.5), "tremShape": 3, "tremRate": _rand(3.0, 6.0),
-      "tremAttack": 0.0, "tremDecay": 1.0,
-      "volume": 0.4, "level": 0.85,
-    })
-    let hiss = _resonant_sweep(
-      0.5, _rand(4000.0, 6000.0), 0.2, -0.3, 0.6, 0.25, 0.4, 1)
-    return {
-      "channels": [body, hiss],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.05, "reverbSize": 0.1},
-    }
-  }
-  return { preset_yelp, preset_hurt, preset_death, preset_idle, preset_roar, preset_chitter, preset_squeak, preset_flap, preset_slither };
-})();
-
-// ── MOVEMENT (presets_movement.gd) ────────────────────
-GROUPS["MOVEMENT"] = (() => {
-
-  // Footsteps and locomotion. The MATERIAL distinguishes the sub-presets
-  // (wood / stone / metal / water) — each tweaks pitch, filter, and
-  // transient character to evoke that surface.
-
-
-  function preset_step_wood() {
-    let impact = _hp_noise_transient(0.02, _rand(1200.0, 1800.0), 0.25, 0.4, 0.6)
-    let resonance = _tonal_body(
-      0, _rand(150.0, 250.0), _rand(0.06, 0.1),
-      1, 0.0, 0.0, _rand(800.0, 1200.0), _rand(0.3, 0.45), 0.7)
-    return {
-      "channels": [impact, resonance],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.05, "reverbSize": 0.15},
-    }
-  }
-
-
-  function preset_step_stone() {
-    let click = _hp_noise_transient(0.015, _rand(2000.0, 3000.0), 0.3, 0.45, 0.65)
-    let body = _tonal_body(
-      4, _rand(200.0, 350.0), _rand(0.04, 0.08),
-      1, 0.0, 0.2, _rand(600.0, 900.0), _rand(0.35, 0.5), 0.7)
-    return {
-      "channels": [click, body],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.08, "reverbSize": 0.2},
-    }
-  }
-
-
-  function preset_step_metal() {
-    let ring = _ch({
-      "mode": 3, "pitch": _rand(900.0, 1400.0),
-      "length": _rand(0.05, 0.1), "voice": 2, "detune": 0.04,
-      "filterEnabled": true,
-      "filterType": 1, "filterCutoff": _rand(2000.0, 3500.0), "filterRes": _rand(0.3, 0.5),
-      "delayEnabled": true,
-      "delayTime": _rand(20.0, 50.0), "delayFeedback": _rand(0.2, 0.4), "delayMix": 0.3,
-      "volume": _rand(0.35, 0.5), "level": 0.8,
-    })
-    Object.assign(ring, ENV_DECAY_ONLY)
-    let click = _hp_noise_transient(0.01, _rand(3000.0, 5000.0), 0.2, 0.4, 0.55)
-    return {
-      "channels": [click, ring],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.1, "reverbSize": 0.25},
-    }
-  }
-
-
-  function preset_step_water() {
-    let splash = _ch({
-      "mode": 4, "pitch": 1000.0,
-      "length": _rand(0.1, 0.18), "voice": 1,
-      "filterEnabled": true,
-      "filterType": 0, "filterCutoff": _rand(300.0, 500.0), "filterRes": _rand(0.4, 0.6),
-      "filterEnv": _rand(0.4, 0.6), "filterAttack": 0.0, "filterDecay": _rand(0.5, 0.7),
-      "ampAttack": 0.0, "ampDecay": 0.5, "ampSustain": 0.3, "ampRelease": 0.5,
-      "volume": _rand(0.35, 0.5), "level": 0.85,
-    })
-    let bubble = _ch({
-      "mode": 3, "pitch": _rand(300.0, 500.0),
-      "length": 0.08, "voice": 1,
-      "volume": 0.25, "level": 0.4,
-    })
-    Object.assign(bubble, ENV_DECAY_ONLY)
-    Object.assign(bubble, _pitch_env_rise(_rand(0.3, 0.5), 0.6))
-    return {
-      "channels": [splash, bubble],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.08, "reverbSize": 0.2},
-    }
-  }
-
-
-  function preset_land() {
-    let thud = _tonal_body(
-      _pick([0, 3]), _rand(80.0, 150.0), _rand(0.1, 0.18),
-      1, 0.0, 0.0, _rand(400.0, 700.0), _rand(0.45, 0.6), 0.85)
-    Object.assign(thud, _pitch_env_decay(_rand(-0.4, -0.2), _rand(0.4, 0.6)))
-    let dust = _lp_noise_tail(
-      0.08, 500.0, 0.25, -0.2, 0.4, 0.3, 0.45)
-    return {
-      "channels": [
-        _hp_noise_transient(0.015, 2000.0, 0.15, 0.4, 0.55),
-        thud,
-        dust,
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.06, "reverbSize": 0.15},
-    }
-  }
-
-
-  // Slide: extended noise sweep with downward filter movement.
-  function preset_slide(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": 4,
-      "pitch": 1000.0,
-      "length": _rand(0.3, 0.5),
-      "voice": 1, "detune": 0.0,
-      "ampAttack": _rand(0.05, 0.1), "ampDecay": 0.3, "ampSustain": 0.4, "ampRelease": 0.5,
-      "filterEnabled": true,
-      "filterType": 0, "filterCutoff": _rand(800.0, 1400.0), "filterRes": _rand(0.3, 0.5),
-      "filterEnv": _rand(-0.6, -0.4), "filterAttack": 0.0, "filterDecay": _rand(0.6, 0.85),
-      "volume": _rand(0.35, 0.5),
-    }))
-  }
-
-
-  // Climb: rhythmic tremolo'd noise — stepping/grabbing in sequence.
-  function preset_climb(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": 4,
-      "pitch": 1000.0,
-      "length": _rand(0.2, 0.35),
-      "voice": 1, "detune": 0.0,
-      "filterEnabled": true,
-      "filterType": 1, "filterCutoff": _rand(700.0, 1100.0), "filterRes": _rand(0.2, 0.4),
-      "filterEnv": 0.0, "filterAttack": 0.0, "filterDecay": 0.5,
-      "tremEnabled": true,
-      "tremDepth": _rand(0.5, 0.8), "tremShape": 0, "tremRate": _rand(4.0, 8.0),
-      "tremAttack": 0.0, "tremDecay": 1.0,
-      "ampAttack": 0.0, "ampDecay": 0.4, "ampSustain": 0.4, "ampRelease": 0.4,
-      "volume": _rand(0.3, 0.45),
-    }))
-  }
-
-
-  // Jump-land: 3ch — noise impact + sub thump body + filtered debris.
-  function preset_jump_land() {
-    let thump = _tonal_body(0, _rand(60.0, 110.0), 0.2, _rand_int(1, 2),
-      _rand(0.0, 0.05), _rand(0.3, 0.5), _rand(350.0, 600.0), 0.55, 0.85)
-    Object.assign(thump, _pitch_env_decay(-0.4, 0.6))
-    return {
-      "channels": [
-        _hp_noise_transient(0.04, 1800.0, 0.25, 0.5, 0.75),
-        thump,
-        _lp_noise_tail(0.2, 500.0, 0.3, -0.2, 0.5, 0.35, 0.5),
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.1, "reverbSize": 0.2},
-    }
-  }
-
-
-  // Roll: tumbling noise — rapid tremolo on filtered noise.
-  function preset_roll(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": 4,
-      "pitch": 1000.0,
-      "length": _rand(0.4, 0.6),
-      "voice": 1, "detune": 0.0,
-      "ampAttack": _rand(0.05, 0.1), "ampDecay": 0.3, "ampSustain": 0.4, "ampRelease": 0.4,
-      "filterEnabled": true,
-      "filterType": 0, "filterCutoff": _rand(300.0, 500.0), "filterRes": _rand(0.3, 0.5),
-      "filterEnv": 0.0, "filterAttack": 0.0, "filterDecay": 0.5,
-      "tremEnabled": true,
-      "tremDepth": _rand(0.5, 0.8), "tremShape": 0, "tremRate": _rand(15.0, 25.0),
-      "tremAttack": 0.0, "tremDecay": 1.0,
-      "volume": _rand(0.35, 0.5),
-    }))
-  }
-  return { preset_step_wood, preset_step_stone, preset_step_metal, preset_step_water, preset_land, preset_slide, preset_climb, preset_jump_land, preset_roll };
-})();
-
-// ── DESTRUCT (presets_destruct.gd) ────────────────────
-GROUPS["DESTRUCT"] = (() => {
-
-  // Things breaking. Most use noise + HP-filter for the bright shatter
-  // transient, plus delay or short reverb-via-decay for the debris feel.
-
-
-  // Glass: 3ch — HP noise shatter + resonant sine ring + LP noise debris.
-  function preset_glass_break() {
-    let ring = _ch({
-      "mode": 3, "pitch": _rand(1800.0, 2800.0), "length": 0.35,
-      "voice": _rand_int(2, 3), "detune": _rand(0.03, 0.06),
-      "ampAttack": 0.0, "ampDecay": 0.3, "ampSustain": 0.3, "ampRelease": 0.6,
-      "filterEnabled": true, "filterType": 1,
-      "filterCutoff": _rand(1500.0, 2200.0), "filterRes": 0.4,
-      "volume": 0.4, "level": 0.75,
-    })
-    return {
-      "channels": [
-        _hp_noise_transient(0.05, _rand(2500.0, 4000.0), _rand(0.3, 0.5), 0.55, 0.85),
-        ring,
-        _lp_noise_tail(0.4, 600.0, 0.35, -0.3, 0.6, 0.4, 0.6),
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.15, "reverbSize": 0.35},
-    }
-  }
-
-
-  function preset_wood_crack() {
-    let body = _tonal_body(
-      _pick([0, 1]), _rand(200.0, 400.0), _rand(0.08, 0.15),
-      1, 0.0, _rand(0.5, 0.7), 0.0, _rand(0.45, 0.6), 0.8)
-    Object.assign(body, _pitch_env_decay(_rand(-0.4, -0.2), _rand(0.4, 0.6)))
-    return {
-      "channels": [
-        _hp_noise_transient(0.03, _rand(1800.0, 2800.0), 0.2, 0.5, 0.7),
-        body,
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.08, "reverbSize": 0.2},
-    }
-  }
-
-
-  function preset_stone_crack() {
-    let thud = _ch({
-      "mode": 4, "pitch": _rand(120.0, 200.0),
-      "length": _rand(0.15, 0.25), "voice": 1,
-      "driveEnabled": true, "driveAmount": _rand(0.4, 0.6), "driveMix": 0.8,
-      "filterEnabled": true,
-      "filterType": 0, "filterCutoff": _rand(500.0, 900.0), "filterRes": _rand(0.3, 0.5),
-      "filterEnv": _rand(-0.3, 0.0), "filterAttack": 0.0, "filterDecay": _rand(0.4, 0.6),
-      "volume": _rand(0.45, 0.6), "level": 0.85,
-    })
-    Object.assign(thud, ENV_DECAY_ONLY)
-    let crack = _hp_noise_transient(0.04, _rand(1500.0, 2200.0), 0.3, 0.5, 0.7)
-    return {
-      "channels": [crack, thud],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.1, "reverbSize": 0.25},
-    }
-  }
-
-
-  // Metal clang: 3ch — HP noise click + detuned sine ring + LP noise decay.
-  function preset_metal_clang() {
-    let ring = _ch({
-      "mode": 3, "pitch": _rand(800.0, 1400.0), "length": 0.5,
-      "voice": _rand_int(2, 3), "detune": _rand(0.03, 0.07),
-      "ampAttack": 0.0, "ampDecay": 0.3, "ampSustain": 0.4, "ampRelease": 0.6,
-      "filterEnabled": true, "filterType": 1,
-      "filterCutoff": _rand(1500.0, 2200.0), "filterRes": _rand(0.3, 0.5),
-      "delayEnabled": true,
-      "delayTime": _rand(60.0, 120.0), "delayFeedback": 0.5, "delayMix": 0.4,
-      "volume": 0.45, "level": 0.85,
-    })
-    return {
-      "channels": [
-        _hp_noise_transient(0.03, _rand(3000.0, 5000.0), 0.2, 0.5, 0.7),
-        ring,
-        _lp_noise_tail(0.35, 500.0, 0.3, -0.4, 0.5, 0.35, 0.5),
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.2, "reverbSize": 0.4},
-    }
-  }
-
-
-  // Rubble: 3ch — noise burst + tremolo'd body + long LP tail.
-  function preset_rubble() {
-    let body = _ch({
-      "mode": 4, "pitch": 1000.0, "length": 0.6, "voice": 1,
-      "ampAttack": 0.02, "ampDecay": 0.5, "ampSustain": 0.4, "ampRelease": 0.5,
-      "filterEnabled": true, "filterType": 0,
-      "filterCutoff": _rand(300.0, 500.0), "filterRes": _rand(0.2, 0.4),
-      "filterEnv": -0.2, "filterAttack": 0.0, "filterDecay": 0.7,
-      "tremEnabled": true,
-      "tremDepth": _rand(0.3, 0.5), "tremShape": 4, "tremRate": _rand(8.0, 15.0),
-      "tremAttack": 0.0, "tremDecay": 1.0,
-      "volume": 0.45, "level": 0.8,
-    })
-    return {
-      "channels": [
-        _hp_noise_transient(0.06, 1800.0, 0.3, 0.55, 0.75),
-        body,
-        _lp_noise_tail(0.8, 400.0, 0.3, -0.25, 0.8, 0.4, 0.55),
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.18, "reverbSize": 0.45},
-    }
-  }
-
-
-  function preset_rip() {
-    let tear = _ch({
-      "mode": 4, "pitch": 1000.0,
-      "length": _rand(0.2, 0.35), "voice": 1,
-      "ampAttack": 0.0, "ampDecay": 0.4, "ampSustain": 0.3, "ampRelease": 0.5,
-      "driveEnabled": true, "driveAmount": _rand(0.4, 0.6), "driveMix": 0.9,
-      "filterEnabled": true,
-      "filterType": 1, "filterCutoff": _rand(1500.0, 2500.0), "filterRes": _rand(0.4, 0.6),
-      "filterEnv": _rand(-0.5, -0.3), "filterAttack": 0.0, "filterDecay": _rand(0.5, 0.7),
-      "volume": _rand(0.4, 0.55), "level": 0.85,
-    })
-    let fizz = _lp_noise_tail(
-      0.15, 800.0, 0.3, -0.3, 0.4, 0.3, 0.45)
-    return {
-      "channels": [tear, fizz],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.05, "reverbSize": 0.15},
-    }
-  }
-
-
-  // Impact heavy: 3ch — pitched square impact + LP noise body + sub thump.
-  function preset_impact_heavy() {
-    let body = _tonal_body(0, _rand(50.0, 90.0), 0.2, _rand_int(1, 2),
-      _rand(0.0, 0.05), _rand(0.5, 0.7), _rand(300.0, 500.0), 0.55, 0.9)
-    Object.assign(body, _pitch_env_decay(-0.4, 0.6))
-    let sub = _pitched_transient(3, _rand(35.0, 55.0), 0.25, 0.5, 0.7)
-    return {
-      "channels": [
-        _hp_noise_transient(0.04, 1500.0, 0.25, 0.5, 0.7),
-        body,
-        sub,
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.1, "reverbSize": 0.25},
-    }
-  }
-
-
-  function preset_impact_light() {
-    let tap = _pitched_transient(
-      _pick([0, 3]), _rand(400.0, 700.0), _rand(0.04, 0.08),
-      _rand(0.35, 0.5), 0.8)
-    tap["filterEnabled"] = true
-    tap["filterType"] = 0
-    tap["filterCutoff"] = _rand(1500.0, 2500.0)
-    tap["filterRes"] = _rand(0.2, 0.4)
-    let click = _hp_noise_transient(0.01, 3500.0, 0.1, 0.3, 0.4)
-    return {
-      "channels": [click, tap],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.03, "reverbSize": 0.1},
-    }
-  }
-  return { preset_glass_break, preset_wood_crack, preset_stone_crack, preset_metal_clang, preset_rubble, preset_rip, preset_impact_heavy, preset_impact_light };
-})();
-
-// ── AMBIENT (presets_ambient.gd) ────────────────────
-GROUPS["AMBIENT"] = (() => {
-
-  // Sustained / textural sounds. Length defaults toward the long end
-  // (1–3 s) so each render is loop-tile-sized — for true infinite loops,
-  // extend via the LENGTH slider and crossfade-loop in the game engine.
-
-
-  // Wind: sustained LP-filtered noise with slow tremolo — outdoor ambience.
-  function preset_wind(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": 4,
-      "pitch": 1000.0,
-      "length": _rand(1.5, 2.5),
-      "voice": 1, "detune": 0.0,
-      "ampAttack": _rand(0.2, 0.4), "ampDecay": 0.3, "ampSustain": 0.7, "ampRelease": _rand(0.3, 0.5),
-      "filterEnabled": true,
-      "filterType": 0, "filterCutoff": _rand(250.0, 450.0), "filterRes": _rand(0.3, 0.5),
-      "filterEnv": _rand(-0.2, 0.2), "filterAttack": _rand(0.3, 0.6), "filterDecay": _rand(0.4, 0.7),
-      "tremEnabled": true,
-      "tremDepth": _rand(0.2, 0.4), "tremShape": 3, "tremRate": _rand(0.8, 2.0),
-      "tremAttack": 0.0, "tremDecay": 1.0,
-      "volume": 0.4,
-    }))
-  }
-
-
-  // Rain: HP-filtered noise — softer / brighter than wind.
-  function preset_rain(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": 4,
-      "pitch": 1000.0,
-      "length": _rand(1.5, 2.5),
-      "voice": 1, "detune": 0.0,
-      "ampAttack": _rand(0.15, 0.3), "ampDecay": 0.2, "ampSustain": 0.8, "ampRelease": _rand(0.3, 0.5),
-      "filterEnabled": true,
-      "filterType": 1, "filterCutoff": _rand(1500.0, 2500.0), "filterRes": _rand(0.2, 0.4),
-      "filterEnv": 0.0, "filterAttack": 0.0, "filterDecay": 0.5,
-      "volume": 0.35,
-    }))
-  }
-
-
-  // Fire crackle: noise + bit-crush + irregular tremolo — campfire pop.
-  function preset_fire_crackle(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": 4,
-      "pitch": 1000.0,
-      "length": _rand(1.0, 2.0),
-      "voice": 1, "detune": 0.0,
-      "ampAttack": _rand(0.05, 0.15), "ampDecay": 0.3, "ampSustain": 0.7, "ampRelease": 0.4,
-      "filterEnabled": true,
-      "filterType": 0, "filterCutoff": _rand(800.0, 1400.0), "filterRes": _rand(0.2, 0.4),
-      "filterEnv": 0.0, "filterAttack": 0.0, "filterDecay": 0.5,
-      "tremEnabled": true,
-      "tremDepth": _rand(0.6, 0.9), "tremShape": 4, "tremRate": _rand(20.0, 35.0),
-      "tremAttack": 0.0, "tremDecay": 1.0,
-      "crushEnabled": true,
-      "crushBits": _rand_int(6, 10), "crushRate": _rand_int(2, 5),
-      "volume": 0.4,
-    }))
-  }
-
-
-  // Electric hum: low square + drive — neon sign / mains hum / generator.
-  function preset_electric_hum(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": 0,
-      "pitch": _pick([60.0, 120.0, 240.0]),
-      "length": _rand(1.5, 2.5),
-      "voice": _rand_int(1, 2), "detune": _rand(0.0, 0.02),
-      "ampAttack": _rand(0.1, 0.2), "ampDecay": 0.2, "ampSustain": 0.85, "ampRelease": _rand(0.3, 0.5),
-      "driveEnabled": true, "driveAmount": _rand(0.2, 0.4), "driveMix": 0.7,
-      "filterEnabled": true,
-      "filterType": 0, "filterCutoff": _rand(700.0, 1200.0), "filterRes": _rand(0.4, 0.6),
-      "filterEnv": 0.0, "filterAttack": 0.0, "filterDecay": 0.5,
-      "tremEnabled": true,
-      "tremDepth": _rand(0.1, 0.25), "tremShape": 3, "tremRate": _rand(110.0, 130.0),
-      "tremAttack": 0.0, "tremDecay": 1.0,
-      "volume": 0.35,
-    }))
-  }
-
-
-  // Water drip: solitary high vibrato'd sine — cave drip, leaky pipe.
-  function preset_water_drip(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": 3,
-      "pitch": _rand(1200.0, 1800.0),
-      "length": _rand(0.2, 0.35),
-      "voice": 1, "detune": 0.0,
-      "pitchEnvEnabled": true,
-      "pitchEnv": _rand(-0.3, -0.1), "pitchAttack": 0.0, "pitchDecay": _rand(0.4, 0.6),
-      "vibEnabled": true,
-      "pitchMod": _rand(0.05, 0.15), "modShape": 3, "modRate": _rand(15.0, 25.0),
-      "modAttack": 0.0, "modDecay": _rand(0.5, 0.8),
-      "ampAttack": 0.0, "ampDecay": 0.5, "ampSustain": 0.0, "ampRelease": 0.5,
-      "volume": 0.4,
-    }))
-  }
-
-
-  // Engine idle: low square + slow tremolo — vehicle engine idling.
-  function preset_engine_idle(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": _pick([0, 1]),
-      "pitch": _rand(60.0, 100.0),
-      "length": _rand(1.5, 2.5),
-      "voice": _rand_int(2, 3), "detune": _rand(0.05, 0.08),
-      "ampAttack": _rand(0.15, 0.3), "ampDecay": 0.2, "ampSustain": 0.85, "ampRelease": _rand(0.3, 0.5),
-      "driveEnabled": true, "driveAmount": _rand(0.4, 0.6), "driveMix": 0.9,
-      "filterEnabled": true,
-      "filterType": 0, "filterCutoff": _rand(400.0, 700.0), "filterRes": _rand(0.3, 0.5),
-      "filterEnv": 0.0, "filterAttack": 0.0, "filterDecay": 0.5,
-      "tremEnabled": true,
-      "tremDepth": _rand(0.2, 0.4), "tremShape": 3, "tremRate": _rand(8.0, 15.0),
-      "tremAttack": 0.0, "tremDecay": 1.0,
-      "volume": 0.4,
-    }))
-  }
-  return { preset_wind, preset_rain, preset_fire_crackle, preset_electric_hum, preset_water_drip, preset_engine_idle };
-})();
-
-// ── MUSIC-UI (presets_music_ui.gd) ────────────────────
-GROUPS["MUSIC-UI"] = (() => {
-
-  // Stingers, transitions, and short musical cues. Use arpeggios with
-  // major / minor triads to convey mood.
-
-
-  function preset_stinger_win() {
-    let melody = _ch({
-      "mode": _pick([0, 3]), "pitch": _rand(440.0, 523.0), "length": 0.45,
-      "voice": 1,
-      "ampAttack": 0.0, "ampDecay": 0.2, "ampSustain": 0.6, "ampRelease": 0.5,
-      "arpEnabled": true,
-      "arpRate": 18.0, "arpStep1": 4, "arpStep2": 7, "arpStep3": 12,
-      "volume": 0.5, "level": 0.85,
-    })
-    let pad = _ch({
-      "mode": 3, "pitch": _rand(220.0, 261.0), "length": 0.5,
-      "voice": 3, "detune": 0.06,
-      "ampAttack": 0.05, "ampDecay": 0.2, "ampSustain": 0.5, "ampRelease": 0.6,
-      "filterEnabled": true, "filterType": 0, "filterCutoff": 3000.0, "filterRes": 0.1,
-      "volume": 0.3, "level": 0.65,
-    })
-    return {
-      "channels": [melody, pad],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.35, "reverbSize": 0.5},
-    }
-  }
-
-
-  function preset_stinger_lose() {
-    let melody = _ch({
-      "mode": _pick([0, 1]),
-      "pitch": _rand(300.0, 450.0),
-      "length": _rand(0.4, 0.6),
-      "voice": _rand_int(1, 2), "detune": _rand(0.0, 0.04),
-      "arpEnabled": true,
-      "arpRate": _rand(8.0, 14.0),
-      "arpStep1": -3, "arpStep2": -5, "arpStep3": -10,
-      "ampAttack": 0.0, "ampDecay": 0.3, "ampSustain": 0.5, "ampRelease": 0.5,
-      "volume": _rand(0.4, 0.55), "level": 0.85,
-    })
-    let sub = _ch({
-      "mode": 3, "pitch": _rand(100.0, 150.0),
-      "length": 0.5, "voice": 2, "detune": 0.05,
-      "ampAttack": 0.1, "ampDecay": 0.2, "ampSustain": 0.4, "ampRelease": 0.6,
-      "filterEnabled": true, "filterType": 0, "filterCutoff": 500.0, "filterRes": 0.15,
-      "volume": 0.3, "level": 0.55,
-    })
-    return {
-      "channels": [melody, sub],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.3, "reverbSize": 0.5},
-    }
-  }
-
-
-  // Fade-in: slow attack of a sustained tone — scene start / music swell.
-  function preset_fade_in(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": 3,
-      "pitch": _rand(200.0, 350.0),
-      "length": _rand(0.8, 1.4),
-      "voice": _rand_int(2, 3), "detune": _rand(0.03, 0.06),
-      "ampAttack": _rand(0.5, 0.7), "ampDecay": 0.1, "ampSustain": 0.85, "ampRelease": 0.0,
-      "volume": _rand(0.35, 0.5),
-    }))
-  }
-
-
-  // Fade-out: opposite of fade-in — release-heavy tail.
-  function preset_fade_out(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": 3,
-      "pitch": _rand(200.0, 350.0),
-      "length": _rand(0.8, 1.4),
-      "voice": _rand_int(2, 3), "detune": _rand(0.03, 0.06),
-      "ampAttack": _rand(0.05, 0.1), "ampDecay": 0.1, "ampSustain": 0.85, "ampRelease": _rand(0.6, 0.85),
-      "volume": _rand(0.35, 0.5),
-    }))
-  }
-
-
-  // Pause: short low square dip — generic "system halted" cue.
-  function preset_pause(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": 0,
-      "pitch": _rand(250.0, 400.0),
-      "length": _rand(0.15, 0.25),
-      "voice": 1, "detune": 0.0,
-      "pitchEnvEnabled": true,
-      "pitchEnv": _rand(-0.3, -0.15), "pitchAttack": 0.0, "pitchDecay": _rand(0.5, 0.7),
-      "ampAttack": 0.0, "ampDecay": 0.3, "ampSustain": 0.5, "ampRelease": 0.4,
-      "volume": 0.4,
-    }))
-  }
-
-
-  // Resume: short rising counterpart to PAUSE.
-  function preset_resume(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": 0,
-      "pitch": _rand(250.0, 400.0),
-      "length": _rand(0.15, 0.25),
-      "voice": 1, "detune": 0.0,
-      "pitchEnvEnabled": true,
-      "pitchEnv": _rand(0.2, 0.4), "pitchAttack": _rand(0.3, 0.5), "pitchDecay": 0.0,
-      "ampAttack": _rand(0.02, 0.06), "ampDecay": 0.3, "ampSustain": 0.6, "ampRelease": 0.4,
-      "volume": 0.4,
-    }))
-  }
-
-
-  function preset_fanfare() {
-    let melody = _ch({
-      "mode": _pick([0, 3]),
-      "pitch": _rand(350.0, 500.0),
-      "length": _rand(0.6, 0.9),
-      "voice": _rand_int(1, 2), "detune": _rand(0.0, 0.03),
-      "arpEnabled": true,
-      "arpRate": _rand(16.0, 24.0),
-      "arpStep1": 4, "arpStep2": 7, "arpStep3": 12,
-      "ampAttack": _rand(0.02, 0.06), "ampDecay": 0.2, "ampSustain": 0.7, "ampRelease": 0.5,
-      "volume": _rand(0.45, 0.6), "level": 0.85,
-    })
-    let pad = _ch({
-      "mode": 3, "pitch": _rand(175.0, 250.0),
-      "length": 0.7, "voice": 3, "detune": 0.06,
-      "ampAttack": 0.08, "ampDecay": 0.15, "ampSustain": 0.6, "ampRelease": 0.6,
-      "filterEnabled": true, "filterType": 0, "filterCutoff": 2500.0, "filterRes": 0.1,
-      "volume": 0.3, "level": 0.6,
-    })
-    return {
-      "channels": [melody, pad],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.35, "reverbSize": 0.5},
-    }
-  }
-  return { preset_stinger_win, preset_stinger_lose, preset_fade_in, preset_fade_out, preset_pause, preset_resume, preset_fanfare };
-})();
-
-// ── MODERN (presets_modern.gd) ────────────────────
-GROUPS["MODERN"] = (() => {
-
-  // Modern shooter / RPG game cues — heartbeat, low-health alerts, weapon
-  // handling clicks. Lean toward realism rather than chiptune.
-
-
-  // Heartbeat: 2ch — sub sine thump + filtered noise body resonance.
-  function preset_heartbeat() {
-    let thump = _ch({
-      "mode": 3, "pitch": _rand(50.0, 75.0), "length": 0.25, "voice": 1,
-      "filterEnabled": true, "filterType": 0,
-      "filterCutoff": _rand(150.0, 250.0), "filterRes": _rand(0.3, 0.5),
-      "volume": 0.55, "level": 0.9,
-    })
-    Object.assign(thump, ENV_DECAY_ONLY)
-    let body = _ch({
-      "mode": 4, "pitch": 1000.0, "length": 0.35, "voice": 1,
-      "filterEnabled": true, "filterType": 0,
-      "filterCutoff": 300.0, "filterRes": 0.5,
-      "filterEnv": -0.3, "filterAttack": 0.0, "filterDecay": 0.5,
-      "volume": 0.35, "level": 0.55,
-    })
-    Object.assign(body, ENV_DECAY_ONLY)
-    return {
-      "channels": [thump, body],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.08, "reverbSize": 0.2},
-    }
-  }
-
-
-  function preset_low_health() {
-    let pulse = _ch({
-      "mode": 0,
-      "pitch": _rand(180.0, 280.0),
-      "length": _rand(0.3, 0.5), "voice": 1,
-      "ampAttack": 0.0, "ampDecay": 0.4, "ampSustain": 0.3, "ampRelease": 0.4,
-      "filterEnabled": true,
-      "filterType": 2, "filterCutoff": _rand(700.0, 1200.0), "filterRes": _rand(0.55, 0.75),
-      "filterEnv": _rand(-0.3, 0.0), "filterAttack": 0.0, "filterDecay": _rand(0.4, 0.6),
-      "tremEnabled": true,
-      "tremDepth": _rand(0.4, 0.6), "tremShape": 3, "tremRate": _rand(2.5, 4.5),
-      "tremAttack": 0.0, "tremDecay": 1.0,
-      "volume": _rand(0.4, 0.55), "level": 0.85,
-    })
-    let sub = _ch({
-      "mode": 3, "pitch": _rand(50.0, 70.0),
-      "length": 0.25, "voice": 1,
-      "filterEnabled": true, "filterType": 0,
-      "filterCutoff": 200.0, "filterRes": 0.3,
-      "volume": 0.4, "level": 0.6,
-    })
-    Object.assign(sub, ENV_DECAY_ONLY)
-    return {
-      "channels": [pulse, sub],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.1, "reverbSize": 0.2},
-    }
-  }
-
-
-  // Reload: 3ch — HP noise click + sine ping ring + LP noise slide.
-  function preset_reload() {
-    let ping = _ch({
-      "mode": 3, "pitch": _rand(1200.0, 2000.0), "length": 0.15, "voice": 1,
-      "ampAttack": 0.0, "ampDecay": 0.3, "ampSustain": 0.2, "ampRelease": 0.5,
-      "filterEnabled": true, "filterType": 1,
-      "filterCutoff": _rand(1500.0, 2500.0), "filterRes": 0.4,
-      "volume": 0.4, "level": 0.7,
-    })
-    return {
-      "channels": [
-        _hp_noise_transient(0.03, _rand(3000.0, 5000.0), 0.25, 0.5, 0.8),
-        ping,
-        _lp_noise_tail(0.12, 800.0, 0.3, -0.3, 0.4, 0.35, 0.5),
-      ],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.05, "reverbSize": 0.15},
-    }
-  }
-
-
-  // Empty chamber: dry click — out-of-ammo / wrong-key feedback.
-  function preset_empty_chamber(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": 0,
-      "pitch": _rand(800.0, 1200.0),
-      "length": _rand(0.04, 0.07),
-      "voice": 1, "detune": 0.0,
-      "filterEnabled": true,
-      "filterType": 1, "filterCutoff": _rand(2500.0, 3500.0), "filterRes": _rand(0.2, 0.4),
-      "filterEnv": 0.0, "filterAttack": 0.0, "filterDecay": 0.5,
-      "ampAttack": 0.0, "ampDecay": 1.0, "ampSustain": 0.0, "ampRelease": 0.0,
-      "volume": _rand(0.35, 0.5),
-    }))
-  }
-
-
-  // Switch weapon: crisp slide — weapon swap / inventory tab change.
-  function preset_switch_weapon(params, locked) {
-    return _apply_target(params, locked, _off_with({
-      "mode": 4,
-      "pitch": 1000.0,
-      "length": _rand(0.1, 0.18),
-      "voice": 1, "detune": 0.0,
-      "ampAttack": 0.0, "ampDecay": 0.4, "ampSustain": 0.3, "ampRelease": 0.4,
-      "filterEnabled": true,
-      "filterType": 1, "filterCutoff": _rand(1500.0, 2500.0), "filterRes": _rand(0.3, 0.5),
-      "filterEnv": _rand(0.3, 0.6), "filterAttack": 0.0, "filterDecay": _rand(0.5, 0.7),
-      "volume": _rand(0.35, 0.5),
-    }))
-  }
-
-
-  function preset_cover_enter() {
-    let whoosh = _ch({
-      "mode": 4, "pitch": 1000.0,
-      "length": _rand(0.15, 0.25), "voice": 1,
-      "ampAttack": _rand(0.03, 0.08), "ampDecay": 0.3, "ampSustain": 0.4, "ampRelease": 0.4,
-      "filterEnabled": true,
-      "filterType": 0, "filterCutoff": _rand(400.0, 700.0), "filterRes": _rand(0.3, 0.5),
-      "filterEnv": _rand(-0.4, -0.2), "filterAttack": 0.0, "filterDecay": _rand(0.5, 0.7),
-      "volume": _rand(0.35, 0.5), "level": 0.85,
-    })
-    let thud = _tonal_body(
-      0, _rand(60.0, 100.0), 0.06, 1, 0.0, 0.0, 300.0, 0.35, 0.5)
-    return {
-      "channels": [whoosh, thud],
-      "master": {"masterVolume": 1.0, "reverbMix": 0.06, "reverbSize": 0.15},
-    }
-  }
-  return { preset_heartbeat, preset_low_health, preset_reload, preset_empty_chamber, preset_switch_weapon, preset_cover_enter };
+  return { preset_coin, preset_gems, preset_pickup, preset_level_up, preset_achievement, preset_quest, preset_game_over, preset_countdown, preset_heartbeat, preset_purchase, preset_jump, preset_powerup, preset_hurt };
 })();

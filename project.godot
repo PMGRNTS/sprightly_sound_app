@@ -15,7 +15,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="Hone"
-config/description="Multi-channel sound effect synthesizer with ADSR envelopes, filters, drive, delay, crush, reverb, flanger, chord stacking, and 90+ presets."
+config/description="Multi-channel sound effect synthesizer with ADSR envelopes, filters, drive, delay, crush, reverb, flanger, chord stacking, and 130+ layered presets."
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="uid://bqw81ib63p7mp"

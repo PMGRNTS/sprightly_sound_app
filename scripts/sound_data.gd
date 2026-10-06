@@ -26,14 +26,16 @@ enum {
 }
 
 # Per-parameter definitions. Module groupings live in MODULES.
+# PITCH reaches down to 1 Hz: a sub-audio square or saw is a click / pulse
+# train (crackle, rattles, engine firing) once filtered.
 const PARAM_DEFS: Dictionary = {
 	"volume":        {"label": "VOLUME",       "min": 0.0,    "max": 1.0,     "step": 0.01,  "fmt": FMT_DEC2},
 	"mode":          {"label": "MODE",         "min": 0.0,    "max": 6.0,     "step": 1.0,   "fmt": FMT_MODE},
-	"pitch":         {"label": "PITCH",        "min": 50.0,   "max": 4000.0,  "step": 1.0,   "fmt": FMT_HZ},
+	"pitch":         {"label": "PITCH",        "min": 1.0,    "max": 4000.0,  "step": 1.0,   "fmt": FMT_HZ},
 	"voice":         {"label": "VOICES",       "min": 1.0,    "max": 4.0,     "step": 1.0,   "fmt": FMT_INT},
-	"detune":        {"label": "DETUNE",       "min": 0.0,    "max": 0.2,     "step": 0.005, "fmt": FMT_DEC3},
+	"detune":        {"label": "DETUNE",       "min": 0.0,    "max": 0.2,     "step": 0.001, "fmt": FMT_DEC3},
 
-	"length":        {"label": "LENGTH",       "min": 0.05,   "max": 4.0,     "step": 0.01,  "fmt": FMT_SEC},
+	"length":        {"label": "LENGTH",       "min": 0.005,  "max": 4.0,     "step": 0.001, "fmt": FMT_SEC},
 	"ampAttack":     {"label": "ATTACK",       "min": 0.0,    "max": 1.0,     "step": 0.01,  "fmt": FMT_DEC2},
 	"ampDecay":      {"label": "DECAY",        "min": 0.0,    "max": 1.0,     "step": 0.01,  "fmt": FMT_DEC2},
 	"ampSustain":    {"label": "SUSTAIN",      "min": 0.0,    "max": 1.0,     "step": 0.01,  "fmt": FMT_DEC2},
@@ -198,7 +200,8 @@ static func format_value(param_key: String, value: float) -> String:
 		FMT_MS:
 			return "%dms" % int(round(value))
 		FMT_SEC:
-			return "%.2fs" % value
+			# Three decimals for sub-0.1 s transient layers (5–99 ms).
+			return ("%.3fs" if value < 0.1 else "%.2fs") % value
 		FMT_MODE:
 			var idx: int = clampi(int(round(value)), 0, MODES.size() - 1)
 			return MODES[idx]

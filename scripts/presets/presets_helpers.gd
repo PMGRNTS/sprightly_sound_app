@@ -1,10 +1,13 @@
 class_name PresetsHelpers
 extends RefCounted
 
-# Shared infrastructure for all preset groups. Patch presets call helpers
-# via the `H` alias in each per-group file (preload at the top of each
-# file). Sound presets and randomize_all live here too because they share
-# the same toolkit.
+# Shared infrastructure for all preset groups (each extends this class):
+# RNG helpers, lock handling, the sound-building toolkit (`_layer` plus
+# one small dict builder per module), and GEN / MUTATE.
+#
+# Every function here has a hand-written twin in docs/js/presets-helpers.js;
+# tools/convert_presets.py imports them into the generated JS presets, so
+# keep the two in step and add new names to the converter's import list.
 
 
 # ── RNG / picking ──────────────────────────────────────────────────
@@ -72,122 +75,135 @@ static func _off_with(extra: Dictionary) -> Dictionary:
 	return out
 
 
-# ── Shared envelope / channel helpers ──────────────────────────────
+# ── Sound-building toolkit ─────────────────────────────────────────
 
-# All-decay amp envelope: instant attack, full decay over the channel's
-# length, no sustain or release. The percussive "transient layer" shape
-# used in nearly every SHOOTER channel and most ARCADE one-shots.
-const ENV_DECAY_ONLY: Dictionary = {
-	"ampAttack": 0.0, "ampDecay": 1.0, "ampSustain": 0.0, "ampRelease": 0.0,
-}
+# Readable names for the `mode` and `filterType` ints.
+const SQR := 0
+const SAW := 1
+const TRI := 2
+const SIN := 3
+const NSE := 4
+const PNK := 5
+const BRN := 6
 
-
-# Pitch envelope that DECAYS away from the modulation peak. Negative
-# strength → downward sweep (laser/zap/explode). Positive strength → upward
-# transient that settles. pitchAttack=0; modulation begins at full value
-# and dies linearly over `decay` (a fraction of the channel length).
-static func _pitch_env_decay(strength: float, decay: float) -> Dictionary:
-	return {
-		"pitchEnvEnabled": true,
-		"pitchEnv": strength,
-		"pitchAttack": 0.0,
-		"pitchDecay": decay,
-	}
+const LP := 0
+const HP := 1
+const BP := 2
 
 
-# Pitch envelope that RISES into the modulation peak. Pitch starts at
-# base, ramps up over `attack`, then sustains. Used for "swell up" sounds
-# (jump, bubble) where the pitch climbs throughout the note.
-static func _pitch_env_rise(strength: float, attack: float) -> Dictionary:
-	return {
-		"pitchEnvEnabled": true,
-		"pitchEnv": strength,
-		"pitchAttack": attack,
-		"pitchDecay": 0.0,
-	}
-
-
-# HP-filtered short noise burst — the "snap" of a gunshot, click of a
-# headshot. Always all-decay envelope; pitch fixed at 1000 Hz (irrelevant
-# for noise mode). Tweak length / cutoff / res for character.
-static func _hp_noise_transient(length: float, cutoff: float, res: float, volume: float, level: float = 1.0) -> Dictionary:
-	var ch: Dictionary = _ch({
-		"mode": 4, "pitch": 1000.0, "length": length, "voice": 1,
-		"filterEnabled": true, "filterType": 1, "filterCutoff": cutoff, "filterRes": res,
-		"volume": volume, "level": level,
-	})
-	ch.merge(ENV_DECAY_ONLY, true)
-	return ch
-
-
-# LP-filtered noise tail — the "sizzle" / "sweep" after a transient. The
-# filter envelope opens or closes over the channel's life (positive
-# filter_env = brightening sweep, negative = darkening).
-static func _lp_noise_tail(length: float, cutoff: float, res: float, filter_env: float, filter_decay: float, volume: float, level: float = 1.0) -> Dictionary:
-	var ch: Dictionary = _ch({
-		"mode": 4, "pitch": 1000.0, "length": length, "voice": 1,
-		"filterEnabled": true, "filterType": 0, "filterCutoff": cutoff, "filterRes": res,
-		"filterEnv": filter_env, "filterAttack": 0.0, "filterDecay": filter_decay,
-		"volume": volume, "level": level,
-	})
-	ch.merge(ENV_DECAY_ONLY, true)
-	return ch
-
-
-# Build a channel by merging defaults with overrides + ALL_OFF. Used
-# exclusively by sound (multi-channel) presets.
-static func _ch(overrides: Dictionary) -> Dictionary:
+# Build a channel: defaults, then ALL_OFF, then `base`, then each module
+# dict in `mods` in order. The default amp envelope is instant attack +
+# full-length decay — the percussive shape most layers want.
+static func _layer(base: Dictionary, mods: Array = []) -> Dictionary:
 	var c: Dictionary = SoundData.clone_params()
 	c.merge(ALL_OFF, true)
-	c.merge(overrides, true)
+	c.merge(base, true)
+	for m in mods:
+		c.merge(m, true)
 	return c
 
 
-# Tonal body: pitched waveform with optional drive and LP filter.
-static func _tonal_body(mode: int, pitch: float, length: float, voices: int,
-		detune: float, drive: float, cutoff: float, volume: float,
-		level: float = 1.0) -> Dictionary:
-	var overrides: Dictionary = {
-		"mode": mode, "pitch": pitch, "length": length,
-		"voice": voices, "detune": detune,
-		"volume": volume, "level": level,
+# Wrap channels into a full Sound with a master reverb setting.
+static func _sound(channels: Array, reverb_mix: float, reverb_size: float, master_volume: float = 1.0) -> Dictionary:
+	return {
+		"channels": channels,
+		"master": {"masterVolume": master_volume, "reverbMix": reverb_mix, "reverbSize": reverb_size},
 	}
-	if drive > 0.0:
-		overrides.merge({"driveEnabled": true, "driveAmount": drive, "driveMix": 1.0}, true)
-	if cutoff > 0.0:
-		overrides.merge({
-			"filterEnabled": true, "filterType": 0,
-			"filterCutoff": cutoff, "filterRes": 0.2,
-		}, true)
-	var ch: Dictionary = _ch(overrides)
-	ch.merge(ENV_DECAY_ONLY, true)
-	return ch
 
 
-# Resonant sweep: bandpass or LP filter sweep for shimmer/texture layers.
-static func _resonant_sweep(length: float, cutoff: float, res: float,
-		filter_env: float, filter_decay: float, volume: float,
-		level: float = 1.0, filter_type: int = 2) -> Dictionary:
-	var ch: Dictionary = _ch({
-		"mode": 4, "pitch": 1000.0, "length": length, "voice": 1,
-		"filterEnabled": true, "filterType": filter_type,
-		"filterCutoff": cutoff, "filterRes": res,
-		"filterEnv": filter_env, "filterAttack": 0.0, "filterDecay": filter_decay,
-		"volume": volume, "level": level,
-	})
-	ch.merge(ENV_DECAY_ONLY, true)
-	return ch
+# ── Module dicts (pass in `_layer`'s mods array) ───────────────────
+
+# Amp ADSR; times are fractions of the channel length.
+static func _env(attack: float, decay: float, sustain: float, release: float) -> Dictionary:
+	return {"ampAttack": attack, "ampDecay": decay, "ampSustain": sustain, "ampRelease": release}
 
 
-# Pitched transient: very short tonal hit for clicky/thuddy attack layers.
-static func _pitched_transient(mode: int, pitch: float, length: float,
-		volume: float, level: float = 1.0) -> Dictionary:
-	var ch: Dictionary = _ch({
-		"mode": mode, "pitch": pitch, "length": length, "voice": 1,
-		"volume": volume, "level": level,
-	})
-	ch.merge(ENV_DECAY_ONLY, true)
-	return ch
+# Filter with an AD cutoff envelope (env ±1 ≈ ±4 octaves at its peak).
+static func _filt(ftype: int, cutoff: float, res: float, env: float = 0.0, attack: float = 0.0, decay: float = 0.5) -> Dictionary:
+	return {
+		"filterEnabled": true, "filterType": ftype, "filterCutoff": cutoff, "filterRes": res,
+		"filterEnv": env, "filterAttack": attack, "filterDecay": decay,
+	}
+
+
+static func _drive(amount: float, mix: float = 1.0) -> Dictionary:
+	return {"driveEnabled": true, "driveAmount": amount, "driveMix": mix}
+
+
+# Pitch envelope (amount ±1 ≈ ±2 octaves at its peak). attack 0 starts at
+# the peak and falls back to the base pitch over `decay`. The envelope
+# drops to zero once attack + decay has elapsed, so a rise that should
+# hold to the end uses attack 1.0, decay 0.0.
+static func _bend(amount: float, attack: float, decay: float) -> Dictionary:
+	return {"pitchEnvEnabled": true, "pitchEnv": amount, "pitchAttack": attack, "pitchDecay": decay}
+
+
+# Vibrato: depth is a ± frequency ratio (0.1 = ±10 %). A SAW shape gives
+# repeating upward sweeps (chirps); NSE gives a rough, gravelly voice.
+static func _vib(depth: float, rate: float, shape: int = SIN, attack: float = 0.0, decay: float = 1.0) -> Dictionary:
+	return {
+		"vibEnabled": true, "pitchMod": depth, "modShape": shape, "modRate": rate,
+		"modAttack": attack, "modDecay": decay,
+	}
+
+
+static func _trem(depth: float, rate: float, shape: int = SIN, attack: float = 0.0, decay: float = 1.0) -> Dictionary:
+	return {
+		"tremEnabled": true, "tremDepth": depth, "tremShape": shape, "tremRate": rate,
+		"tremAttack": attack, "tremDecay": decay,
+	}
+
+
+# Pulse train: a SAW tremolo restarts the amplitude at the top of every
+# cycle and ramps it down, so one channel becomes `rate` separate hits
+# per second (gunfire bursts, rattles, insect chirps, engine firing).
+# The gating fades as the tremolo envelope decays, so keep the hits in
+# the first half of the channel and let the amp envelope end them.
+static func _pulses(rate: float, depth: float = 1.0) -> Dictionary:
+	return _trem(depth, rate, SAW)
+
+
+# Late onset: hold a channel silent until `at` seconds, then hit hard and
+# ring for `ring` seconds. A square tremolo closes the gate for the first
+# half-cycle and opens it for the second (`at` → 2·`at`), and the amp
+# attack ramps up to peak right as it opens. `length` must be the
+# channel's length, and ~4× `at` or more: the gate leaks a little as the
+# tremolo envelope fades. Keep `ring` ≤ `at` so the layer dies before
+# the gate closes again.
+static func _at(at: float, length: float, ring: float) -> Dictionary:
+	var d: Dictionary = _trem(1.0, 0.5 / at, SQR)
+	d.merge(_env(at / length, ring / length, 0.0, 0.0), true)
+	return d
+
+
+# Note sequence: base, +s1, +s2, +s3 semitones, cycling at `rate` Hz.
+static func _arp(rate: float, s1: int, s2: int, s3: int) -> Dictionary:
+	return {"arpEnabled": true, "arpRate": rate, "arpStep1": s1, "arpStep2": s2, "arpStep3": s3}
+
+
+# Delay. With mix 1.0 and no feedback the echo plays at full level and
+# the dry hit at half — a cheap way to place a second event `ms` later
+# (heel-toe, knock-knock, a slide racking after a shot).
+static func _echo(ms: float, mix: float, feedback: float = 0.0) -> Dictionary:
+	return {"delayEnabled": true, "delayTime": ms, "delayFeedback": feedback, "delayMix": mix}
+
+
+static func _crush(bits: int, rate: int) -> Dictionary:
+	return {"crushEnabled": true, "crushBits": bits, "crushRate": rate}
+
+
+static func _flange(depth: float, rate: float, feedback: float, mix: float) -> Dictionary:
+	return {
+		"flangerEnabled": true, "flangerDepth": depth, "flangerRate": rate,
+		"flangerFeedback": feedback, "flangerMix": mix,
+	}
+
+
+# Chord: pitch-shifted copies of the rendered channel. Upward copies are
+# also time-compressed, so they die sooner — handy for bell and metal
+# partials, where the upper modes ring shorter than the fundamental.
+static func _chord(n1: int, n2: int, n3: int, mix: float) -> Dictionary:
+	return {"chordEnabled": true, "chordNote1": n1, "chordNote2": n2, "chordNote3": n3, "chordMix": mix}
 
 
 # ── Randomize-all (the GEN button) ──────────────────────────────────

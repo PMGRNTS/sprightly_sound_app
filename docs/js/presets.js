@@ -8,19 +8,21 @@ import { cloneMaster } from './sound-data.js';
 export { REGISTRY };
 export { effectiveLocks, randomizeAll, mutateChannel } from './presets-helpers.js';
 
-// Ten registry groups fold into five display tabs (presentation only —
+// Twelve registry groups fold into six display tabs (presentation only —
 // dispatch still uses the source group).
 export const PRESET_DISPLAY_GROUPS = {
-  SHOOTER: 'COMBAT',
-  DESTRUCT: 'COMBAT',
-  MODERN: 'COMBAT',
-  ARCADE: 'ARCADE',
-  'MUSIC-UI': 'ARCADE',
-  UI: 'UI',
+  FIREARM: 'COMBAT',
+  MELEE: 'COMBAT',
+  FOLEY: 'FOLEY',
+  IMPACT: 'FOLEY',
+  WEATHER: 'NATURE',
+  ANIMAL: 'NATURE',
   MAGIC: 'FANTASY',
-  CREATURE: 'FANTASY',
-  MOVEMENT: 'WORLD',
-  AMBIENT: 'WORLD',
+  MONSTER: 'FANTASY',
+  SCIFI: 'TECH',
+  MACHINE: 'TECH',
+  UI: 'UI',
+  GAME: 'UI',
 };
 
 export function runPreset(entry, params, locked) {

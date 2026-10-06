@@ -16,11 +16,12 @@ const d = (label, min, max, step, fmt) => ({ label, min, max, step, fmt });
 export const PARAM_DEFS = {
   volume:          d('VOLUME', 0, 1, 0.01, FMT.DEC2),
   mode:            d('MODE', 0, 6, 1, FMT.MODE),
-  pitch:           d('PITCH', 50, 4000, 1, FMT.HZ),
+  // Down to 1 Hz: a sub-audio square / saw is a click or pulse train.
+  pitch:           d('PITCH', 1, 4000, 1, FMT.HZ),
   voice:           d('VOICES', 1, 4, 1, FMT.INT),
-  detune:          d('DETUNE', 0, 0.2, 0.005, FMT.DEC3),
+  detune:          d('DETUNE', 0, 0.2, 0.001, FMT.DEC3),
 
-  length:          d('LENGTH', 0.05, 4, 0.01, FMT.SEC),
+  length:          d('LENGTH', 0.005, 4, 0.001, FMT.SEC),
   ampAttack:       d('ATTACK', 0, 1, 0.01, FMT.DEC2),
   ampDecay:        d('DECAY', 0, 1, 0.01, FMT.DEC2),
   ampSustain:      d('SUSTAIN', 0, 1, 0.01, FMT.DEC2),
@@ -169,7 +170,8 @@ export function formatValue(key, value) {
     case FMT.HZ: return value >= 1000 ? `${(value / 1000).toFixed(1)}kHz` : `${r}Hz`;
     case FMT.HZ1: return `${value.toFixed(1)}Hz`;
     case FMT.MS: return `${r}ms`;
-    case FMT.SEC: return `${value.toFixed(2)}s`;
+    // Three decimals for sub-0.1 s transient layers (5–99 ms).
+    case FMT.SEC: return `${value.toFixed(value < 0.1 ? 3 : 2)}s`;
     case FMT.MODE: return MODES[clamp(r, 0, MODES.length - 1)];
     case FMT.FILTER: return ['LP', 'HP', 'BP'][clamp(r, 0, 2)];
     case FMT.BITS: return `${r}BIT`;

@@ -18,16 +18,18 @@ const REGISTRY_PATH := "res://scripts/presets/registry.json"
 # Group → script mapping. Adding a new group is a one-line addition here
 # plus a new presets_<group>.gd file.
 const GROUP_CLASSES: Dictionary = {
-	"SHOOTER":  preload("res://scripts/presets/presets_shooter.gd"),
-	"ARCADE":   preload("res://scripts/presets/presets_arcade.gd"),
-	"UI":       preload("res://scripts/presets/presets_ui.gd"),
-	"MAGIC":    preload("res://scripts/presets/presets_magic.gd"),
-	"CREATURE": preload("res://scripts/presets/presets_creature.gd"),
-	"MOVEMENT": preload("res://scripts/presets/presets_movement.gd"),
-	"DESTRUCT": preload("res://scripts/presets/presets_destruct.gd"),
-	"AMBIENT":  preload("res://scripts/presets/presets_ambient.gd"),
-	"MUSIC-UI": preload("res://scripts/presets/presets_music_ui.gd"),
-	"MODERN":   preload("res://scripts/presets/presets_modern.gd"),
+	"FIREARM": preload("res://scripts/presets/presets_firearm.gd"),
+	"MELEE":   preload("res://scripts/presets/presets_melee.gd"),
+	"FOLEY":   preload("res://scripts/presets/presets_foley.gd"),
+	"IMPACT":  preload("res://scripts/presets/presets_impact.gd"),
+	"WEATHER": preload("res://scripts/presets/presets_weather.gd"),
+	"ANIMAL":  preload("res://scripts/presets/presets_animal.gd"),
+	"MAGIC":   preload("res://scripts/presets/presets_magic.gd"),
+	"MONSTER": preload("res://scripts/presets/presets_monster.gd"),
+	"SCIFI":   preload("res://scripts/presets/presets_scifi.gd"),
+	"MACHINE": preload("res://scripts/presets/presets_machine.gd"),
+	"UI":      preload("res://scripts/presets/presets_ui.gd"),
+	"GAME":    preload("res://scripts/presets/presets_game.gd"),
 }
 
 # Loaded once from registry.json at first class access. UI walks this to

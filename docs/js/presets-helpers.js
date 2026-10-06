@@ -51,74 +51,79 @@ export const ALL_OFF = {
 
 export const _off_with = (extra) => ({ ...ALL_OFF, ...extra });
 
-// ── Shared envelope / channel helpers ──────────────────────────────
+// ── Sound-building toolkit ─────────────────────────────────────────
 
-// Instant attack, full decay — the percussive "transient layer" shape.
-export const ENV_DECAY_ONLY = { ampAttack: 0.0, ampDecay: 1.0, ampSustain: 0.0, ampRelease: 0.0 };
+// Readable names for the `mode` and `filterType` ints.
+export const SQR = 0, SAW = 1, TRI = 2, SIN = 3, NSE = 4, PNK = 5, BRN = 6;
+export const LP = 0, HP = 1, BP = 2;
 
-// Pitch envelope that decays away from its peak (laser / zap / explode).
-export const _pitch_env_decay = (strength, decay) => ({
-  pitchEnvEnabled: true, pitchEnv: strength, pitchAttack: 0.0, pitchDecay: decay,
+// Defaults, then ALL_OFF, then `base`, then each module dict in order.
+// The default amp envelope is instant attack + full-length decay.
+export const _layer = (base, mods = []) => Object.assign(cloneParams(), ALL_OFF, base, ...mods);
+
+// Wrap channels into a full Sound with a master reverb setting.
+export const _sound = (channels, reverbMix, reverbSize, masterVolume = 1.0) => ({
+  channels, master: { masterVolume, reverbMix, reverbSize },
 });
 
-// Pitch envelope that rises into its peak, then holds (jump / bubble).
-export const _pitch_env_rise = (strength, attack) => ({
-  pitchEnvEnabled: true, pitchEnv: strength, pitchAttack: attack, pitchDecay: 0.0,
+// ── Module dicts (pass in `_layer`'s mods array) ───────────────────
+
+// Amp ADSR; times are fractions of the channel length.
+export const _env = (attack, decay, sustain, release) => ({
+  ampAttack: attack, ampDecay: decay, ampSustain: sustain, ampRelease: release,
 });
 
-// Defaults + ALL_OFF + overrides. Used by multi-channel sound presets.
-export const _ch = (overrides) => ({ ...cloneParams(), ...ALL_OFF, ...overrides });
+// Filter with an AD cutoff envelope (env ±1 ≈ ±4 octaves at its peak).
+export const _filt = (ftype, cutoff, res, env = 0.0, attack = 0.0, decay = 0.5) => ({
+  filterEnabled: true, filterType: ftype, filterCutoff: cutoff, filterRes: res,
+  filterEnv: env, filterAttack: attack, filterDecay: decay,
+});
 
-// HP-filtered short noise burst — the "snap" of a gunshot.
-export function _hp_noise_transient(length, cutoff, res, volume, level = 1.0) {
-  return {
-    ..._ch({
-      mode: 4, pitch: 1000.0, length, voice: 1,
-      filterEnabled: true, filterType: 1, filterCutoff: cutoff, filterRes: res,
-      volume, level,
-    }),
-    ...ENV_DECAY_ONLY,
-  };
-}
+export const _drive = (amount, mix = 1.0) => ({ driveEnabled: true, driveAmount: amount, driveMix: mix });
 
-// LP-filtered noise tail — the sizzle / sweep after a transient.
-export function _lp_noise_tail(length, cutoff, res, filterEnv, filterDecay, volume, level = 1.0) {
-  return {
-    ..._ch({
-      mode: 4, pitch: 1000.0, length, voice: 1,
-      filterEnabled: true, filterType: 0, filterCutoff: cutoff, filterRes: res,
-      filterEnv, filterAttack: 0.0, filterDecay,
-      volume, level,
-    }),
-    ...ENV_DECAY_ONLY,
-  };
-}
+// Pitch envelope (amount ±1 ≈ ±2 octaves at its peak). Drops to zero once
+// attack + decay has elapsed — a rise that holds uses attack 1, decay 0.
+export const _bend = (amount, attack, decay) => ({
+  pitchEnvEnabled: true, pitchEnv: amount, pitchAttack: attack, pitchDecay: decay,
+});
 
-// Tonal body: pitched waveform with optional drive and LP filter.
-export function _tonal_body(mode, pitch, length, voices, detune, drive, cutoff, volume, level = 1.0) {
-  const o = { mode, pitch, length, voice: voices, detune, volume, level };
-  if (drive > 0) Object.assign(o, { driveEnabled: true, driveAmount: drive, driveMix: 1.0 });
-  if (cutoff > 0) Object.assign(o, { filterEnabled: true, filterType: 0, filterCutoff: cutoff, filterRes: 0.2 });
-  return { ..._ch(o), ...ENV_DECAY_ONLY };
-}
+// Vibrato: depth is a ± frequency ratio. SAW = repeating upward sweeps,
+// NSE = rough, gravelly voice.
+export const _vib = (depth, rate, shape = SIN, attack = 0.0, decay = 1.0) => ({
+  vibEnabled: true, pitchMod: depth, modShape: shape, modRate: rate, modAttack: attack, modDecay: decay,
+});
 
-// Resonant sweep: bandpass / LP noise sweep for shimmer and texture.
-export function _resonant_sweep(length, cutoff, res, filterEnv, filterDecay, volume, level = 1.0, filterType = 2) {
-  return {
-    ..._ch({
-      mode: 4, pitch: 1000.0, length, voice: 1,
-      filterEnabled: true, filterType, filterCutoff: cutoff, filterRes: res,
-      filterEnv, filterAttack: 0.0, filterDecay,
-      volume, level,
-    }),
-    ...ENV_DECAY_ONLY,
-  };
-}
+export const _trem = (depth, rate, shape = SIN, attack = 0.0, decay = 1.0) => ({
+  tremEnabled: true, tremDepth: depth, tremShape: shape, tremRate: rate, tremAttack: attack, tremDecay: decay,
+});
 
-// Very short tonal hit for clicky / thuddy attack layers.
-export function _pitched_transient(mode, pitch, length, volume, level = 1.0) {
-  return { ..._ch({ mode, pitch, length, voice: 1, volume, level }), ...ENV_DECAY_ONLY };
-}
+// Pulse train: a SAW tremolo restarts the amplitude every cycle, so one
+// channel becomes `rate` separate hits per second. The gating fades as
+// the tremolo envelope decays — keep the hits early in the channel.
+export const _pulses = (rate, depth = 1.0) => _trem(depth, rate, SAW);
+
+// Late onset: silent until `at` s, then a hard hit ringing `ring` s. A
+// square tremolo gates the first half-cycle shut and opens `at` → 2·`at`;
+// the amp attack peaks as it opens. `length` is the channel's length
+// (≥ ~4× `at` — the gate leaks as the tremolo envelope fades).
+export const _at = (at, length, ring) => ({ ..._trem(1.0, 0.5 / at, SQR), ..._env(at / length, ring / length, 0.0, 0.0) });
+
+// Note sequence: base, +s1, +s2, +s3 semitones, cycling at `rate` Hz.
+export const _arp = (rate, s1, s2, s3) => ({ arpEnabled: true, arpRate: rate, arpStep1: s1, arpStep2: s2, arpStep3: s3 });
+
+// Delay. mix 1.0 + no feedback = full-level echo over a half-level dry
+// hit: places a second event `ms` later (heel-toe, knock-knock).
+export const _echo = (ms, mix, feedback = 0.0) => ({ delayEnabled: true, delayTime: ms, delayFeedback: feedback, delayMix: mix });
+
+export const _crush = (bits, rate) => ({ crushEnabled: true, crushBits: bits, crushRate: rate });
+
+export const _flange = (depth, rate, feedback, mix) => ({
+  flangerEnabled: true, flangerDepth: depth, flangerRate: rate, flangerFeedback: feedback, flangerMix: mix,
+});
+
+// Chord: pitch-shifted (and time-compressed) copies — upper partials die
+// sooner, as they do on bells and struck metal.
+export const _chord = (n1, n2, n3, mix) => ({ chordEnabled: true, chordNote1: n1, chordNote2: n2, chordNote3: n3, chordMix: mix });
 
 // ── MUTATE ─────────────────────────────────────────────────────────
 

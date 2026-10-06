@@ -24,22 +24,24 @@ const MODULE_ORDER := [
 	"crush", "flanger", "chord",
 ]
 
-# Preset-tab consolidation: ten registry groups bin into five display
+# Preset-tab consolidation: twelve registry groups bin into six display
 # groups so the panel shows fewer tabs. Done at the UI layer because
 # Presets.GROUP_CLASSES dispatches preset functions by the registry's
 # source group — keeping registry.json and the dispatcher untouched
 # means consolidation is purely a presentation concern.
 const PRESET_DISPLAY_GROUPS := {
-	"SHOOTER":  "COMBAT",
-	"DESTRUCT": "COMBAT",
-	"MODERN":   "COMBAT",
-	"ARCADE":   "ARCADE",
-	"MUSIC-UI": "ARCADE",
-	"UI":       "UI",
-	"MAGIC":    "FANTASY",
-	"CREATURE": "FANTASY",
-	"MOVEMENT": "WORLD",
-	"AMBIENT":  "WORLD",
+	"FIREARM": "COMBAT",
+	"MELEE":   "COMBAT",
+	"FOLEY":   "FOLEY",
+	"IMPACT":  "FOLEY",
+	"WEATHER": "NATURE",
+	"ANIMAL":  "NATURE",
+	"MAGIC":   "FANTASY",
+	"MONSTER": "FANTASY",
+	"SCIFI":   "TECH",
+	"MACHINE": "TECH",
+	"UI":      "UI",
+	"GAME":    "UI",
 }
 
 const PRESET_GRID_COLUMNS := 6
@@ -659,9 +661,9 @@ func refresh_preset_panel() -> void:
 		preset_tab_buttons[g] = tab_btn
 
 	# Bucket the entries first so we can size every grid to the TALLEST
-	# group. Groups differ by several rows (ARCADE has 25 entries, UI has
-	# 11), and without a common height the whole column — and everything
-	# below it — jumped by ~100 px on each tab click.
+	# group. Groups can differ by a row or more, and without a common
+	# height the whole column — and everything below it — jumped on each
+	# tab click.
 	var entries_by_group: Dictionary = {}
 	var max_rows: int = 0
 	for g in groups:
