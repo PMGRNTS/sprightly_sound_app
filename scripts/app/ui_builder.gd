@@ -24,7 +24,7 @@ const MODULE_ORDER := [
 	"crush", "flanger", "chord",
 ]
 
-# Preset-tab consolidation: twelve registry groups bin into six display
+# Preset-tab consolidation: thirteen registry groups bin into seven display
 # groups so the panel shows fewer tabs. Done at the UI layer because
 # Presets.GROUP_CLASSES dispatches preset functions by the registry's
 # source group — keeping registry.json and the dispatcher untouched
@@ -42,6 +42,7 @@ const PRESET_DISPLAY_GROUPS := {
 	"MACHINE": "TECH",
 	"UI":      "UI",
 	"GAME":    "UI",
+	"MATCH":   "MATCH",
 }
 
 const PRESET_GRID_COLUMNS := 6

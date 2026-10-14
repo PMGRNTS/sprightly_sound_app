@@ -8,7 +8,7 @@ import { cloneMaster } from './sound-data.js';
 export { REGISTRY };
 export { effectiveLocks, randomizeAll, mutateChannel } from './presets-helpers.js';
 
-// Twelve registry groups fold into six display tabs (presentation only —
+// Thirteen registry groups fold into seven display tabs (presentation only —
 // dispatch still uses the source group).
 export const PRESET_DISPLAY_GROUPS = {
   FIREARM: 'COMBAT',
@@ -23,6 +23,7 @@ export const PRESET_DISPLAY_GROUPS = {
   MACHINE: 'TECH',
   UI: 'UI',
   GAME: 'UI',
+  MATCH: 'MATCH',
 };
 
 export function runPreset(entry, params, locked) {

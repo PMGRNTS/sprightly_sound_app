@@ -30,6 +30,7 @@ const GROUP_CLASSES: Dictionary = {
 	"MACHINE": preload("res://scripts/presets/presets_machine.gd"),
 	"UI":      preload("res://scripts/presets/presets_ui.gd"),
 	"GAME":    preload("res://scripts/presets/presets_game.gd"),
+	"MATCH":   preload("res://scripts/presets/presets_match.gd"),
 }
 
 # Loaded once from registry.json at first class access. UI walks this to
