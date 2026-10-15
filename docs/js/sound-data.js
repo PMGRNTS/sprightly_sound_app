@@ -247,21 +247,73 @@ export function soundFromString(s) {
 
 // ── WAV encoding ───────────────────────────────────────────────────
 
+// Windowed-sinc resampler. Downsampling with plain interpolation folds
+// everything above the new Nyquist back down as inharmonic aliasing (noise,
+// hats and bright attacks turn gritty at 22.05 kHz), so this low-passes at
+// RESAMPLE_CUTOFF × the lower Nyquist while it interpolates. RESAMPLE_HALF
+// is the kernel half-width in output samples: wider = steeper transition.
+const RESAMPLE_HALF = 48;
+const RESAMPLE_CUTOFF = 0.92;
+
+function blackman(x) {
+  return 0.42 + 0.5 * Math.cos(Math.PI * x) + 0.08 * Math.cos(2 * Math.PI * x);
+}
+
+// Unity-gain taps for a source position `frac` past an integer index;
+// taps[k] weights source sample idx - half + 1 + k.
+function sincKernel(frac, half, fc) {
+  const taps = new Float64Array(2 * half);
+  let sum = 0;
+  for (let k = 0; k < taps.length; k++) {
+    const d = k - half + 1 - frac;
+    if (Math.abs(d) >= half) continue;
+    const x = 2 * fc * d;
+    const sinc = x === 0 ? 1 : Math.sin(Math.PI * x) / (Math.PI * x);
+    taps[k] = sinc * blackman(d / half);
+    sum += taps[k];
+  }
+  for (let k = 0; k < taps.length; k++) taps[k] /= sum;
+  return taps;
+}
+
 export function resample(samples, targetRate) {
   if (targetRate === SAMPLE_RATE) return samples;
   const ratio = SAMPLE_RATE / targetRate;
+  // Cutoff in cycles per source sample, below whichever Nyquist is lower.
+  const fc = 0.5 * RESAMPLE_CUTOFF * Math.min(1, 1 / ratio);
+  const half = Math.ceil(RESAMPLE_HALF * Math.max(1, ratio));
   const newLen = Math.floor(samples.length / ratio);
   const out = new Float32Array(newLen);
-  const last = samples.length - 1;
+  const n = samples.length;
+  // Integer ratios (44.1k → 22.05k) reuse one kernel for every sample.
+  let lastFrac = NaN;
+  let taps = null;
   for (let i = 0; i < newLen; i++) {
     const src = i * ratio;
     const idx = Math.floor(src);
     const frac = src - idx;
-    const s0 = samples[Math.min(idx, last)];
-    const s1 = samples[Math.min(idx + 1, last)];
-    out[i] = s0 + (s1 - s0) * frac;
+    if (frac !== lastFrac) {
+      taps = sincKernel(frac, half, fc);
+      lastFrac = frac;
+    }
+    const start = idx - half + 1;
+    const kLo = Math.max(0, -start);
+    const kHi = Math.min(taps.length, n - start);
+    let acc = 0;
+    for (let k = kLo; k < kHi; k++) acc += taps[k] * samples[start + k];
+    out[i] = acc;
   }
   return out;
+}
+
+// Small deterministic PRNG for dither, so the same sound always encodes to
+// the same bytes (and the shared preset RNG stream in rng.js is untouched).
+function ditherRng() {
+  let s = 0x2545f491;
+  return () => {
+    s ^= s << 13; s ^= s >>> 17; s ^= s << 5;
+    return (s >>> 0) / 4294967296;
+  };
 }
 
 export function encodeWav(samples, sampleRate = SAMPLE_RATE, bits = 16) {
@@ -285,12 +337,19 @@ export function encodeWav(samples, sampleRate = SAMPLE_RATE, bits = 16) {
   ascii(36, 'data');
   v.setUint32(40, dataSize, true);
   if (bits === 8) {
+    // 8-bit WAV is unsigned around 128. Plain rounding to 256 levels turns
+    // quiet tails into buzzy, signal-correlated distortion; ±1 LSB TPDF
+    // dither trades that for a steady, much less objectionable hiss. Exact
+    // digital silence stays silent.
+    const rand = ditherRng();
     for (let i = 0; i < src.length; i++) {
-      v.setUint8(44 + i, Math.trunc((clamp(src[i], -1, 1) + 1) * 0.5 * 255));
+      const x = clamp(src[i], -1, 1) * 127;
+      const dither = x === 0 ? 0 : rand() - rand();
+      v.setUint8(44 + i, clamp(Math.round(x + dither) + 128, 0, 255));
     }
   } else {
     for (let i = 0; i < src.length; i++) {
-      v.setInt16(44 + i * 2, Math.trunc(clamp(src[i], -1, 1) * 32767), true);
+      v.setInt16(44 + i * 2, Math.round(clamp(src[i], -1, 1) * 32767), true);
     }
   }
   return new Uint8Array(buf);
